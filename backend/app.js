@@ -5,6 +5,7 @@ const cors = require("cors");
 const path = require("path");
 
 const userRoutes = require("./routes/userRoutes");
+const studentRoutes = require("./routes/studentRoutes");
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 
 // API route
 app.use("/api/users", userRoutes);
+app.use("/api/students", studentRoutes);
 
 // Catch-all route cho React Router
 app.get("*", (req, res) => {
