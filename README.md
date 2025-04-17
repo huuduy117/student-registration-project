@@ -1,25 +1,25 @@
--- Mysql
+##Mysql
 https://dev.mysql.com/downloads/mysql/
--- MySQL Workbench
+##MySQL Workbench
 
---tree
+##tree
 
-student-registration-project/
-├── backend/
-│   ├── config/
-│   │   └── db.js            # Cấu hình kết nối MySQL
-│   ├── controllers/
-│   │   └── studentController.js  # Xử lý logic cho sinh viên
-│   ├── models/
-│   │   └── studentModel.js  # Câu lệnh SQL liên quan tới sinh viên
-│   ├── routes/
-│   │   └── studentRoutes.js # Khai báo API route
-│   ├── app.js               # File khởi động Express
-│   └── package.json         # Dependencies cho Node.js
-│
-├── frontend/
-│   ├── src/
-│   │   ├── assets/          # Hình ảnh, icon, CSS riêng
+##student-registration-project/
+##├── backend/
+##│   ├── config/
+##│   │   └── db.js            # Cấu hình kết nối MySQL
+##│   ├── controllers/
+##│   │   └── studentController.js  # Xử lý logic cho sinh viên
+##│   ├── models/
+##│   │   └── studentModel.js  # Câu lệnh SQL liên quan tới sinh viên
+##│   ├── routes/
+##│   │   └── studentRoutes.js # Khai báo API route
+##│   ├── app.js               # File khởi động Express
+##│   └── package.json         # Dependencies cho Node.js
+##│
+##├── frontend/
+##│   ├── src/
+##│   │   ├── assets/          # Hình ảnh, icon, CSS riêng
 │   │   ├── components/      # Component React tái sử dụng
 │   │   ├── pages/           # Các trang: Trang chủ, Đăng ký học phần
 │   │   ├── services/        # Gọi API tới backend (axios / fetch)
