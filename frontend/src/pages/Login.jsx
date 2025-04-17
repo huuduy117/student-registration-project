@@ -27,7 +27,7 @@ const Login = () => {
       );
 
       console.log(response.data);
-      navigate("/home");
+      navigate("/home", { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Đã có lỗi xảy ra!");
       setLoading(false);
