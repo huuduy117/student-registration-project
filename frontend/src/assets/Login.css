@@ -1,53 +1,77 @@
-.login-container {
+* {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 100%;
+  box-sizing: border-box;
+}
+
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #b7a3f7;
+}
+
+.login-card {
   width: 380px;
-  margin: 100px auto;
   padding: 30px;
-  background: linear-gradient(145deg, #ffffff, #f0f0f0);
+  background: #ffffff;
   border-radius: 20px;
-  box-shadow: 20px 20px 60px #d9d9d9, -20px -20px 60px #ffffff;
+  box-shadow: 20px 20px 60px rgba(0, 0, 0, 0.1),
+    -20px -20px 60px rgba(255, 255, 255, 0.7);
   transition: transform 0.3s ease;
 }
 
-.login-container:hover {
+.login-card:hover {
   transform: translateY(-5px);
 }
 
-.login-container h2 {
+.login-header {
   text-align: center;
-  margin-bottom: 30px;
-  color: #333;
-  font-size: 28px;
-  font-weight: 600;
-  position: relative;
-}
-
-.login-container h2::after {
-  content: "";
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 50px;
-  height: 3px;
-  background: linear-gradient(90deg, #4776e6, #8e54e9);
-  border-radius: 2px;
+  color: rgba(11, 17, 48, 0.64);
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 20px;
 }
 
 .form-group {
   margin-bottom: 20px;
-  position: relative;
 }
 
 .form-group label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
-  color: #555;
   font-weight: 500;
+  color: rgba(11, 17, 48, 0.64);
   font-size: 14px;
 }
 
-.login-container input {
-  width: 85%;
+.input-wrapper {
+  position: relative;
+}
+
+.signup-link {
+  color: #64379f;
+  text-decoration: none;
+  font-weight: 600;
+}
+.signup-text {
+  color: rgba(11, 17, 48, 0.64);
+  font-size: 14px;
+}
+
+.input-wrapper label {
+  color: rgb(11, 17, 48);
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.input-wrapper input {
+  width: 100%;
   padding: 12px 15px;
   border: 2px solid #e1e1e1;
   border-radius: 10px;
@@ -56,35 +80,14 @@
   background: #fff;
   outline: none;
 }
+.login-footer {
+  margin-top: 32px;
+  text-align: center;
+}
 
-.login-container input:focus {
+.input-wrapper input:focus {
   border-color: #4776e6;
   box-shadow: 0 0 0 3px rgba(71, 118, 230, 0.1);
-}
-
-.login-container button {
-  width: 100%;
-  padding: 12px;
-  background: linear-gradient(90deg, #4776e6, #8e54e9);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 20px;
-}
-
-.login-container button:hover:not(:disabled) {
-  background: linear-gradient(90deg, #4776e6, #8e54e9);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(71, 118, 230, 0.3);
-}
-
-.login-container button:disabled {
-  background: linear-gradient(90deg, #ccc, #999);
-  cursor: not-allowed;
 }
 
 .error-message {
@@ -111,24 +114,36 @@
   }
 }
 
-.input-wrapper {
-  position: relative;
-  margin-bottom: 20px;
+.login-button {
+  width: 100%;
+  padding: 12px;
+  background: #9854cb;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0px;
 }
 
-.input-wrapper input {
-  padding-left: 40px;
+.login-button:hover:not(:disabled) {
+  background: #ddacf5;
+  box-shadow: 0 5px 15px rgba(71, 118, 230, 0.3);
 }
 
-.input-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #666;
+.login-button:disabled {
+  background: linear-gradient(90deg, #ccc, #999);
+  cursor: not-allowed;
 }
 
-/* Loading animation for button */
+.loading {
+  background: linear-gradient(-45deg, #4776e6, #8e54e9, #4776e6);
+  background-size: 200% 200%;
+  animation: gradient 1.5s ease infinite;
+}
+
 @keyframes gradient {
   0% {
     background-position: 0% 50%;
@@ -139,10 +154,4 @@
   100% {
     background-position: 0% 50%;
   }
-}
-
-.loading {
-  background: linear-gradient(-45deg, #4776e6, #8e54e9, #4776e6);
-  background-size: 200% 200%;
-  animation: gradient 1.5s ease infinite;
 }
