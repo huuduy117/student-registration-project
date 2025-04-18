@@ -1,0 +1,97 @@
+.side-bar-wrapper {
+  width: 131px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 30px;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.side-bar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background-color: #fff;
+}
+
+.side-bar-avatar {
+  width: 60px;
+  height: 60px;
+  background-color: #fff;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  transition: all 0.3s ease;
+}
+
+.side-bar-user-name {
+  width: 100px;
+  height: 20px;
+  border-radius: 8px;
+  background-color: #ffffff;
+  text-align: center;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.side-bar-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  align-items: center;
+  background-color: white;
+  font-weight: 600;
+}
+
+.side-bar-main > div {
+  width: 80%;
+  height: 40px;
+  background-color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  padding-top: 10px;
+  transition: all 0.3s ease;
+}
+
+.side-bar-main > div:hover {
+  background-color: #9854cb;
+  transform: translateX(5px);
+}
+
+.side-bar-footer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  background-color: white;
+  padding: 20px;
+}
+
+.side-bar-footer > div {
+  transition: all 0.3s ease;
+}
+
+button.logout-button {
+  width: 100%;
+  padding: 12px;
+  background: #ffffff;
+  color: rgb(0, 0, 0);
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+button.logout-button:hover {
+  background-color: #9854cb;
+  transform: translateX(5px);
+}
