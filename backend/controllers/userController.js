@@ -21,7 +21,9 @@ const login = (req, res) => {
         user: { id: user.id, username: user.username },
       });
     } else {
-      return res.status(401).json({ message: "Sai mật khẩu" });
+      return res
+        .status(401)
+        .json({ message: "Kiểm tra lại tên đăng nhập hoặc mật khẩu" });
     }
   });
 };
