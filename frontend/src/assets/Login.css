@@ -63,10 +63,12 @@ form.login-form {
 .signup-link {
   color: #64379f;
   text-decoration: none;
+  background-color: #ffffff;
   font-weight: 600;
 }
 .signup-text {
   color: rgba(11, 17, 48, 0.64);
+  background-color: #ffffff;
   font-size: 14px;
 }
 
