@@ -6,3 +6,16 @@
   box-sizing: border-box;
   background-color: #f3f5f9;
 }
+
+/* Add responsive container */
+.home-container {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .home-container {
+    flex-direction: column;
+  }
+}

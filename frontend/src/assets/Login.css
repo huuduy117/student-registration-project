@@ -161,3 +161,23 @@ form.login-form {
     background-position: 0% 50%;
   }
 }
+
+@media (max-width: 480px) {
+  .login-card {
+    width: 90%;
+    padding: 20px;
+    margin: 20px;
+  }
+
+  .login-header {
+    font-size: 24px;
+  }
+
+  .input-wrapper input {
+    padding: 10px 12px;
+  }
+
+  .login-button {
+    padding: 10px;
+  }
+}
