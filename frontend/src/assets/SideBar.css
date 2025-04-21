@@ -9,89 +9,197 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding-top: 30px;
+  padding: 20px 0;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transition: all 0.3s ease-in-out;
 }
 
 .side-bar-header {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  padding: 0 15px 20px;
+  border-bottom: 1px solid #f0f0f0;
   background-color: #fff;
 }
 
 .side-bar-avatar {
   width: 60px;
   height: 60px;
-  background-color: #fff;
   border-radius: 50%;
-  border: 2px solid #fff;
-  transition: all 0.3s ease;
+  object-fit: cover;
+  border: 2px solid #f0f0f0;
 }
 
 .side-bar-user-name {
-  width: 100px;
-  height: 20px;
-  border-radius: 8px;
-  background-color: #ffffff;
-  text-align: center;
+  font-size: 14px;
   font-weight: 600;
-  transition: all 0.3s ease;
+  color: #333;
+  text-align: center;
+  background-color: #fff;
 }
 
 .side-bar-main {
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  align-items: center;
-  background-color: white;
-  font-weight: 600;
+  gap: 5px;
+  padding: 20px 15px;
+  background-color: #fff;
 }
 
-.side-bar-main > div {
-  width: 80%;
+.menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #333;
+}
+
+.menu-item:hover {
+  background-color: #f6f0ff;
+  color: #9854cb;
+  transform: translateX(5px);
+}
+
+.menu-item-icon {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  background: transparent;
+}
+
+.menu-item-icon svg {
+  background: transparent;
+}
+
+.menu-item-text {
+  font-size: 14px;
+  font-weight: 500;
+  background: transparent;
+}
+
+.mobile-menu-button {
+  display: none;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1100;
+  background: #ffffff;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
   height: 40px;
-  background-color: white;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-menu-button svg {
+  font-size: 24px;
+  color: #333;
+  background: transparent;
+}
+
+.menu-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+.logout-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  background: transparent;
+  border: none;
   border-radius: 8px;
   cursor: pointer;
-  text-align: center;
-  padding-top: 10px;
+  color: #333;
   transition: all 0.3s ease;
 }
 
-.side-bar-main > div:hover {
-  background-color: #9854cb;
+.logout-button:hover {
+  background-color: #fff0f0;
+  color: #dc3545;
   transform: translateX(5px);
 }
 
-.side-bar-footer {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  background-color: white;
-  padding: 20px;
+@media (max-width: 768px) {
+  .mobile-menu-button {
+    display: flex;
+  }
+
+  .side-bar-wrapper {
+    transform: translateX(-100%);
+    width: 250px;
+    padding: 20px 0;
+  }
+
+  .side-bar-wrapper.menu-open {
+    transform: translateX(0);
+  }
+
+  .menu-overlay {
+    display: block;
+  }
+
+  .side-bar-main {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  .side-bar-wrapper.menu-open .side-bar-main {
+    opacity: 1;
+  }
+
+  .menu-item {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  .side-bar-wrapper.menu-open .menu-item {
+    animation: slideIn 0.3s ease-out forwards;
+  }
+
+  .side-bar-wrapper.menu-open .menu-item:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+  .side-bar-wrapper.menu-open .menu-item:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .side-bar-wrapper.menu-open .menu-item:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .side-bar-wrapper.menu-open .menu-item:nth-child(4) {
+    animation-delay: 0.4s;
+  }
 }
 
-.side-bar-footer > div {
-  transition: all 0.3s ease;
-}
-
-button.logout-button {
-  width: 100%;
-  padding: 12px;
-  background: #ffffff;
-  color: rgb(0, 0, 0);
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-button.logout-button:hover {
-  background-color: #9854cb;
-  transform: translateX(5px);
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
