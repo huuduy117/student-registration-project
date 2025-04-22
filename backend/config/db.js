@@ -1,10 +1,10 @@
-// backend/config/db.js
+// config/db.js
 require("dotenv").config();
-
 const mysql = require("mysql2");
+const { MongoClient } = require("mongodb");
 
-// Create a MySQL connection using environment variables
-const connection = mysql.createConnection({
+// MySQL connection setup
+const mysqlConnection = mysql.createConnection({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
   user: process.env.DB_USER,
@@ -12,12 +12,28 @@ const connection = mysql.createConnection({
   database: process.env.DB_NAME,
 });
 
-connection.connect((err) => {
+mysqlConnection.connect((err) => {
   if (err) {
-    console.error("Error connecting to the database:", err);
+    console.error("Error connecting to MySQL database:", err);
   } else {
-    console.log("Connected to the database");
+    console.log("Connected to MySQL database");
   }
 });
 
-module.exports = connection;
+// MongoDB connection setup
+const connectMongoDB = async () => {
+  try {
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+
+    const mongoDB = client.db("message-storage");
+    console.log("Connected to MongoDB");
+
+    return mongoDB;
+  } catch (err) {
+    console.error("Error connecting to MongoDB:", err);
+    throw err;
+  }
+};
+
+module.exports = { mysqlConnection, connectMongoDB };
