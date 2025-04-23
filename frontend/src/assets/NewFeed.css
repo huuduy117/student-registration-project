@@ -288,3 +288,42 @@
     font-size: 20px;
   }
 }
+
+.pinned-requests-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.pinned-requests-section h3 {
+  font-size: 16px;
+  color: #555;
+  margin: 0 0 15px 0;
+}
+
+.pinned-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.pinned-requests-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pinned-requests-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.pinned-requests-list::-webkit-scrollbar-thumb {
+  background: #9854cb;
+  border-radius: 3px;
+}
+
+.pinned-requests-list::-webkit-scrollbar-thumb:hover {
+  background: #8445b9;
+}
