@@ -5,24 +5,35 @@ import "../assets/Chat.css";
 const Chat = ({ isFloating = false, sender = "user" }) => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [newMessage, setNewMessage] = useState("");
-  const { messages, sendMessage } = useChatSocket(selectedRoom?.id);
-
+  const { messages, sendMessage, loading, error } = useChatSocket(
+    selectedRoom?.id
+  );
   const handleSendMessage = (e) => {
     e.preventDefault();
+    console.log("Handle send message triggered");
+
     if (newMessage.trim() && selectedRoom) {
+      console.log("Preparing to send message in room:", selectedRoom.id);
+
       const message = {
         roomId: selectedRoom.id,
-        text: newMessage,
-        sender,
-        timestamp: new Date().toISOString(),
+        text: newMessage.trim(),
+        sender: sender,
       };
 
-      sendMessage(message); // Gửi tin nhắn qua WebSocket
-      setNewMessage(""); // Xóa input sau khi gửi tin nhắn
+      console.log("Sending message:", message);
+      sendMessage(message);
+      setNewMessage("");
+    } else {
+      console.log("Invalid message or no room selected:", {
+        newMessage,
+        selectedRoom,
+      });
     }
   };
 
   const handleRoomSelect = (room) => {
+    console.log("Selecting room:", room);
     setSelectedRoom(room);
   };
 
@@ -65,6 +76,12 @@ const Chat = ({ isFloating = false, sender = "user" }) => {
       </div>
 
       <div className="messages-container">
+        {loading && (
+          <div className="loading-message">Loading chat history...</div>
+        )}
+
+        {error && <div className="error-message">{error}</div>}
+
         {messages.map((message, index) => (
           <div
             key={index}
@@ -88,7 +105,11 @@ const Chat = ({ isFloating = false, sender = "user" }) => {
           placeholder="Type a message..."
           className="message-input"
         />
-        <button type="submit" className="send-button">
+        <button
+          type="submit"
+          className="send-button"
+          disabled={!newMessage.trim()}
+        >
           Send
         </button>
       </form>

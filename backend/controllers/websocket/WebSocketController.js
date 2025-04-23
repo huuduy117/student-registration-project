@@ -1,10 +1,90 @@
 const { WebSocketServer } = require("ws");
+const express = require("express");
 
 class WebSocketController {
   constructor(mongoDB) {
     this.wss = new WebSocketServer({ noServer: true });
     this.mongoDB = mongoDB;
-    this.setupWebSocketEvents();
+    this.router = express.Router();
+    this.setupRoutes();
+  }
+  setupRoutes() {
+    this.router.get("/history/:roomId", async (req, res) => {
+      try {
+        const { roomId } = req.params;
+        const messagesCollection = this.mongoDB.collection("messages");
+
+        const messages = await messagesCollection
+          .find({ roomId: String(roomId) })
+          .sort({ timestamp: -1 })
+          .limit(50)
+          .toArray();
+
+        const formattedMessages = messages.map((msg) => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(),
+        }));
+
+        res.json(formattedMessages.reverse());
+      } catch (error) {
+        console.error("Error fetching chat history:", error);
+        res.status(500).json({ error: "Failed to fetch chat history" });
+      }
+    });
+  }
+
+  async initialize() {
+    try {
+      await this.initializeMessageCollection();
+      this.setupWebSocketEvents();
+      return this.router;
+    } catch (error) {
+      console.error("Failed to initialize WebSocket controller:", error);
+      throw error;
+    }
+  }
+
+  async initializeMessageCollection() {
+    try {
+      const collections = await this.mongoDB.listCollections().toArray();
+      const messagesExists = collections.some((col) => col.name === "messages");
+
+      if (messagesExists) {
+        await this.mongoDB.collection("messages").drop();
+      }
+
+      await this.mongoDB.createCollection("messages", {
+        validator: {
+          $jsonSchema: {
+            bsonType: "object",
+            required: ["roomId", "text", "sender", "timestamp"],
+            properties: {
+              roomId: {
+                bsonType: "string",
+                description: "must be a string and is required",
+              },
+              text: {
+                bsonType: "string",
+                description: "must be a string and is required",
+              },
+              sender: {
+                bsonType: "string",
+                description: "must be a string and is required",
+              },
+              timestamp: {
+                bsonType: "date",
+                description: "must be a date and is required",
+              },
+            },
+          },
+        },
+      });
+
+      console.log("Messages collection initialized successfully");
+    } catch (error) {
+      console.error("Error initializing messages collection:", error);
+      throw error;
+    }
   }
 
   setupWebSocketEvents() {
@@ -12,41 +92,58 @@ class WebSocketController {
       console.log("Client connected to:", req.url);
 
       ws.on("message", async (message) => {
-        console.log(`[${req.url}] Received: ${message}`);
-
-        let messageText = message;
-        if (Buffer.isBuffer(message)) {
-          messageText = message.toString();
-        }
-
-        const sender = req.user ? req.user.username : "unknown";
-
-        if (sender === "unknown") {
-          console.error("Không thể lấy username từ request");
-        }
-
-        const messageObj = {
-          roomId: req.url.split("/")[2],
-          text: messageText,
-          sender: sender,
-          timestamp: new Date(),
-        };
-
-        console.log("Message object:", messageObj);
-
         try {
+          console.log("Received raw message:", message.toString());
+
+          let messageData = message;
+          if (Buffer.isBuffer(message)) {
+            messageData = message.toString();
+          }
+
+          const parsedMessage = JSON.parse(messageData);
+          console.log("Parsed message:", parsedMessage);
+
+          const messageObj = {
+            roomId: String(parsedMessage.roomId || ""),
+            text: String(parsedMessage.text || "").trim(),
+            sender: String(parsedMessage.sender || "unknown"),
+            timestamp: new Date(),
+          };
+
+          console.log("Formatted message object:", messageObj);
+
+          if (!messageObj.roomId || !messageObj.text) {
+            throw new Error("Missing required fields");
+          }
+
           const messagesCollection = this.mongoDB.collection("messages");
           await messagesCollection.insertOne(messageObj);
-          console.log("Message saved to MongoDB:", messageObj);
-        } catch (err) {
-          console.error("Error saving message to MongoDB:", err);
-        }
+          console.log("Message saved to database");
 
-        this.wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === 1) {
-            client.send(messageText);
-          }
-        });
+          const messageForClient = {
+            ...messageObj,
+            timestamp: messageObj.timestamp.toISOString(),
+          };
+
+          console.log("Broadcasting message to clients");
+          this.wss.clients.forEach((client) => {
+            if (client.readyState === 1) {
+              client.send(JSON.stringify(messageForClient));
+            }
+          });
+        } catch (error) {
+          console.error("Error processing message:", error);
+          ws.send(
+            JSON.stringify({
+              error: true,
+              message: "Failed to process message",
+            })
+          );
+        }
+      });
+
+      ws.on("error", (error) => {
+        console.error("WebSocket connection error:", error);
       });
 
       ws.on("close", () => {
