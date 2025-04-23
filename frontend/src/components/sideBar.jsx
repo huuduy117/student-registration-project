@@ -1,35 +1,31 @@
-import "../assets/SideBar.css";
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  FaSignOutAlt,
-  FaBars,
-  FaTimes,
-  FaHome,
-  FaBook,
-  FaCalendar,
-  FaCog,
-} from "react-icons/fa";
+"use client"
+
+import { useState } from "react"
+import "../assets/SideBar.css"
+import { useNavigate, Link } from "react-router-dom"
+import { FaSignOutAlt, FaBars, FaTimes, FaHome, FaBook, FaCalendar, FaCog, FaComments } from "react-icons/fa"
 
 export default function SideBar() {
-  const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/", { replace: true });
-  };
+    localStorage.removeItem("token")
+    localStorage.removeItem("username")
+    navigate("/", { replace: true })
+  }
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+    setIsMenuOpen(!isMenuOpen)
+  }
 
   const menuItems = [
-    { icon: <FaHome />, text: "Home" },
-    { icon: <FaBook />, text: "Courses" },
-    { icon: <FaCalendar />, text: "Schedule" },
-    { icon: <FaCog />, text: "Settings" },
-  ];
+    { icon: <FaHome />, text: "Home", path: "/home" },
+    { icon: <FaComments />, text: "Chat", path: "/chat" },
+    { icon: <FaBook />, text: "Courses", path: "#" },
+    { icon: <FaCalendar />, text: "Schedule", path: "#" },
+    { icon: <FaCog />, text: "Settings", path: "#" },
+  ]
 
   return (
     <>
@@ -39,19 +35,15 @@ export default function SideBar() {
 
       <div className={`side-bar-wrapper ${isMenuOpen ? "menu-open" : ""}`}>
         <div className="side-bar-header">
-          <img
-            alt="avatar"
-            src="https://placehold.co/52x52/png"
-            className="side-bar-avatar"
-          />
-          <div className="side-bar-user-name">Adu User</div>
+          <img alt="avatar" src="https://placehold.co/52x52/png" className="side-bar-avatar" />
+          <div className="side-bar-user-name">{localStorage.getItem("username") || "Adu User"}</div>
         </div>
         <nav className="side-bar-main">
           {menuItems.map((item, index) => (
-            <button key={index} className="menu-item">
+            <Link key={index} to={item.path} className="menu-item">
               <span className="menu-item-icon">{item.icon}</span>
               <span className="menu-item-text">{item.text}</span>
-            </button>
+            </Link>
           ))}
         </nav>
 
@@ -67,5 +59,5 @@ export default function SideBar() {
 
       {isMenuOpen && <div className="menu-overlay" onClick={toggleMenu}></div>}
     </>
-  );
+  )
 }

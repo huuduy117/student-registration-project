@@ -1,11 +1,22 @@
 "use client"
+import { FaThumbtack } from "react-icons/fa";
 
-const ClassRequestTicket = ({ request, onJoin, onViewParticipants, onViewDetails, onDelete, currentUser }) => {
+
+const ClassRequestTicket = ({
+  request,
+  onJoin,
+  onViewParticipants,
+  onViewDetails,
+  onTogglePin,
+  onDelete,
+  currentUser,
+  isPinned,
+}) => {
   // Check if current user has already joined
   const hasJoined = request.participants.some((p) => p.fullName === currentUser)
 
   return (
-    <div className="class-request-ticket">
+    <div className={`class-request-ticket ${isPinned ? "pinned" : ""}`}>
       <div className="ticket-header">
         <div className="ticket-title">{request.courseName}</div>
         <div className="ticket-creator">
@@ -43,6 +54,16 @@ const ClassRequestTicket = ({ request, onJoin, onViewParticipants, onViewDetails
           </button>
         </div>
       </div>
+
+      {onTogglePin && (
+        <button
+          className={`pin-ticket-button ${isPinned ? "pinned" : ""}`}
+          onClick={onTogglePin}
+          title={isPinned ? "Bỏ ghim" : "Ghim yêu cầu"}
+        >
+          <FaThumbTack />
+        </button>
+      )}
 
       {onDelete && (
         <button className="delete-ticket-button" onClick={onDelete} title="Xóa yêu cầu">

@@ -105,16 +105,28 @@
   margin: 5px 0;
 }
 
-.message.sent {
-  align-self: flex-end;
-  background-color: #9854cb;
-  color: white;
+.message-sender {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #555;
+  background-color: transparent;
 }
 
 .message.received {
   align-self: flex-start;
   background-color: #f0f2f5;
   color: #333;
+  border-top-left-radius: 4px;
+  max-width: 70%;
+}
+
+.message.sent {
+  align-self: flex-end;
+  background-color: #9854cb;
+  color: white;
+  border-top-right-radius: 4px;
+  max-width: 70%;
 }
 
 .message-content {
@@ -183,6 +195,36 @@
   font-size: 14px;
 }
 
+/* Add styles for pinned tickets and pin button */
+.class-request-ticket.pinned {
+  border-left: 4px solid #ff9800;
+  background-color: #fff8e1;
+}
+
+.pin-ticket-button {
+  position: absolute;
+  top: 10px;
+  right: 40px;
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transform: rotate(45deg);
+  transition: all 0.3s ease;
+}
+
+.pin-ticket-button.pinned {
+  color: #ff9800;
+  transform: rotate(0deg);
+}
+
+.pin-ticket-button:hover {
+  color: #ff9800;
+}
+
 @media (max-width: 768px) {
   .room-item {
     padding: 15px;
@@ -232,4 +274,9 @@
 
 .message {
   animation: slideIn 0.3s ease-out;
+}
+
+/* Add a subtle hover effect to messages */
+.message:hover {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }

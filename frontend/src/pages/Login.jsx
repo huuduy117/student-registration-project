@@ -1,34 +1,37 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { FaUser, FaLock } from "react-icons/fa";
-import "./../assets/Login.css";
+"use client"
+
+import { useState } from "react"
+import axios from "axios"
+import { useNavigate } from "react-router-dom"
+import { FaUser, FaLock } from "react-icons/fa"
+import "./../assets/Login.css"
 
 const Login = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+    e.preventDefault()
+    setLoading(true)
+    setError("")
 
     try {
-      const response = await axios.post(
-        "http://localhost:5000/api/users/login",
-        { username, password }
-      );
-      console.log(response.data);
-      navigate("/home", { replace: true });
+      const response = await axios.post("http://localhost:5000/api/users/login", { username, password })
+      console.log(response.data)
+
+      // Store username in localStorage for chat identification
+      localStorage.setItem("username", username)
+
+      navigate("/home", { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || "Đã có lỗi xảy ra!");
+      setError(err.response?.data?.message || "Đã có lỗi xảy ra!")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="login-wrapper">
@@ -67,11 +70,7 @@ const Login = () => {
 
           {error && <div className="error-message">{error}</div>}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`login-button ${loading ? "loading" : ""}`}
-          >
+          <button type="submit" disabled={loading} className={`login-button ${loading ? "loading" : ""}`}>
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
           <div className="login-footer">
@@ -86,7 +85,7 @@ const Login = () => {
         </form>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Login;
+export default Login
