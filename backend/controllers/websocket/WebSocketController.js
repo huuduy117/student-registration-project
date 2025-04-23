@@ -49,38 +49,37 @@ class WebSocketController {
       const collections = await this.mongoDB.listCollections().toArray();
       const messagesExists = collections.some((col) => col.name === "messages");
 
-      if (messagesExists) {
-        await this.mongoDB.collection("messages").drop();
-      }
-
-      await this.mongoDB.createCollection("messages", {
-        validator: {
-          $jsonSchema: {
-            bsonType: "object",
-            required: ["roomId", "text", "sender", "timestamp"],
-            properties: {
-              roomId: {
-                bsonType: "string",
-                description: "must be a string and is required",
-              },
-              text: {
-                bsonType: "string",
-                description: "must be a string and is required",
-              },
-              sender: {
-                bsonType: "string",
-                description: "must be a string and is required",
-              },
-              timestamp: {
-                bsonType: "date",
-                description: "must be a date and is required",
+      if (!messagesExists) {
+        await this.mongoDB.createCollection("messages", {
+          validator: {
+            $jsonSchema: {
+              bsonType: "object",
+              required: ["roomId", "text", "sender", "timestamp"],
+              properties: {
+                roomId: {
+                  bsonType: "string",
+                  description: "must be a string and is required",
+                },
+                text: {
+                  bsonType: "string",
+                  description: "must be a string and is required",
+                },
+                sender: {
+                  bsonType: "string",
+                  description: "must be a string and is required",
+                },
+                timestamp: {
+                  bsonType: "date",
+                  description: "must be a date and is required",
+                },
               },
             },
           },
-        },
-      });
-
-      console.log("Messages collection initialized successfully");
+        });
+        console.log("Messages collection created successfully");
+      } else {
+        console.log("Messages collection already exists");
+      }
     } catch (error) {
       console.error("Error initializing messages collection:", error);
       throw error;
