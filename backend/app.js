@@ -21,27 +21,37 @@ app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 app.use("/api/users", userRoutes);
 app.use("/api/students", studentRoutes);
 
-// React Router fallback
-app.get("*", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
-});
+// Initialize WebSocket and start server
+async function startServer() {
+  try {
+    const mongoDB = await connectMongoDB();
 
-// Kết nối MongoDB và khởi động server
-connectMongoDB()
-  .then((mongoDB) => {
+    // Initialize WebSocket controller
     const wsController = new WebSocketController(mongoDB);
 
+    // Initialize controller and get router
+    const chatRouter = await wsController.initialize();
+    // Add chat routes
+    app.use("/api/chat", chatRouter);
+
+    // Handle WebSocket upgrade requests
     server.on("upgrade", (request, socket, head) => {
       wsController.handleUpgrade(request, socket, head);
     });
+
+    // React Router fallback
+    app.get("*", (req, res) => {
+      res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
+    });
+
     const port = process.env.PORT || 5000;
     server.listen(port, () => {
       console.log(`Server đang chạy tại: http://localhost:${port}`);
     });
-  })
-  .catch((err) => {
-    console.error(
-      "Không thể kết nối MongoDB, server không thể khởi động!",
-      err
-    );
-  });
+  } catch (err) {
+    console.error("Không thể khởi động server:", err);
+    process.exit(1);
+  }
+}
+
+startServer();
