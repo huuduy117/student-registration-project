@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import useChatSocket from "../hook/useChatSocket";
 import "../assets/Chat.css";
 
@@ -8,32 +8,29 @@ const Chat = ({ isFloating = false, sender = "user" }) => {
   const { messages, sendMessage, loading, error } = useChatSocket(
     selectedRoom?.id
   );
+
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   const handleSendMessage = (e) => {
     e.preventDefault();
-    console.log("Handle send message triggered");
-
     if (newMessage.trim() && selectedRoom) {
-      console.log("Preparing to send message in room:", selectedRoom.id);
-
       const message = {
         roomId: selectedRoom.id,
         text: newMessage.trim(),
         sender: sender,
       };
-
-      console.log("Sending message:", message);
       sendMessage(message);
       setNewMessage("");
-    } else {
-      console.log("Invalid message or no room selected:", {
-        newMessage,
-        selectedRoom,
-      });
     }
   };
 
   const handleRoomSelect = (room) => {
-    console.log("Selecting room:", room);
     setSelectedRoom(room);
   };
 
@@ -79,7 +76,6 @@ const Chat = ({ isFloating = false, sender = "user" }) => {
         {loading && (
           <div className="loading-message">Loading chat history...</div>
         )}
-
         {error && <div className="error-message">{error}</div>}
 
         {messages.map((message, index) => (
@@ -95,6 +91,9 @@ const Chat = ({ isFloating = false, sender = "user" }) => {
             </div>
           </div>
         ))}
+
+        {/* Ref để scroll tới cuối */}
+        <div ref={messagesEndRef} />
       </div>
 
       <form onSubmit={handleSendMessage} className="message-form">

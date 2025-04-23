@@ -93,16 +93,12 @@ class WebSocketController {
 
       ws.on("message", async (message) => {
         try {
-          console.log("Received raw message:", message.toString());
-
           let messageData = message;
           if (Buffer.isBuffer(message)) {
             messageData = message.toString();
           }
 
           const parsedMessage = JSON.parse(messageData);
-          console.log("Parsed message:", parsedMessage);
-
           const messageObj = {
             roomId: String(parsedMessage.roomId || ""),
             text: String(parsedMessage.text || "").trim(),
@@ -110,24 +106,19 @@ class WebSocketController {
             timestamp: new Date(),
           };
 
-          console.log("Formatted message object:", messageObj);
-
           if (!messageObj.roomId || !messageObj.text) {
             throw new Error("Missing required fields");
           }
 
           const messagesCollection = this.mongoDB.collection("messages");
           await messagesCollection.insertOne(messageObj);
-          console.log("Message saved to database");
-
           const messageForClient = {
             ...messageObj,
             timestamp: messageObj.timestamp.toISOString(),
           };
 
-          console.log("Broadcasting message to clients");
           this.wss.clients.forEach((client) => {
-            if (client.readyState === 1) {
+            if (client !== ws && client.readyState === 1) {
               client.send(JSON.stringify(messageForClient));
             }
           });
@@ -140,10 +131,6 @@ class WebSocketController {
             })
           );
         }
-      });
-
-      ws.on("error", (error) => {
-        console.error("WebSocket connection error:", error);
       });
 
       ws.on("close", () => {
