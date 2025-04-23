@@ -120,12 +120,14 @@
 .message-content {
   margin-bottom: 4px;
   word-wrap: break-word;
+  background-color: transparent;
 }
 
 .message-timestamp {
   font-size: 11px;
   opacity: 0.7;
   text-align: right;
+  background-color: transparent;
 }
 
 .message-form {

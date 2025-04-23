@@ -36,7 +36,6 @@ const useChatSocket = (roomId) => {
 
     fetchChatHistory(roomId);
 
-    // Create WebSocket connection
     socket.current = new WebSocket(`ws://localhost:5000/chat/${roomId}`);
 
     socket.current.onopen = () => {
@@ -45,7 +44,6 @@ const useChatSocket = (roomId) => {
 
     socket.current.onmessage = (event) => {
       try {
-        console.log("Received message:", event.data);
         const message = JSON.parse(event.data);
 
         if (message.error) {
@@ -53,8 +51,15 @@ const useChatSocket = (roomId) => {
           return;
         }
 
-        setMessages((prev) => [...prev, message]);
-        console.log("Updated messages:", messages);
+        // Add message to state only if it's from another sender
+        if (
+          message &&
+          typeof message === "object" &&
+          message.text &&
+          message.roomId
+        ) {
+          setMessages((prev) => [...prev, message]);
+        }
       } catch (error) {
         console.error("Error handling message:", error);
       }
@@ -76,23 +81,13 @@ const useChatSocket = (roomId) => {
   }, [roomId]);
 
   const sendMessage = (message) => {
-    console.log("Attempting to send message:", message);
-
     if (!message || !message.text || !message.roomId) {
       console.error("Invalid message format:", message);
       return;
     }
 
-    if (!socket.current) {
-      console.error("No socket connection available");
-      return;
-    }
-
-    if (socket.current.readyState !== WebSocket.OPEN) {
-      console.error(
-        "WebSocket is not open. Current state:",
-        socket.current.readyState
-      );
+    if (!socket.current || socket.current.readyState !== WebSocket.OPEN) {
+      console.error("WebSocket is not open");
       return;
     }
 
@@ -101,17 +96,14 @@ const useChatSocket = (roomId) => {
         roomId: String(message.roomId),
         text: String(message.text).trim(),
         sender: String(message.sender || "unknown"),
-      };
-
-      console.log("Sending message:", messageToSend);
-      socket.current.send(JSON.stringify(messageToSend));
-
-      // Add message to local state immediately
-      const localMessage = {
-        ...messageToSend,
         timestamp: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, localMessage]);
+
+      // Add message to local state immediately
+      setMessages((prev) => [...prev, messageToSend]);
+
+      // Send message to server
+      socket.current.send(JSON.stringify(messageToSend));
     } catch (error) {
       console.error("Error sending message:", error);
     }
