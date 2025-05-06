@@ -1,37 +1,51 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import axios from "axios"
-import { useNavigate } from "react-router-dom"
-import { FaUser, FaLock } from "react-icons/fa"
-import "./../assets/Login.css"
+import { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { FaUser, FaLock } from "react-icons/fa";
+import "./../assets/Login.css";
+
+const API_URL = "http://localhost:5000"; // Define API URL directly in component for now
 
 const Login = () => {
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
     try {
-      const response = await axios.post("http://localhost:5000/api/users/login", { username, password })
-      console.log(response.data)
+      const response = await axios.post(`${API_URL}/api/users/login`, {
+        username,
+        password,
+      });
 
-      // Store username in localStorage for chat identification
-      localStorage.setItem("username", username)
+      const { token, user } = response.data;
 
-      navigate("/home", { replace: true })
+      // Store token and user info
+      localStorage.setItem("token", token);
+      localStorage.setItem("username", user.username);
+      localStorage.setItem("userRole", user.role);
+      localStorage.setItem("fullName", user.fullName);
+      localStorage.setItem("userId", user.id);
+
+      // Set axios default headers for subsequent requests
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      navigate("/home", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Đã có lỗi xảy ra!")
+      console.error("Login error:", err);
+      setError(err.response?.data?.message || "Đã có lỗi xảy ra!");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="login-wrapper">
@@ -70,22 +84,17 @@ const Login = () => {
 
           {error && <div className="error-message">{error}</div>}
 
-          <button type="submit" disabled={loading} className={`login-button ${loading ? "loading" : ""}`}>
+          <button
+            type="submit"
+            disabled={loading}
+            className={`login-button ${loading ? "loading" : ""}`}
+          >
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
-          <div className="login-footer">
-            <p className="signup-text">
-              Không có tài khoản?
-              <a href="#" className="signup-link">
-                {" "}
-                Đăng ký{" "}
-              </a>
-            </p>
-          </div>
         </form>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

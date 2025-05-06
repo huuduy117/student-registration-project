@@ -1,5 +1,6 @@
 // backend/controllers/userController.js
 const userModel = require("../models/userModel");
+const jwt = require("jsonwebtoken");
 
 const login = (req, res) => {
   const { username, password } = req.body;
@@ -15,10 +16,27 @@ const login = (req, res) => {
     }
 
     const user = results[0];
-    if (user.password === password) {
+    if (user.matKhau === password) {
+      // Create JWT token
+      const token = jwt.sign(
+        {
+          userId: user.maNguoiDung,
+          username: user.tenDangNhap,
+          role: user.loaiNguoiDung,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+
       return res.status(200).json({
         message: "Đăng nhập thành công",
-        user: { id: user.id, username: user.username },
+        user: {
+          id: user.maNguoiDung,
+          username: user.tenDangNhap,
+          fullName: user.hoTen,
+          role: user.loaiNguoiDung,
+        },
+        token,
       });
     } else {
       return res
