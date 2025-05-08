@@ -10,6 +10,11 @@ const ClassRequestForm = ({ onSubmit, onCancel, username }) => {
   });
   const [errors, setErrors] = useState({});
 
+  const tabId = sessionStorage.getItem("tabId");
+  const _AUTH_DATA = JSON.parse(
+    sessionStorage.getItem(`auth_${tabId}`) || "{}"
+  );
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -40,6 +45,7 @@ const ClassRequestForm = ({ onSubmit, onCancel, username }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
+      // xử lý logic với authData.username và authData.userId
       onSubmit(formData);
     }
   };

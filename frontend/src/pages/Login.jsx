@@ -8,6 +8,25 @@ import "./../assets/Login.css";
 
 const API_URL = "http://localhost:5000"; // Define API URL directly in component for now
 
+const getRoleBasedRedirect = (role) => {
+  switch (role) {
+    case "SinhVien":
+      return "/student-dashboard";
+    case "GiangVien":
+      return "/teacher-dashboard";
+    case "GiaoVu":
+      return "/academic-dashboard";
+    case "TruongBoMon":
+      return "/department-head-dashboard";
+    case "QuanTriVien":
+      return "/admin-dashboard";
+    case "TruongKhoa":
+      return "/faculty-head-dashboard";
+    default:
+      return "/home";
+  }
+};
+
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -27,18 +46,26 @@ const Login = () => {
       });
 
       const { token, user } = response.data;
+      const tabId = sessionStorage.getItem("tabId");
 
-      // Store token and user info
-      localStorage.setItem("token", token);
-      localStorage.setItem("username", user.username);
-      localStorage.setItem("userRole", user.role);
-      localStorage.setItem("fullName", user.fullName);
-      localStorage.setItem("userId", user.id);
+      // Lưu thông tin đăng nhập cho tab hiện tại
+      const sessionData = {
+        token,
+        userRole: user.role,
+        username: user.username,
+        fullName: user.fullName,
+        userId: user.id,
+        lastActivity: Date.now(),
+      };
 
-      // Set axios default headers for subsequent requests
+      sessionStorage.setItem(`auth_${tabId}`, JSON.stringify(sessionData));
+
+      // Set axios default headers cho tab hiện tại
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      navigate("/home", { replace: true });
+      // Redirect dựa trên role
+      const redirectPath = getRoleBasedRedirect(user.role);
+      navigate(redirectPath, { replace: true });
     } catch (err) {
       console.error("Login error:", err);
       setError(err.response?.data?.message || "Đã có lỗi xảy ra!");
