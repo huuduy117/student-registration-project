@@ -1,7 +1,6 @@
 "use client"
 import { FaThumbtack } from "react-icons/fa";
 
-
 const ClassRequestTicket = ({
   request,
   onJoin,
