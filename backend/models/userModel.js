@@ -1,4 +1,4 @@
-const { mysqlConnection } = require("../config/db");
+const { mysqlConnection } = require("../config/db")
 
 const findUserByUsername = (username, callback) => {
   const query = `
@@ -15,11 +15,11 @@ const findUserByUsername = (username, callback) => {
     FROM NguoiDung n
     LEFT JOIN SinhVien sv ON n.maNguoiDung = sv.maSV 
     LEFT JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
-    WHERE n.tenDangNhap = ?`;
+    WHERE n.tenDangNhap = ?`
 
-  mysqlConnection.query(query, [username], callback);
-};
+  mysqlConnection.query(query, [username], callback)
+}
 
 module.exports = {
   findUserByUsername,
-};
+}

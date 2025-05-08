@@ -1,37 +1,76 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-import { useSession } from "./hook/useSession";
-import Login from "./pages/Login";
-import Home from "./pages/Home";
-import ChatPage from "./pages/ChatPage";
-import StudentDashboard from "./pages/SinhVien";
-import TeacherDashboard from "./pages/GiangVien";
-import AcademicDashboard from "./pages/Giaovu";
-import DepartmentHeadDashboard from "./pages/TruongBoMon";
-import AdminDashboard from "./pages/QuanTriVien";
-import FacultyHeadDashboard from "./pages/TruongKhoa";
-import UnauthorizedPage from "./pages/404";
+"use client"
 
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
+import { useSession, useSessionMonitor } from "./hook/useSession"
+import { useEffect } from "react"
+import Login from "./pages/Login"
+import Home from "./pages/Home"
+import ChatPage from "./pages/ChatPage"
+import StudentDashboard from "./pages/SinhVien"
+import TeacherDashboard from "./pages/GiangVien"
+import AcademicDashboard from "./pages/Giaovu"
+import DepartmentHeadDashboard from "./pages/TruongBoMon"
+import AdminDashboard from "./pages/QuanTriVien"
+import FacultyHeadDashboard from "./pages/TruongKhoa"
+import UnauthorizedPage from "./pages/404"
+
+// Create a SessionMonitorWrapper component
+const SessionMonitorWrapper = ({ children }) => {
+  const tabId = useSession()
+
+  useEffect(() => {
+    const checkSession = () => {
+      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+
+      if (!authData.token) return
+
+      // Check if this user is logged in elsewhere with a newer timestamp
+      const allKeys = Object.keys(sessionStorage)
+      const authKeys = allKeys.filter((key) => key.startsWith("auth_") && key !== `auth_${tabId}`)
+
+      for (const key of authKeys) {
+        const otherAuthData = JSON.parse(sessionStorage.getItem(key) || "{}")
+
+        if (otherAuthData.username === authData.username && otherAuthData.lastActivity > authData.lastActivity) {
+          // Found a newer session for the same user
+          sessionStorage.removeItem(`auth_${tabId}`)
+          sessionStorage.setItem("logout_reason", "duplicate_login")
+          window.location.href = "/login"
+          break
+        }
+      }
+    }
+
+    const interval = setInterval(checkSession, 5000) // Check every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [tabId])
+
+  return children
+}
+
+// Update the PrivateRoute to use the SessionMonitorWrapper
 const PrivateRoute = ({ children, allowedRoles }) => {
-  const tabId = useSession();
+  const tabId = useSession()
 
   // Lấy thông tin xác thực của tab hiện tại
-  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
+  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
 
   if (!authData.token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace />
   }
 
   if (allowedRoles && !allowedRoles.includes(authData.userRole)) {
-    return <Navigate to="/unauthorized" replace />;
+    return <Navigate to="/unauthorized" replace />
   }
 
-  return children;
-};
+  return <SessionMonitorWrapper>{children}</SessionMonitorWrapper>
+}
+
+const SessionMonitor = () => {
+  useSessionMonitor()
+  return null
+}
 
 const App = () => {
   return (
@@ -50,7 +89,7 @@ const App = () => {
         />
 
         <Route
-          path="/chat"
+          path="/chat-page"
           element={
             <PrivateRoute allowedRoles={null}>
               <ChatPage />
@@ -120,7 +159,7 @@ const App = () => {
         <Route path="*" element={<Navigate to="/unauthorized" replace />} />
       </Routes>
     </Router>
-  );
-};
+  )
+}
 
-export default App;
+export default App
