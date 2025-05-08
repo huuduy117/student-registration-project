@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "../hook/useSession";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FaUser, FaLock } from "react-icons/fa";
@@ -33,6 +34,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const tabId = useSession();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -46,7 +48,6 @@ const Login = () => {
       });
 
       const { token, user } = response.data;
-      const tabId = sessionStorage.getItem("tabId");
 
       // Lưu thông tin đăng nhập cho tab hiện tại
       const sessionData = {
