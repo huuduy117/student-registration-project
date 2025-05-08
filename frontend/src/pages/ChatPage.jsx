@@ -1,30 +1,33 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { FaPlus, FaArrowLeft } from "react-icons/fa"
-import Chat from "./Chat"
-import ClassRequestForm from "../components/Chat/ClassRequestForm"
-import ClassRequestTicket from "../components/Chat/ClassRequestTicket"
-import ParticipantsList from "../components/Chat/ParticipantsList"
-import RequestDetails from "../components/Chat/RequestDetails"
-import JoinClassForm from "../components/Chat/JoinClassForm"
-import "../assets/ChatPage.css"
+import { useState, useEffect } from "react";
+import { FaPlus, FaArrowLeft } from "react-icons/fa";
+import SideBar from "../components/sideBar";
+import Chat from "./Chat";
+import ClassRequestForm from "../components/Chat/ClassRequestForm";
+import ClassRequestTicket from "../components/Chat/ClassRequestTicket";
+import ParticipantsList from "../components/Chat/ParticipantsList";
+import RequestDetails from "../components/Chat/RequestDetails";
+import JoinClassForm from "../components/Chat/JoinClassForm";
+import "../assets/ChatPage.css";
 
 const ChatPage = () => {
-  const [username, setUsername] = useState("Anonymous User")
-  const [showRequestForm, setShowRequestForm] = useState(false)
-  const [showJoinForm, setShowJoinForm] = useState(false)
-  const [showParticipants, setShowParticipants] = useState(false)
-  const [showDetails, setShowDetails] = useState(false)
-  const [selectedRequest, setSelectedRequest] = useState(null)
-  const [classRequests, setClassRequests] = useState([])
-  const [pinnedRequests, setPinnedRequests] = useState([])
+  const tabId = sessionStorage.getItem("tabId");
+  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
+  const [username, setUsername] = useState("Anonymous User");
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [classRequests, setClassRequests] = useState([]);
+  const [pinnedRequests, setPinnedRequests] = useState([]);
 
   useEffect(() => {
     // Get username from localStorage if available
-    const storedUser = localStorage.getItem("username")
+    const storedUser = localStorage.getItem("username");
     if (storedUser) {
-      setUsername(storedUser)
+      setUsername(storedUser);
     }
 
     // Load mock data for class requests
@@ -40,7 +43,11 @@ const ChatPage = () => {
         participantCount: 15,
         createdAt: new Date().toISOString(),
         participants: [
-          { studentId: "12345678", fullName: "Nguyễn Văn A", class: "12DHTH11" },
+          {
+            studentId: "12345678",
+            fullName: "Nguyễn Văn A",
+            class: "12DHTH11",
+          },
           { studentId: "87654321", fullName: "Trần Thị B", class: "12DHTH12" },
         ],
         isPinned: true,
@@ -61,11 +68,11 @@ const ChatPage = () => {
         ],
         isPinned: false,
       },
-    ]
+    ];
 
-    setClassRequests(mockRequests)
-    setPinnedRequests(mockRequests.filter((req) => req.isPinned))
-  }, [])
+    setClassRequests(mockRequests);
+    setPinnedRequests(mockRequests.filter((req) => req.isPinned));
+  }, []);
 
   const handleCreateRequest = (formData) => {
     const newRequest = {
@@ -86,15 +93,15 @@ const ChatPage = () => {
         },
       ],
       isPinned: true,
-    }
+    };
 
-    setClassRequests([newRequest, ...classRequests])
-    setPinnedRequests([newRequest, ...pinnedRequests])
-    setShowRequestForm(false)
-  }
+    setClassRequests([newRequest, ...classRequests]);
+    setPinnedRequests([newRequest, ...pinnedRequests]);
+    setShowRequestForm(false);
+  };
 
   const handleJoinRequest = (formData) => {
-    if (!selectedRequest) return
+    if (!selectedRequest) return;
 
     const updatedRequests = classRequests.map((req) => {
       if (req.id === selectedRequest.id) {
@@ -102,105 +109,85 @@ const ChatPage = () => {
           studentId: formData.studentId,
           fullName: formData.fullName,
           class: formData.class,
-        }
+        };
 
         // Check if user already joined
-        const alreadyJoined = req.participants.some((p) => p.studentId === formData.studentId)
+        const alreadyJoined = req.participants.some(
+          (p) => p.studentId === formData.studentId
+        );
 
         if (!alreadyJoined) {
           return {
             ...req,
             participantCount: req.participantCount + 1,
             participants: [...req.participants, newParticipant],
-          }
+          };
         }
       }
-      return req
-    })
+      return req;
+    });
 
-    setClassRequests(updatedRequests)
-    setPinnedRequests(updatedRequests.filter((req) => req.isPinned))
-    setShowJoinForm(false)
-  }
+    setClassRequests(updatedRequests);
+    setPinnedRequests(updatedRequests.filter((req) => req.isPinned));
+    setShowJoinForm(false);
+  };
 
   const handleViewParticipants = (request) => {
-    setSelectedRequest(request)
-    setShowParticipants(true)
-  }
+    setSelectedRequest(request);
+    setShowParticipants(true);
+  };
 
   const handleViewDetails = (request) => {
-    setSelectedRequest(request)
-    setShowDetails(true)
-  }
+    setSelectedRequest(request);
+    setShowDetails(true);
+  };
 
   const handleJoin = (request) => {
-    setSelectedRequest(request)
-    setShowJoinForm(true)
-  }
+    setSelectedRequest(request);
+    setShowJoinForm(true);
+  };
 
   const handleTogglePin = (requestId) => {
     const updatedRequests = classRequests.map((req) => {
       if (req.id === requestId) {
-        return { ...req, isPinned: !req.isPinned }
+        return { ...req, isPinned: !req.isPinned };
       }
-      return req
-    })
+      return req;
+    });
 
-    setClassRequests(updatedRequests)
-    setPinnedRequests(updatedRequests.filter((req) => req.isPinned))
-  }
+    setClassRequests(updatedRequests);
+    setPinnedRequests(updatedRequests.filter((req) => req.isPinned));
+  };
 
   return (
     <div className="chat-page-container">
-      <div className="chat-page-header">
-        <a href="/home" className="back-to-home">
-          <FaArrowLeft /> Back to Home
-        </a>
-        <h1>Chat & Class Requests</h1>
-      </div>
+      <SideBar />
+      <main className="chat-main">
+        <div className="chat-header">
+          <h1>Chat Room</h1>
+          <span className="current-user">
+            Logged in as: {authData.username}
+          </span>
+        </div>
+        <Chat />
+      </main>
 
-      <div className="chat-page-content">
-        <div className="chat-section">
-          <div className="chat-section-header">
-            <h2>Chat Rooms</h2>
-          </div>
-          <div className="chat-section-content">
-            <Chat username={username} />
-          </div>
+      <div className="requests-section">
+        <div className="requests-section-header">
+          <h2>Class Requests</h2>
+          <button
+            className="create-request-button"
+            onClick={() => setShowRequestForm(true)}
+          >
+            <FaPlus /> New Request
+          </button>
         </div>
 
-        <div className="requests-section">
-          <div className="requests-section-header">
-            <h2>Class Requests</h2>
-            <button className="create-request-button" onClick={() => setShowRequestForm(true)}>
-              <FaPlus /> New Request
-            </button>
-          </div>
-
-          {pinnedRequests.length > 0 && (
-            <div className="pinned-requests">
-              <h3>Pinned Requests</h3>
-              <div className="requests-list">
-                {pinnedRequests.map((request) => (
-                  <ClassRequestTicket
-                    key={request.id}
-                    request={request}
-                    onJoin={() => handleJoin(request)}
-                    onViewParticipants={() => handleViewParticipants(request)}
-                    onViewDetails={() => handleViewDetails(request)}
-                    onTogglePin={() => handleTogglePin(request.id)}
-                    currentUser={username}
-                    isPinned={true}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="all-requests">
-            <h3>All Requests</h3>
+        {pinnedRequests.length > 0 && (
+          <div className="pinned-requests">
+            <h3>Pinned Requests</h3>
             <div className="requests-list">
-              {classRequests.map((request) => (
+              {pinnedRequests.map((request) => (
                 <ClassRequestTicket
                   key={request.id}
                   request={request}
@@ -209,10 +196,28 @@ const ChatPage = () => {
                   onViewDetails={() => handleViewDetails(request)}
                   onTogglePin={() => handleTogglePin(request.id)}
                   currentUser={username}
-                  isPinned={request.isPinned}
+                  isPinned={true}
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        <div className="all-requests">
+          <h3>All Requests</h3>
+          <div className="requests-list">
+            {classRequests.map((request) => (
+              <ClassRequestTicket
+                key={request.id}
+                request={request}
+                onJoin={() => handleJoin(request)}
+                onViewParticipants={() => handleViewParticipants(request)}
+                onViewDetails={() => handleViewDetails(request)}
+                onTogglePin={() => handleTogglePin(request.id)}
+                currentUser={username}
+                isPinned={request.isPinned}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -226,18 +231,28 @@ const ChatPage = () => {
       )}
 
       {showJoinForm && selectedRequest && (
-        <JoinClassForm onSubmit={handleJoinRequest} onCancel={() => setShowJoinForm(false)} username={username} />
+        <JoinClassForm
+          onSubmit={handleJoinRequest}
+          onCancel={() => setShowJoinForm(false)}
+          username={username}
+        />
       )}
 
       {showParticipants && selectedRequest && (
-        <ParticipantsList request={selectedRequest} onClose={() => setShowParticipants(false)} />
+        <ParticipantsList
+          request={selectedRequest}
+          onClose={() => setShowParticipants(false)}
+        />
       )}
 
       {showDetails && selectedRequest && (
-        <RequestDetails request={selectedRequest} onClose={() => setShowDetails(false)} />
+        <RequestDetails
+          request={selectedRequest}
+          onClose={() => setShowDetails(false)}
+        />
       )}
     </div>
-  )
-}
+  );
+};
 
-export default ChatPage
+export default ChatPage;
