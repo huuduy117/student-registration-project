@@ -7,6 +7,7 @@ const { mysqlConnection, connectMongoDB } = require("./config/db");
 const userRoutes = require("./routes/userRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const WebSocketController = require("./controllers/websocket/WebSocketController");
+const teacherRoutes = require("./routes/teacherRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -21,6 +22,7 @@ app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 // API routes
 app.use("/api/users", userRoutes);
 app.use("/api/students", studentRoutes);
+app.use("/api/teachers", teacherRoutes);
 
 // Initialize WebSocket and start server
 async function startServer() {
