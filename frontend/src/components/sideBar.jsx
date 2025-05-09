@@ -1,37 +1,75 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import "../assets/SideBar.css"
-import { useNavigate, Link } from "react-router-dom"
-import { FaSignOutAlt, FaBars, FaTimes, FaHome, FaBook, FaCalendar, FaCog, FaComments } from "react-icons/fa"
-import { useSessionMonitor } from "../hook/useSession"
+import { useState } from "react";
+import "../assets/SideBar.css";
+import { useNavigate, Link } from "react-router-dom";
+import {
+  FaSignOutAlt,
+  FaBars,
+  FaTimes,
+  FaHome,
+  FaBook,
+  FaCalendar,
+  FaCog,
+  FaComments,
+} from "react-icons/fa";
+import { useSessionMonitor } from "../hook/useSession";
 
 export default function SideBar() {
-  const navigate = useNavigate()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const tabId = sessionStorage.getItem("tabId")
-  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const tabId = sessionStorage.getItem("tabId");
+  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
+  const userRole = authData.role || "guest";
 
   // Use the session monitor
-  useSessionMonitor()
+  useSessionMonitor();
 
   const handleLogout = () => {
     // Chỉ xóa thông tin đăng nhập của tab hiện tại
-    sessionStorage.removeItem(`auth_${tabId}`)
-    navigate("/login", { replace: true })
-  }
+    sessionStorage.removeItem(`auth_${tabId}`);
+    navigate("/login", { replace: true });
+  };
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen)
-  }
+    setIsMenuOpen(!isMenuOpen);
+  };
 
-  const menuItems = [
-    { icon: <FaHome />, text: "Home", path: "/home" },
-    { icon: <FaComments />, text: "Chat", path: "/chat" },
-    { icon: <FaBook />, text: "Courses", path: "#" },
-    { icon: <FaCalendar />, text: "Schedule", path: "#" },
-    { icon: <FaCog />, text: "Settings", path: "#" },
-  ]
+  let menuItems;
+
+  switch (userRole) {
+    case "admin":
+      menuItems = [
+        { icon: <FaHome />, text: "Home", path: "/home" },
+        { icon: <FaComments />, text: "Chat", path: "/chat" },
+        { icon: <FaBook />, text: "Courses", path: "#" },
+        { icon: <FaCalendar />, text: "Schedule", path: "#" },
+        { icon: <FaCog />, text: "Settings", path: "#" },
+      ];
+      break;
+    case "giaovu":
+      menuItems = [
+        { icon: <FaHome />, text: "Home", path: "/home" },
+        { icon: <FaComments />, text: "Chat", path: "/chat" },
+        { icon: <FaBook />, text: "Courses", path: "#" },
+        { icon: <FaCalendar />, text: "Schedule", path: "#" },
+        { icon: <FaCog />, text: "Settings", path: "#" },
+      ];
+      break;
+    case "sinhvien":
+      menuItems = [
+        { icon: <FaHome />, text: "Home", path: "/home" },
+        { icon: <FaComments />, text: "Chat", path: "/chat" },
+        { icon: <FaCalendar />, text: "Schedule", path: "#" },
+        { icon: <FaCog />, text: "Settings", path: "#" },
+      ];
+      break;
+    default:
+      menuItems = [
+        { icon: <FaHome />, text: "Home", path: "/home" },
+        { icon: <FaCog />, text: "Settings", path: "#" },
+      ];
+  }
 
   return (
     <>
@@ -41,8 +79,14 @@ export default function SideBar() {
 
       <div className={`side-bar-wrapper ${isMenuOpen ? "menu-open" : ""}`}>
         <div className="side-bar-header">
-          <img alt="avatar" src="https://placehold.co/52x52/png" className="side-bar-avatar" />
-          <div className="side-bar-user-name">{authData.username || "Guest"}</div>
+          <img
+            alt="avatar"
+            src="https://placehold.co/52x52/png"
+            className="side-bar-avatar"
+          />
+          <div className="side-bar-user-name">
+            {authData.username || "Guest"}
+          </div>
         </div>
         <nav className="side-bar-main">
           {menuItems.map((item, index) => (
@@ -65,5 +109,5 @@ export default function SideBar() {
 
       {isMenuOpen && <div className="menu-overlay" onClick={toggleMenu}></div>}
     </>
-  )
+  );
 }
