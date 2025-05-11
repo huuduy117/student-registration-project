@@ -6,7 +6,7 @@ services:
     container_name: mysql_server
     environment:
       MYSQL_ROOT_PASSWORD: huuduy5522
-      MYSQL_DATABASE: student_registration
+      MYSQL_DATABASE: dang_ky_hoc_phan
     ports:
       - "3307:3306"
     volumes:
