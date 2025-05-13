@@ -6,6 +6,7 @@ import { useEffect } from "react"
 import Login from "./pages/Login"
 import Home from "./pages/Home"
 import ChatPage from "./pages/ChatPage"
+import Schedule from "./pages/Schedule"
 import StudentDashboard from "./pages/SinhVien"
 import TeacherDashboard from "./pages/GiangVien"
 import AcademicDashboard from "./pages/Giaovu"
@@ -13,6 +14,7 @@ import DepartmentHeadDashboard from "./pages/TruongBoMon"
 import AdminDashboard from "./pages/QuanTriVien"
 import FacultyHeadDashboard from "./pages/TruongKhoa"
 import UnauthorizedPage from "./pages/404"
+import CreateClassRequest from "./pages/CreateClassRequest"
 
 // Create a SessionMonitorWrapper components
 const SessionMonitorWrapper = ({ children }) => {
@@ -93,6 +95,24 @@ const App = () => {
           element={
             <PrivateRoute allowedRoles={null}>
               <ChatPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/create-class-request"
+          element={
+            <PrivateRoute allowedRoles={["SinhVien"]}>
+              <CreateClassRequest />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/schedule"
+          element={
+            <PrivateRoute allowedRoles={null}>
+              <Schedule />
             </PrivateRoute>
           }
         />

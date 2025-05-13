@@ -11,7 +11,7 @@ export default function SideBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const tabId = sessionStorage.getItem("tabId")
   const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
-  const userRole = authData.role || "guest"
+  const userRole = authData.userRole || "guest"
 
   // Use the session monitor
   useSessionMonitor()
@@ -33,33 +33,26 @@ export default function SideBar() {
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
+        { icon: "📅", text: "Lịch học", path: "/schedule" },
         { icon: "📚", text: "Courses", path: "#" },
-        { icon: "📅", text: "Schedule", path: "#" },
         { icon: "⚙️", text: "Settings", path: "#" },
       ]
       break
-    case "giaovu":
+    case "SinhVien":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
-        { icon: "📚", text: "Courses", path: "#" },
-        { icon: "📅", text: "Schedule", path: "#" },
-        { icon: "⚙️", text: "Settings", path: "#" },
-      ]
-      break
-    case "sinhvien":
-      menuItems = [
-        { icon: "🏠", text: "Home", path: "/home" },
-        { icon: "💬", text: "Chat", path: "/chat-page" },
-        { icon: "📅", text: "Schedule", path: "#" },
-        { icon: "⚙️", text: "Settings", path: "#" },
+        { icon: "📅", text: "Lịch học", path: "/schedule" },
+        { icon: "📚", text: "Khóa học", path: "/student-dashboard" },
+        { icon: "⚙️", text: "Cài đặt", path: "#" },
       ]
       break
     default:
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
-        { icon: "⚙️", text: "Settings", path: "#" },
+        { icon: "📅", text: "Lịch học", path: "/schedule" },
+        { icon: "⚙️", text: "Cài đặt", path: "#" },
       ]
   }
 

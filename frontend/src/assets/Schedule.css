@@ -1,0 +1,193 @@
+.schedule-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.schedule-header {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.schedule-header h1 {
+  font-size: 24px;
+  color: #333;
+  margin: 0;
+}
+
+.schedule-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.control-button {
+  padding: 8px 16px;
+  background-color: #f0f2f5;
+  border: none;
+  border-radius: 6px;
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.control-button:hover {
+  background-color: #e4e6e9;
+}
+
+.control-button.current {
+  background-color: #9854cb;
+  color: white;
+}
+
+.control-button.current:hover {
+  background-color: #8445b9;
+}
+
+.week-display {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  padding: 8px 0;
+}
+
+.schedule-table-container {
+  overflow-x: auto;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid #eee;
+  padding: 10px;
+  text-align: center;
+  vertical-align: top;
+}
+
+.time-column {
+  width: 100px;
+  background-color: #f8f9fa;
+}
+
+.day-column {
+  width: calc((100% - 100px) / 7);
+  background-color: #f8f9fa;
+}
+
+.day-name {
+  font-weight: 600;
+  color: #333;
+  text-transform: capitalize;
+}
+
+.day-date {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.time-period {
+  font-weight: 600;
+  color: #333;
+  background-color: #f8f9fa;
+}
+
+.schedule-cell {
+  height: 150px;
+  vertical-align: top;
+  padding: 10px;
+}
+
+.class-item {
+  background-color: #f0f7ff;
+  border-left: 3px solid #9854cb;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  text-align: left;
+  transition: all 0.3s ease;
+}
+
+.class-item:hover {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.class-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.class-code {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.class-time {
+  font-size: 12px;
+  color: #9854cb;
+  margin-bottom: 4px;
+}
+
+.class-location {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.class-teacher {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.loading-message {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.error-message {
+  text-align: center;
+  padding: 10px;
+  margin: 10px;
+  background-color: #ffebee;
+  color: #c62828;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .schedule-controls {
+    flex-direction: column;
+  }
+
+  .schedule-table th,
+  .schedule-table td {
+    padding: 5px;
+  }
+
+  .class-item {
+    padding: 5px;
+  }
+
+  .class-name,
+  .class-code,
+  .class-time,
+  .class-location,
+  .class-teacher {
+    font-size: 10px;
+  }
+}
