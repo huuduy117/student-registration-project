@@ -14,7 +14,7 @@ import AdminDashboard from "./pages/QuanTriVien"
 import FacultyHeadDashboard from "./pages/TruongKhoa"
 import UnauthorizedPage from "./pages/404"
 
-// Create a SessionMonitorWrapper component
+// Create a SessionMonitorWrapper components
 const SessionMonitorWrapper = ({ children }) => {
   const tabId = useSession()
 

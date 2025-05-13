@@ -1,36 +1,56 @@
 "use client"
 
 const ParticipantsList = ({ request, onClose }) => {
+  if (!request || !request.participants) {
+    return (
+      <div className="participants-list-modal">
+        <div className="modal-content">
+          <h2 className="modal-title">👥 Danh sách sinh viên tham gia</h2>
+          <p className="no-data-message">Không có dữ liệu về sinh viên tham gia.</p>
+          <div className="modal-actions">
+            <button onClick={onClose} className="close-button">
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="modal-overlay">
+    <div className="participants-list-modal">
       <div className="modal-content">
-        <div className="modal-header">
-          <h3 className="modal-title">Danh sách người tham gia</h3>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
+        <h2 className="modal-title">👥 Danh sách sinh viên tham gia</h2>
+        <div className="modal-subtitle">
+          <span className="course-name">{request.courseName}</span>
+          <span className="participant-count">({request.participants.length} sinh viên)</span>
         </div>
 
-        <h4>
-          {request.courseName} - {request.participantCount}/30 người
-        </h4>
-
-        <div className="participants-list">
-          {request.participants.map((participant, index) => (
-            <div key={participant.studentId} className="participant-item">
-              <div className="participant-info">
-                <div className="participant-name">{participant.fullName}</div>
-                <div className="participant-details">
-                  MSSV: {participant.studentId} | Lớp: {participant.class}
-                </div>
-              </div>
-              <div className="participant-number">{index + 1}</div>
-            </div>
-          ))}
+        <div className="participants-table-container">
+          <table className="participants-table">
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>MSSV</th>
+                <th>Họ tên</th>
+                <th>Lớp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {request.participants.map((participant, index) => (
+                <tr key={participant.studentId}>
+                  <td>{index + 1}</td>
+                  <td>{participant.studentId}</td>
+                  <td>{participant.fullName}</td>
+                  <td>{participant.class}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        <div className="form-actions">
-          <button className="cancel-button" onClick={onClose}>
+        <div className="modal-actions">
+          <button onClick={onClose} className="close-button">
             Đóng
           </button>
         </div>
