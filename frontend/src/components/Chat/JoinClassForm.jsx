@@ -1,104 +1,122 @@
 "use client"
 
 import { useState } from "react"
+// Remove this line:
+// import { FaUsers, FaBook, FaCalendarAlt } from "react-icons/fa"
 
-const JoinClassForm = ({ onSubmit, onCancel, username }) => {
-  const [formData, setFormData] = useState({
+const JoinClassForm = ({ request, onSubmit, onCancel }) => {
+  const [studentInfo, setStudentInfo] = useState({
     studentId: "",
-    fullName: username,
+    fullName: "",
     class: "",
-    confirmed: false,
   })
+  const [errors, setErrors] = useState({})
+  const [classOptions] = useState(["12DHTH11", "12DHTH12", "12DHTH13", "12DHTH14", "12DHTH15"])
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }))
+    const { name, value } = e.target
+    setStudentInfo({
+      ...studentInfo,
+      [name]: value,
+    })
+    // Clear error when field is edited
+    if (errors[name]) {
+      setErrors({
+        ...errors,
+        [name]: null,
+      })
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+    if (!studentInfo.studentId) newErrors.studentId = "Vui lòng nhập mã số sinh viên"
+    if (!studentInfo.fullName) newErrors.fullName = "Vui lòng nhập họ tên"
+    if (!studentInfo.class) newErrors.class = "Vui lòng chọn lớp"
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.confirmed) {
-      alert("Vui lòng xác nhận thông tin của bạn là chính xác")
-      return
+    if (validateForm()) {
+      onSubmit({
+        requestId: request.id,
+        ...studentInfo,
+      })
     }
-    onSubmit(formData)
   }
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h3 className="modal-title">Tham gia lớp học</h3>
-          <button className="modal-close" onClick={onCancel}>
-            ×
-          </button>
+    <div className="join-class-form">
+      <h2 className="form-title">👥 Tham gia lớp học phần</h2>
+      <div className="request-info">
+        <div className="info-item">
+          📚<span className="info-label">Môn học:</span>
+          <span className="info-value">{request.courseName}</span>
+        </div>
+        <div className="info-item">
+          📅<span className="info-label">Học kỳ:</span>
+          <span className="info-value">
+            {request.semester && `HK${request.semester}`} {request.batch}
+          </span>
+        </div>
+        <div className="info-item">
+          👥<span className="info-label">Số lượng:</span>
+          <span className="info-value">{request.participantCount || request.participants?.length || 0} sinh viên</span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Mã số sinh viên</label>
+          <input
+            type="text"
+            name="studentId"
+            value={studentInfo.studentId}
+            onChange={handleChange}
+            className="form-input"
+            placeholder="Nhập mã số sinh viên"
+          />
+          {errors.studentId && <div className="error-message">{errors.studentId}</div>}
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="studentId">Mã sinh viên</label>
-            <input
-              type="text"
-              id="studentId"
-              name="studentId"
-              value={formData.studentId}
-              onChange={handleChange}
-              required
-              placeholder="Nhập mã sinh viên của bạn"
-            />
-          </div>
+        <div className="form-group">
+          <label>Họ và tên</label>
+          <input
+            type="text"
+            name="fullName"
+            value={studentInfo.fullName}
+            onChange={handleChange}
+            className="form-input"
+            placeholder="Nhập họ và tên"
+          />
+          {errors.fullName && <div className="error-message">{errors.fullName}</div>}
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="fullName">Họ và tên</label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              required
-              placeholder="Nhập họ và tên của bạn"
-            />
-          </div>
+        <div className="form-group">
+          <label>Lớp</label>
+          <select name="class" value={studentInfo.class} onChange={handleChange} className="form-input">
+            <option value="">-- Chọn lớp --</option>
+            {classOptions.map((classOption) => (
+              <option key={classOption} value={classOption}>
+                {classOption}
+              </option>
+            ))}
+          </select>
+          {errors.class && <div className="error-message">{errors.class}</div>}
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="class">Lớp</label>
-            <input
-              type="text"
-              id="class"
-              name="class"
-              value={formData.class}
-              onChange={handleChange}
-              required
-              placeholder="Nhập lớp của bạn"
-            />
-          </div>
-
-          <div className="checkbox-group">
-            <input
-              type="checkbox"
-              id="confirmed"
-              name="confirmed"
-              checked={formData.confirmed}
-              onChange={handleChange}
-              required
-            />
-            <label htmlFor="confirmed">Tôi xác nhận thông tin trên là đúng</label>
-          </div>
-
-          <div className="form-actions">
-            <button type="button" className="cancel-button" onClick={onCancel}>
-              Hủy
-            </button>
-            <button type="submit" className="submit-button">
-              Xác nhận tham gia
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="form-actions">
+          <button type="button" onClick={onCancel} className="cancel-button">
+            Hủy
+          </button>
+          <button type="submit" className="submit-button">
+            Tham gia
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
