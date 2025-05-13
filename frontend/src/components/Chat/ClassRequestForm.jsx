@@ -1,33 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// Remove this line:
-// import { FaUsers, FaBook, FaCalendarAlt, FaChalkboardTeacher } from "react-icons/fa"
 
-// And update the component to use Unicode symbols
-const ClassRequestForm = ({ onSubmit, onCancel }) => {
+const ClassRequestForm = ({ onSubmit, onCancel, availableCourses }) => {
   const [formData, setFormData] = useState({
-    courseName: "",
-    semester: "",
-    batch: "",
-    description: "",
+    maLopHP: "",
     participants: [],
   })
   const [participantInput, setParticipantInput] = useState("")
   const [errors, setErrors] = useState({})
   const [classOptions, setClassOptions] = useState([])
-  const [courseOptions, setCourseOptions] = useState([])
 
   useEffect(() => {
     // Mock data - in a real app, fetch from API
     setClassOptions(["12DHTH11", "12DHTH12", "12DHTH13", "12DHTH14", "12DHTH15"])
-    setCourseOptions([
-      "Lập trình Web",
-      "Cơ sở dữ liệu",
-      "Trí tuệ nhân tạo",
-      "Phát triển ứng dụng di động",
-      "An toàn thông tin",
-    ])
   }, [])
 
   const handleChange = (e) => {
@@ -94,9 +80,7 @@ const ClassRequestForm = ({ onSubmit, onCancel }) => {
 
   const validateForm = () => {
     const newErrors = {}
-    if (!formData.courseName) newErrors.courseName = "Vui lòng chọn môn học"
-    if (!formData.semester) newErrors.semester = "Vui lòng nhập học kỳ"
-    if (!formData.batch) newErrors.batch = "Vui lòng nhập năm học"
+    if (!formData.maLopHP) newErrors.maLopHP = "Vui lòng chọn lớp học phần"
     if (formData.participants.length === 0) newErrors.participants = "Vui lòng thêm ít nhất một sinh viên"
 
     setErrors(newErrors)
@@ -110,58 +94,54 @@ const ClassRequestForm = ({ onSubmit, onCancel }) => {
     }
   }
 
+  // Get selected course details
+  const selectedCourse = availableCourses?.find((course) => course.maLopHP === formData.maLopHP)
+
   return (
     <div className="class-request-form">
       <h2 className="form-title">👨‍🏫 Tạo yêu cầu mở lớp học phần</h2>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label>📚 Môn học</label>
-          <select name="courseName" value={formData.courseName} onChange={handleChange} className="form-input">
-            <option value="">-- Chọn môn học --</option>
-            {courseOptions.map((course) => (
-              <option key={course} value={course}>
-                {course}
+          <label>📚 Lớp học phần</label>
+          <select name="maLopHP" value={formData.maLopHP} onChange={handleChange} className="form-input">
+            <option value="">-- Chọn lớp học phần --</option>
+            {availableCourses?.map((course) => (
+              <option key={course.maLopHP} value={course.maLopHP}>
+                {course.tenMH} - {course.maLopHP} ({course.hocKy} {course.namHoc})
               </option>
             ))}
           </select>
-          {errors.courseName && <div className="error-message">{errors.courseName}</div>}
+          {errors.maLopHP && <div className="error-message">{errors.maLopHP}</div>}
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label>📅 Học kỳ</label>
-            <select name="semester" value={formData.semester} onChange={handleChange} className="form-input">
-              <option value="">-- Chọn học kỳ --</option>
-              <option value="1">Học kỳ 1</option>
-              <option value="2">Học kỳ 2</option>
-              <option value="3">Học kỳ hè</option>
-            </select>
-            {errors.semester && <div className="error-message">{errors.semester}</div>}
+        {selectedCourse && (
+          <div className="course-details">
+            <div className="detail-item">
+              <span className="detail-label">Môn học:</span>
+              <span className="detail-value">{selectedCourse.tenMH}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Mã lớp:</span>
+              <span className="detail-value">{selectedCourse.maLopHP}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Học kỳ:</span>
+              <span className="detail-value">
+                {selectedCourse.hocKy} {selectedCourse.namHoc}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Số tín chỉ:</span>
+              <span className="detail-value">{selectedCourse.soTinChi}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Sĩ số hiện tại:</span>
+              <span className="detail-value">
+                {selectedCourse.soLuongDangKy || 0}/{selectedCourse.siSoToiDa}
+              </span>
+            </div>
           </div>
-
-          <div className="form-group">
-            <label>📅 Năm học</label>
-            <select name="batch" value={formData.batch} onChange={handleChange} className="form-input">
-              <option value="">-- Chọn năm học --</option>
-              <option value="2022-2023">2022-2023</option>
-              <option value="2023-2024">2023-2024</option>
-              <option value="2024-2025">2024-2025</option>
-            </select>
-            {errors.batch && <div className="error-message">{errors.batch}</div>}
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label>Mô tả</label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="Mô tả lý do mở lớp học phần này..."
-            rows="3"
-          ></textarea>
-        </div>
+        )}
 
         <div className="form-group">
           <label>👥 Danh sách sinh viên tham gia</label>
