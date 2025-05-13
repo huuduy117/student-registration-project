@@ -1,87 +1,116 @@
-"use client"
+"use client";
 
-import "../assets/NewFeed.css"
-import { useState, useEffect } from "react"
-import { FaTimes } from "react-icons/fa"
-import Chat from "../pages/Chat"
-import ClassRequestTicket from "./Chat/ClassRequestTicket"
-import axios from "axios"
+import "../assets/NewFeed.css";
+import { useState, useEffect } from "react";
+import { FaTimes } from "react-icons/fa";
+import Chat from "../pages/Chat";
+import ClassRequestTicket from "./Chat/ClassRequestTicket";
+import axios from "axios";
 
 export default function NewFeed() {
-  const [isChatOpen, setIsChatOpen] = useState(false)
-  const [username, setUsername] = useState("Anonymous User")
-  const [userId, setUserId] = useState(null)
-  const [userRole, setUserRole] = useState(null)
-  const [pinnedRequests, setPinnedRequests] = useState([])
-  const [openRequests, setOpenRequests] = useState([])
-  const [news, setNews] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [username, setUsername] = useState("Anonymous User");
+  const [userId, setUserId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [pinnedRequests, setPinnedRequests] = useState([]);
+  const [openRequests, setOpenRequests] = useState([]);
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     // Get user info from session storage
-    const tabId = sessionStorage.getItem("tabId")
-    const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+    const tabId = sessionStorage.getItem("tabId");
+    const authData = JSON.parse(
+      sessionStorage.getItem(`auth_${tabId}`) || "{}"
+    );
     if (authData.username) {
-      setUsername(authData.username)
+      setUsername(authData.username);
     } else if (authData.fullName) {
-      setUsername(authData.fullName)
+      setUsername(authData.fullName);
     }
     if (authData.userId) {
-      setUserId(authData.userId)
+      setUserId(authData.userId);
     }
     if (authData.userRole) {
-      setUserRole(authData.userRole)
+      setUserRole(authData.userRole);
     }
 
     // Load pinned requests from localStorage
-    const savedPinnedRequests = localStorage.getItem("pinnedRequests")
+    const savedPinnedRequests = localStorage.getItem("pinnedRequests");
     if (savedPinnedRequests) {
-      setPinnedRequests(JSON.parse(savedPinnedRequests))
+      setPinnedRequests(JSON.parse(savedPinnedRequests));
+    }
+
+    // Load open requests from sessionStorage nếu có
+    const savedOpenRequests = sessionStorage.getItem("openRequests");
+    if (savedOpenRequests) {
+      setOpenRequests(JSON.parse(savedOpenRequests));
     }
 
     // Fetch open class requests
-    fetchOpenRequests()
+    fetchOpenRequests();
 
     // Fetch news
-    fetchNews()
-  }, [])
+    fetchNews();
+  }, []);
+
+  useEffect(() => {
+    fetchOpenRequests();
+  }, [userId]);
 
   const fetchOpenRequests = async () => {
     try {
-      setLoading(true)
-      const response = await axios.get("/api/newsfeed/open-class-requests", {
+      setLoading(true);
+      // Lấy danh sách yêu cầu mở lớp từ bảng YeuCauMoLop qua API backend
+      const response = await axios.get("/api/class-requests", {
         headers: {
-          Authorization: `Bearer ${JSON.parse(sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)).token}`,
+          Authorization: `Bearer ${
+            JSON.parse(
+              sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)
+            ).token
+          }`,
         },
-      })
-      setOpenRequests(response.data)
+      });
+      console.log("[newFeed] openRequests from API:", response.data);
+      setOpenRequests(response.data);
+      sessionStorage.setItem("openRequests", JSON.stringify(response.data));
     } catch (error) {
-      console.error("Error fetching open requests:", error)
+      console.error("Error fetching open requests:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // Log dữ liệu sẽ render ra UI
+  useEffect(() => {
+    console.log("[newFeed] openRequests for render:", openRequests);
+  }, [openRequests]);
 
   const fetchNews = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const response = await axios.get("/api/newsfeed", {
         params: { userType: userRole },
         headers: {
-          Authorization: `Bearer ${JSON.parse(sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)).token}`,
+          Authorization: `Bearer ${
+            JSON.parse(
+              sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)
+            ).token
+          }`,
         },
-      })
-      setNews(response.data)
+      });
+      setNews(response.data);
     } catch (error) {
-      console.error("Error fetching news:", error)
+      console.error("Error fetching news:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const toggleChat = () => {
-    setIsChatOpen(!isChatOpen)
-  }
+    setIsChatOpen(!isChatOpen);
+  };
 
   const handleJoinRequest = async (requestId) => {
     try {
@@ -90,40 +119,60 @@ export default function NewFeed() {
         { maSV: userId, maLopHP: requestId },
         {
           headers: {
-            Authorization: `Bearer ${JSON.parse(sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)).token}`,
+            Authorization: `Bearer ${
+              JSON.parse(
+                sessionStorage.getItem(
+                  `auth_${sessionStorage.getItem("tabId")}`
+                )
+              ).token
+            }`,
           },
-        },
-      )
-      // Refresh the open requests
-      fetchOpenRequests()
+        }
+      );
+      setErrorMessage("");
+      fetchOpenRequests();
     } catch (error) {
-      console.error("Error joining request:", error)
-      alert(error.response?.data?.message || "Lỗi khi tham gia lớp học")
+      const msg = error.response?.data?.message || "Lỗi khi tham gia lớp học";
+      setErrorMessage(msg);
+      console.error("Error joining request:", error);
+      alert(msg);
     }
-  }
+  };
 
   const handleTogglePin = (requestId) => {
-    const isPinned = pinnedRequests.includes(requestId)
-    let newPinnedRequests
+    const isPinned = pinnedRequests.includes(requestId);
+    let newPinnedRequests;
 
     if (isPinned) {
-      newPinnedRequests = pinnedRequests.filter((id) => id !== requestId)
+      newPinnedRequests = pinnedRequests.filter((id) => id !== requestId);
     } else {
-      newPinnedRequests = [...pinnedRequests, requestId]
+      newPinnedRequests = [...pinnedRequests, requestId];
     }
 
-    setPinnedRequests(newPinnedRequests)
-    localStorage.setItem("pinnedRequests", JSON.stringify(newPinnedRequests))
-  }
+    setPinnedRequests(newPinnedRequests);
+    localStorage.setItem("pinnedRequests", JSON.stringify(newPinnedRequests));
+  };
 
   return (
     <>
       <div className="new-feed-wrapper">
         <div className="new-feed-header">
-          <img alt="avatar" src="https://placehold.co/52x52/png" className="new-feed-avatar" />
+          <img
+            alt="avatar"
+            src="https://placehold.co/52x52/png"
+            className="new-feed-avatar"
+          />
           <div className="new-feed-user-name">{username}</div>
         </div>
         <div className="new-feed-main">
+          {errorMessage && (
+            <div
+              className="error-message"
+              style={{ color: "red", marginBottom: 8 }}
+            >
+              {errorMessage}
+            </div>
+          )}
           {loading ? (
             <div className="loading-message">Đang tải dữ liệu...</div>
           ) : (
@@ -138,8 +187,12 @@ export default function NewFeed() {
                         <div className="news-title">{item.tieuDe}</div>
                         <div className="news-content">{item.noiDung}</div>
                         <div className="news-meta">
-                          <span className="news-author">{item.tenNguoiDang}</span>
-                          <span className="news-date">{new Date(item.ngayDang).toLocaleDateString()}</span>
+                          <span className="news-author">
+                            {item.tenNguoiDang}
+                          </span>
+                          <span className="news-date">
+                            {new Date(item.ngayDang).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -159,27 +212,32 @@ export default function NewFeed() {
                 <h3 className="section-title">Yêu Cầu Mở Lớp</h3>
                 {openRequests.length > 0 ? (
                   <div className="open-requests-list">
-                    {openRequests.slice(0, 3).map((request) => (
-                      <ClassRequestTicket
-                        key={request.maYeuCau}
-                        request={{
-                          id: request.maLopHP,
-                          courseName: request.tenMH,
-                          creatorName: request.tenSinhVien,
-                          creatorStudentId: request.maSV,
-                          semester: request.hocKy.replace("HK", ""),
-                          batch: request.namHoc,
-                          participantCount: request.soLuongDangKy,
-                          createdAt: request.ngayGui,
-                        }}
-                        onJoin={handleJoinRequest}
-                        onViewParticipants={() => {}}
-                        onViewDetails={() => {}}
-                        currentUser={userId}
-                        isPinned={pinnedRequests.includes(request.maLopHP)}
-                        onTogglePin={handleTogglePin}
-                      />
-                    ))}
+                    {openRequests.slice(0, 3).map((request, idx) => {
+                      console.log("[newFeed] render request:", idx, request);
+                      return (
+                        <ClassRequestTicket
+                          key={request.maYeuCau}
+                          request={{
+                            id: request.maLopHP,
+                            courseName: request.tenMH,
+                            creatorName: request.tenSinhVien,
+                            creatorStudentId: request.maSV,
+                            semester: request.hocKy
+                              ? request.hocKy.replace("HK", "")
+                              : "",
+                            batch: request.namHoc,
+                            participantCount: request.soLuongDangKy,
+                            createdAt: request.ngayGui,
+                          }}
+                          onJoin={handleJoinRequest}
+                          onViewParticipants={() => {}}
+                          onViewDetails={() => {}}
+                          currentUser={userId}
+                          isPinned={pinnedRequests.includes(request.maLopHP)}
+                          onTogglePin={handleTogglePin}
+                        />
+                      );
+                    })}
                     {openRequests.length > 3 && (
                       <div className="view-more">
                         <a href="/chat-page">Xem tất cả yêu cầu</a>
@@ -187,7 +245,9 @@ export default function NewFeed() {
                     )}
                   </div>
                 ) : (
-                  <div className="empty-message">Không có yêu cầu mở lớp mới</div>
+                  <div className="empty-message">
+                    Không có yêu cầu mở lớp mới
+                  </div>
                 )}
               </div>
 
@@ -197,7 +257,9 @@ export default function NewFeed() {
                   <h3 className="section-title">Yêu Cầu Đã Ghim</h3>
                   <div className="pinned-requests-list">
                     {openRequests
-                      .filter((request) => pinnedRequests.includes(request.maLopHP))
+                      .filter((request) =>
+                        pinnedRequests.includes(request.maLopHP)
+                      )
                       .map((request) => (
                         <ClassRequestTicket
                           key={`pinned-${request.maYeuCau}`}
@@ -245,5 +307,5 @@ export default function NewFeed() {
         </div>
       )}
     </>
-  )
+  );
 }
