@@ -471,3 +471,223 @@ exports.getAvailableCourses = (req, res) => {
     res.json(results);
   });
 };
+
+// Approve a class request (GiaoVu, TruongBoMon, TruongKhoa)
+exports.approveClassRequest = (req, res) => {
+  const { maYeuCau } = req.params;
+  const userRole = req.user.userRole;
+  const userId = req.user.userId;
+
+  console.log("approveClassRequest called with:", {
+    maYeuCau,
+    userRole,
+    userId,
+  });
+
+  let nextTrangThai, nextTinhTrang;
+  let currentTrangThai;
+
+  // Xác định trạng thái tiếp theo dựa trên vai trò
+  if (userRole === "GiaoVu") {
+    nextTrangThai = "2_TBMNhan";
+    nextTinhTrang = "DaDuyet";
+    currentTrangThai = "1_GiaoVuNhan";
+  } else if (userRole === "TruongBoMon") {
+    nextTrangThai = "3_TruongKhoaNhan";
+    nextTinhTrang = "DaDuyet";
+    currentTrangThai = "2_TBMNhan";
+  } else if (userRole === "TruongKhoa") {
+    nextTrangThai = "4_ChoMoLop";
+    nextTinhTrang = "DaDuyet";
+    currentTrangThai = "3_TruongKhoaNhan";
+  } else {
+    console.error("Invalid user role for approval:", userRole);
+    return res
+      .status(403)
+      .json({ message: "Bạn không có quyền duyệt yêu cầu này" });
+  }
+
+  console.log("State transition:", {
+    currentTrangThai,
+    nextTrangThai,
+    nextTinhTrang,
+  });
+
+  // Lấy trạng thái cũ để ghi lịch sử
+  const getOldStatusQuery =
+    "SELECT trangThaiXuLy FROM YeuCauMoLop WHERE maYeuCau = ?";
+  mysqlConnection.query(getOldStatusQuery, [maYeuCau], (err, results) => {
+    if (err) {
+      console.error("Error checking request:", err);
+      return res.status(500).json({ message: "Lỗi khi kiểm tra yêu cầu" });
+    }
+
+    if (results.length === 0) {
+      console.error("Request not found:", maYeuCau);
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu" });
+    }
+
+    const oldStatus = results[0].trangThaiXuLy;
+    console.log("Current status:", oldStatus);
+
+    if (oldStatus !== currentTrangThai) {
+      console.error("Status mismatch:", {
+        expected: currentTrangThai,
+        actual: oldStatus,
+      });
+      return res.status(400).json({
+        message: "Trạng thái yêu cầu không hợp lệ",
+        current: oldStatus,
+        expected: currentTrangThai,
+      });
+    }
+
+    // Cập nhật trạng thái mới
+    const updateQuery =
+      "UPDATE YeuCauMoLop SET trangThaiXuLy = ?, tinhTrangTongQuat = ? WHERE maYeuCau = ?";
+    mysqlConnection.query(
+      updateQuery,
+      [nextTrangThai, nextTinhTrang, maYeuCau],
+      (err2) => {
+        if (err2) {
+          console.error("Error updating request status:", err2);
+          return res
+            .status(500)
+            .json({ message: "Lỗi khi cập nhật trạng thái" });
+        }
+
+        // Ghi lịch sử thay đổi
+        const maLichSu = `LS${Date.now().toString().slice(-6)}`;
+        const ngayThayDoi = new Date().toISOString().split("T")[0];
+        const insertHistory =
+          "INSERT INTO LichSuThayDoiYeuCau (maLichSu, maYeuCau, cotTrangThaiCu, cotTrangThaiMoi, ngayThayDoi, nguoiThayDoi) VALUES (?, ?, ?, ?, ?, ?)";
+
+        mysqlConnection.query(
+          insertHistory,
+          [maLichSu, maYeuCau, oldStatus, nextTrangThai, ngayThayDoi, userId],
+          (err3) => {
+            if (err3) {
+              console.error("Error recording history:", err3);
+              return res
+                .status(500)
+                .json({ message: "Lỗi khi ghi lịch sử thay đổi" });
+            }
+
+            console.log("Request approved successfully:", {
+              maYeuCau,
+              oldStatus,
+              newStatus: nextTrangThai,
+              historyId: maLichSu,
+            });
+
+            res.json({
+              message: "Duyệt yêu cầu thành công",
+              oldStatus,
+              newStatus: nextTrangThai,
+            });
+          }
+        );
+      }
+    );
+  });
+};
+
+// Reject a class request (GiaoVu, TruongBoMon, TruongKhoa)
+exports.rejectClassRequest = (req, res) => {
+  const { maYeuCau } = req.params;
+  const userRole = req.user.userRole;
+  const userId = req.user.userId;
+
+  console.log("rejectClassRequest called with:", {
+    maYeuCau,
+    userRole,
+    userId,
+  });
+
+  let currentTrangThai;
+
+  if (userRole === "GiaoVu") {
+    currentTrangThai = "1_GiaoVuNhan";
+  } else if (userRole === "TruongBoMon") {
+    currentTrangThai = "2_TBMNhan";
+  } else if (userRole === "TruongKhoa") {
+    currentTrangThai = "3_TruongKhoaNhan";
+  } else {
+    console.error("Invalid user role for rejection:", userRole);
+    return res
+      .status(403)
+      .json({ message: "Bạn không có quyền từ chối yêu cầu này" });
+  }
+
+  // Lấy trạng thái cũ để ghi lịch sử
+  const getOldStatusQuery =
+    "SELECT trangThaiXuLy FROM YeuCauMoLop WHERE maYeuCau = ?";
+  mysqlConnection.query(getOldStatusQuery, [maYeuCau], (err, results) => {
+    if (err) {
+      console.error("Error checking request:", err);
+      return res.status(404).json({ message: "Lỗi khi kiểm tra yêu cầu" });
+    }
+
+    if (results.length === 0) {
+      console.error("Request not found:", maYeuCau);
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu" });
+    }
+
+    const oldStatus = results[0].trangThaiXuLy;
+    console.log("Current status:", oldStatus);
+
+    if (oldStatus !== currentTrangThai) {
+      console.error("Status mismatch:", {
+        expected: currentTrangThai,
+        actual: oldStatus,
+      });
+      return res.status(400).json({
+        message: "Trạng thái yêu cầu không hợp lệ",
+        current: oldStatus,
+        expected: currentTrangThai,
+      });
+    }
+
+    // Cập nhật trạng thái mới
+    const updateQuery =
+      "UPDATE YeuCauMoLop SET tinhTrangTongQuat = 'TuChoi', trangThaiXuLy = ? WHERE maYeuCau = ?";
+    mysqlConnection.query(updateQuery, [currentTrangThai, maYeuCau], (err2) => {
+      if (err2) {
+        console.error("Error updating request status:", err2);
+        return res.status(500).json({ message: "Lỗi khi cập nhật trạng thái" });
+      }
+
+      // Ghi lịch sử thay đổi
+      const maLichSu = `LS${Date.now().toString().slice(-6)}`;
+      const ngayThayDoi = new Date().toISOString().split("T")[0];
+      const insertHistory =
+        "INSERT INTO LichSuThayDoiYeuCau (maLichSu, maYeuCau, cotTrangThaiCu, cotTrangThaiMoi, ngayThayDoi, nguoiThayDoi) VALUES (?, ?, ?, ?, ?, ?)";
+
+      mysqlConnection.query(
+        insertHistory,
+        [maLichSu, maYeuCau, oldStatus, currentTrangThai, ngayThayDoi, userId],
+        (err3) => {
+          if (err3) {
+            console.error("Error recording history:", err3);
+            return res
+              .status(500)
+              .json({ message: "Lỗi khi ghi lịch sử thay đổi" });
+          }
+
+          console.log("Request rejected successfully:", {
+            maYeuCau,
+            oldStatus,
+            newStatus: currentTrangThai,
+            historyId: maLichSu,
+          });
+
+          res.json({
+            message: "Từ chối yêu cầu thành công",
+            oldStatus,
+            newStatus: currentTrangThai,
+          });
+        }
+      );
+    });
+  });
+};

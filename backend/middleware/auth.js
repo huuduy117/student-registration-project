@@ -20,10 +20,13 @@ const auth = (req, res, next) => {
 
 const authorize = (...roles) => {
   return (req, res, next) => {
-    console.log("User role:", req.user.role);
-    if (!roles.includes(req.user.role)) {
+    console.log("User role:", req.user.userRole);
+    console.log("Allowed roles:", roles);
+    if (!roles.includes(req.user.userRole)) {
       return res.status(403).json({
         message: "Bạn không có quyền truy cập chức năng này",
+        userRole: req.user.userRole,
+        requiredRoles: roles,
       });
     }
     next();
