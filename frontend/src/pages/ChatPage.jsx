@@ -222,7 +222,9 @@ const ChatPage = () => {
   const handleJoinRequest = (requestId) => {
     const request = classRequests.find((req) => req.maLopHP === requestId);
     if (request) {
-      setSelectedRequest(request);
+      setSelectedRequest({
+        ...request,
+      });
       setShowJoinForm(true);
     }
   };
