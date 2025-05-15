@@ -6,8 +6,11 @@ exports.getAllClassRequests = (req, res) => {
     SELECT 
       ycml.maYeuCau, 
       ycml.ngayGui, 
-      ycml.tinhTrang, 
+      ycml.tinhTrangTongQuat,
+      ycml.trangThaiXuLy, 
       ycml.maSV,
+      ycml.soLuongThamGia,
+      ycml.description,
       sv.hoTen AS tenSinhVien,
       mh.maMH,
       mh.tenMH,
@@ -61,184 +64,104 @@ exports.createClassRequest = (req, res) => {
           .json({ message: "Chỉ sinh viên mới có thể tạo yêu cầu mở lớp" });
       }
 
-      // Generate a new request ID
-      const maYeuCau = `YC${Date.now().toString().slice(-6)}`;
-      const ngayGui = new Date().toISOString().split("T")[0];
+      // Get maMH from LopHocPhan
+      mysqlConnection.query(
+        "SELECT maMH FROM LopHocPhan WHERE maLopHP = ?",
+        [maLopHP],
+        (err, rows) => {
+          if (err || !rows || rows.length === 0) {
+            console.error("Error getting maMH:", err);
+            return res.status(500).json({
+              message: "Không tìm thấy mã môn học cho lớp học phần",
+            });
+          }
 
-      // Begin transaction
-      mysqlConnection.beginTransaction((err) => {
-        if (err) {
-          console.error("Error starting transaction:", err);
-          return res.status(500).json({ message: "Lỗi khi bắt đầu giao dịch" });
-        }
+          const maMH = rows[0].maMH;
+          const maYeuCau = `YC${Date.now().toString().slice(-6)}`;
+          const ngayGui = new Date().toISOString().split("T")[0];
+          const soLuongThamGia = participants ? participants.length + 1 : 1; // +1 for the requesting student
 
-        // Insert the request (bổ sung description nếu có)
-        const insertRequestSql = description
-          ? "INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrang, maSV, maLopHP, description) VALUES (?, ?, 'DaGui', ?, ?, ?)"
-          : "INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrang, maSV, maLopHP) VALUES (?, ?, 'DaGui', ?, ?)";
-        const insertRequestParams = description
-          ? [maYeuCau, ngayGui, maSV, maLopHP, description]
-          : [maYeuCau, ngayGui, maSV, maLopHP];
-
-        mysqlConnection.query(
-          insertRequestSql,
-          insertRequestParams,
-          (err, result) => {
+          // Begin transaction
+          mysqlConnection.beginTransaction((err) => {
             if (err) {
-              return mysqlConnection.rollback(() => {
-                console.error("Error creating class request:", err);
-                res.status(500).json({ message: "Lỗi khi tạo yêu cầu mở lớp" });
-              });
+              console.error("Error starting transaction:", err);
+              return res
+                .status(500)
+                .json({ message: "Lỗi khi bắt đầu giao dịch" });
             }
 
-            // If participants are provided, register them for the course
-            if (participants && participants.length > 0) {
-              // Lấy maMH từ LopHocPhan
-              mysqlConnection.query(
-                "SELECT maMH FROM LopHocPhan WHERE maLopHP = ?",
-                [maLopHP],
-                (err, rows) => {
-                  if (err || !rows || rows.length === 0) {
-                    return mysqlConnection.rollback(() => {
-                      console.error(
-                        "Không tìm thấy maMH cho lớp học phần:",
-                        err
-                      );
-                      res.status(500).json({
-                        message: "Không tìm thấy mã môn học cho lớp học phần",
-                      });
-                    });
-                  }
-                  const maMH = rows[0].maMH;
-                  const values = participants.map((p) => [
-                    p.maSV,
-                    maMH,
-                    maLopHP,
-                    ngayGui,
-                  ]);
-                  const participantQuery =
-                    "INSERT INTO SinhVien_MonHoc (maSV, maMH, maLopHP, ngayDangKy) VALUES ?";
-                  mysqlConnection.query(
-                    participantQuery,
-                    [values],
-                    (err, result) => {
-                      if (err) {
-                        if (err.code === "ER_DUP_ENTRY") {
-                          return mysqlConnection.rollback(() => {
-                            res
-                              .status(400)
-                              .json({
-                                message:
-                                  "Sinh viên đã đăng ký lớp học phần này!",
-                              });
-                          });
-                        }
-                        return mysqlConnection.rollback(() => {
-                          console.error("Error registering participants:", err);
-                          res
-                            .status(500)
-                            .json({
-                              message: "Lỗi khi đăng ký sinh viên tham gia",
-                            });
-                        });
-                      }
+            // Insert the request with new fields
+            const insertRequestSql = description
+              ? "INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrangTongQuat, trangThaiXuLy, maSV, maLopHP, maMH, soLuongThamGia, description) VALUES (?, ?, 'DaGui', '0_ChuaGui', ?, ?, ?, ?, ?)"
+              : "INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrangTongQuat, trangThaiXuLy, maSV, maLopHP, maMH, soLuongThamGia) VALUES (?, ?, 'DaGui', '0_ChuaGui', ?, ?, ?, ?)";
 
-                      // Update the current count in LopHocPhan
-                      mysqlConnection.query(
-                        "UPDATE LopHocPhan SET siSoHienTai = siSoHienTai + ? WHERE maLopHP = ?",
-                        [participants.length, maLopHP],
-                        (err, result) => {
-                          if (err) {
-                            return mysqlConnection.rollback(() => {
-                              console.error("Error updating class size:", err);
-                              res.status(500).json({
-                                message: "Lỗi khi cập nhật sĩ số lớp",
-                              });
-                            });
-                          }
+            const insertRequestParams = description
+              ? [
+                  maYeuCau,
+                  ngayGui,
+                  maSV,
+                  maLopHP,
+                  maMH,
+                  soLuongThamGia,
+                  description,
+                ]
+              : [maYeuCau, ngayGui, maSV, maLopHP, maMH, soLuongThamGia];
 
-                          // Create a news announcement for the new class request
-                          const maThongBao = `TB${Date.now()
-                            .toString()
-                            .slice(-6)}`;
-                          const tieuDe = `Yêu cầu mở lớp mới`;
-                          const noiDung = `Sinh viên ${maSV} đã tạo yêu cầu mở lớp học phần ${maLopHP}`;
-
-                          mysqlConnection.query(
-                            "INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung) VALUES (?, ?, ?, ?, ?, 'SinhVien')",
-                            [maThongBao, tieuDe, noiDung, ngayGui, maSV],
-                            (err, result) => {
-                              if (err) {
-                                return mysqlConnection.rollback(() => {
-                                  console.error(
-                                    "Error creating news announcement:",
-                                    err
-                                  );
-                                  res
-                                    .status(500)
-                                    .json({ message: "Lỗi khi tạo thông báo" });
-                                });
-                              }
-
-                              // Commit the transaction
-                              mysqlConnection.commit((err) => {
-                                if (err) {
-                                  return mysqlConnection.rollback(() => {
-                                    console.error(
-                                      "Error committing transaction:",
-                                      err
-                                    );
-                                    res.status(500).json({
-                                      message: "Lỗi khi hoàn tất giao dịch",
-                                    });
-                                  });
-                                }
-
-                                res.status(201).json({
-                                  message: "Tạo yêu cầu mở lớp thành công",
-                                  maYeuCau,
-                                  participants: participants.length,
-                                });
-                              });
-                            }
-                          );
-                        }
-                      );
-                    }
-                  );
-                }
-              );
-            } else {
-              // If no participants, just commit the transaction
-              mysqlConnection.commit((err) => {
+            mysqlConnection.query(
+              insertRequestSql,
+              insertRequestParams,
+              (err, result) => {
                 if (err) {
                   return mysqlConnection.rollback(() => {
-                    console.error("Error committing transaction:", err);
+                    console.error("Error creating class request:", err);
                     res
                       .status(500)
-                      .json({ message: "Lỗi khi hoàn tất giao dịch" });
+                      .json({ message: "Lỗi khi tạo yêu cầu mở lớp" });
                   });
                 }
-
-                res.status(201).json({
-                  message: "Tạo yêu cầu mở lớp thành công",
-                  maYeuCau,
+                // Nếu cần xử lý participants thì thêm code ở đây, còn không thì commit transaction luôn
+                mysqlConnection.commit((err) => {
+                  if (err) {
+                    return mysqlConnection.rollback(() => {
+                      console.error("Error committing transaction:", err);
+                      res
+                        .status(500)
+                        .json({ message: "Lỗi khi hoàn tất giao dịch" });
+                    });
+                  }
+                  res.status(201).json({
+                    message: "Tạo yêu cầu mở lớp thành công",
+                    maYeuCau,
+                  });
                 });
-              });
-            }
-          }
-        );
-      });
+              }
+            );
+          });
+        }
+      );
     }
   );
 };
 
 // Join a class request
 exports.joinClassRequest = (req, res) => {
+  console.log("joinClassRequest body:", req.body); // DEBUG LOG
+  console.log("typeof maSV:", typeof req.body.maSV, "value:", req.body.maSV);
+  console.log(
+    "typeof maLopHP:",
+    typeof req.body.maLopHP,
+    "value:",
+    req.body.maLopHP
+  );
   const { maSV, maLopHP } = req.body;
 
-  if (!maSV || !maLopHP) {
-    return res.status(400).json({ message: "Thiếu thông tin cần thiết" });
+  if (!maSV) {
+    console.warn("Thiếu maSV trong request body");
+    return res.status(400).json({ message: "Thiếu mã sinh viên (maSV)" });
+  }
+  if (!maLopHP) {
+    console.warn("Thiếu maLopHP trong request body");
+    return res.status(400).json({ message: "Thiếu mã lớp học phần (maLopHP)" });
   }
 
   // Check if the user is a student
@@ -259,121 +182,196 @@ exports.joinClassRequest = (req, res) => {
           .json({ message: "Chỉ sinh viên mới có thể tham gia lớp học" });
       }
 
-      // Check if the student is already registered
+      // Get maMH from LopHocPhan
       mysqlConnection.query(
-        "SELECT * FROM SinhVien_MonHoc WHERE maSV = ? AND maLopHP = ?",
-        [maSV, maLopHP],
-        (err, results) => {
-          if (err) {
-            console.error("Error checking existing registration:", err);
-            return res
-              .status(500)
-              .json({ message: "Lỗi khi kiểm tra đăng ký" });
+        "SELECT maMH FROM LopHocPhan WHERE maLopHP = ?",
+        [maLopHP],
+        (err, rows) => {
+          if (err || !rows || rows.length === 0) {
+            console.error("Error getting maMH:", err);
+            return res.status(500).json({
+              message: "Không tìm thấy mã môn học cho lớp học phần",
+            });
           }
 
-          if (results.length > 0) {
-            return res
-              .status(400)
-              .json({ message: "Sinh viên đã đăng ký lớp học này" });
-          }
+          const maMH = rows[0].maMH;
 
-          // Begin transaction
-          mysqlConnection.beginTransaction((err) => {
-            if (err) {
-              console.error("Error starting transaction:", err);
-              return res
-                .status(500)
-                .json({ message: "Lỗi khi bắt đầu giao dịch" });
-            }
+          // Check if the student is already registered
+          mysqlConnection.query(
+            "SELECT * FROM SinhVien_MonHoc WHERE maSV = ? AND maLopHP = ?",
+            [maSV, maLopHP],
+            (err, results) => {
+              if (err) {
+                console.error("Error checking existing registration:", err);
+                return res
+                  .status(500)
+                  .json({ message: "Lỗi khi kiểm tra đăng ký" });
+              }
 
-            const ngayDangKy = new Date().toISOString().split("T")[0];
+              if (results.length > 0) {
+                return res
+                  .status(400)
+                  .json({ message: "Sinh viên đã đăng ký lớp học này" });
+              }
 
-            // Register the student
-            mysqlConnection.query(
-              "INSERT INTO SinhVien_MonHoc (maSV, maLopHP, ngayDangKy) VALUES (?, ?, ?)",
-              [maSV, maLopHP, ngayDangKy],
-              (err, result) => {
+              // Begin transaction
+              mysqlConnection.beginTransaction((err) => {
                 if (err) {
-                  return mysqlConnection.rollback(() => {
-                    console.error("Error registering student:", err);
-                    res
-                      .status(500)
-                      .json({ message: "Lỗi khi đăng ký sinh viên" });
-                  });
+                  console.error("Error starting transaction:", err);
+                  return res
+                    .status(500)
+                    .json({ message: "Lỗi khi bắt đầu giao dịch" });
                 }
 
-                // Update the current count in LopHocPhan
+                const ngayDangKy = new Date().toISOString().split("T")[0];
+
+                // Register the student
                 mysqlConnection.query(
-                  "UPDATE LopHocPhan SET siSoHienTai = siSoHienTai + 1 WHERE maLopHP = ?",
-                  [maLopHP],
+                  "INSERT INTO SinhVien_MonHoc (maSV, maMH, maLopHP, ngayDangKy) VALUES (?, ?, ?, ?)",
+                  [maSV, maMH, maLopHP, ngayDangKy],
                   (err, result) => {
                     if (err) {
                       return mysqlConnection.rollback(() => {
-                        console.error("Error updating class size:", err);
+                        console.error("Error registering student:", err);
                         res
                           .status(500)
-                          .json({ message: "Lỗi khi cập nhật sĩ số lớp" });
+                          .json({ message: "Lỗi khi đăng ký sinh viên" });
                       });
                     }
 
-                    // Check if we've reached 30 students
+                    // Update soLuongThamGia in YeuCauMoLop
                     mysqlConnection.query(
-                      "SELECT COUNT(*) as count FROM SinhVien_MonHoc WHERE maLopHP = ?",
+                      "UPDATE YeuCauMoLop SET soLuongThamGia = soLuongThamGia + 1 WHERE maLopHP = ?",
                       [maLopHP],
-                      (err, results) => {
+                      (err, result) => {
                         if (err) {
                           return mysqlConnection.rollback(() => {
-                            console.error("Error counting students:", err);
-                            res
-                              .status(500)
-                              .json({ message: "Lỗi khi đếm số sinh viên" });
+                            console.error(
+                              "Error updating participants count:",
+                              err
+                            );
+                            res.status(500).json({
+                              message: "Lỗi khi cập nhật số lượng tham gia",
+                            });
                           });
                         }
 
-                        const studentCount = results[0].count;
-
-                        // If we have 30 students, update the request status
-                        if (studentCount >= 30) {
-                          mysqlConnection.query(
-                            "UPDATE YeuCauMoLop SET tinhTrang = 'DaDuyet' WHERE maLopHP = ?",
-                            [maLopHP],
-                            (err, result) => {
-                              if (err) {
-                                return mysqlConnection.rollback(() => {
-                                  console.error(
-                                    "Error updating request status:",
-                                    err
-                                  );
-                                  res.status(500).json({
-                                    message:
-                                      "Lỗi khi cập nhật trạng thái yêu cầu",
-                                  });
+                        // Update the current count in LopHocPhan
+                        mysqlConnection.query(
+                          "UPDATE LopHocPhan SET siSoHienTai = siSoHienTai + 1 WHERE maLopHP = ?",
+                          [maLopHP],
+                          (err, result) => {
+                            if (err) {
+                              return mysqlConnection.rollback(() => {
+                                console.error(
+                                  "Error updating class size:",
+                                  err
+                                );
+                                res.status(500).json({
+                                  message: "Lỗi khi cập nhật sĩ số lớp",
                                 });
-                              }
+                              });
+                            }
 
-                              // Create a news announcement for the approved class
-                              const maThongBao = `TB${Date.now()
-                                .toString()
-                                .slice(-6)}`;
-                              const tieuDe = `Lớp học phần đã đủ điều kiện mở`;
-                              const noiDung = `Lớp học phần ${maLopHP} đã đạt đủ 30 sinh viên đăng ký và đã được duyệt tự động.`;
-
-                              mysqlConnection.query(
-                                "INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung) VALUES (?, ?, ?, ?, ?, 'SinhVien')",
-                                [maThongBao, tieuDe, noiDung, ngayDangKy, maSV],
-                                (err, result) => {
-                                  if (err) {
-                                    return mysqlConnection.rollback(() => {
-                                      console.error(
-                                        "Error creating news announcement:",
-                                        err
-                                      );
-                                      res.status(500).json({
-                                        message: "Lỗi khi tạo thông báo",
-                                      });
+                            // Check if we've reached 30 students
+                            mysqlConnection.query(
+                              "SELECT soLuongThamGia FROM YeuCauMoLop WHERE maLopHP = ?",
+                              [maLopHP],
+                              (err, results) => {
+                                if (err) {
+                                  return mysqlConnection.rollback(() => {
+                                    console.error(
+                                      "Error counting students:",
+                                      err
+                                    );
+                                    res.status(500).json({
+                                      message: "Lỗi khi đếm số sinh viên",
                                     });
-                                  }
+                                  });
+                                }
 
+                                const studentCount = results[0].soLuongThamGia;
+
+                                // If we have 30 students, update the request status
+                                if (studentCount >= 30) {
+                                  mysqlConnection.query(
+                                    "UPDATE YeuCauMoLop SET tinhTrangTongQuat = 'DaDuyet', trangThaiXuLy = '4_ChoMoLop' WHERE maLopHP = ?",
+                                    [maLopHP],
+                                    (err, result) => {
+                                      if (err) {
+                                        return mysqlConnection.rollback(() => {
+                                          console.error(
+                                            "Error updating request status:",
+                                            err
+                                          );
+                                          res.status(500).json({
+                                            message:
+                                              "Lỗi khi cập nhật trạng thái yêu cầu",
+                                          });
+                                        });
+                                      }
+
+                                      // Create a news announcement for the approved class
+                                      const maThongBao = `TB${Date.now()
+                                        .toString()
+                                        .slice(-6)}`;
+                                      const tieuDe = `Lớp học phần đã đủ điều kiện mở`;
+                                      const noiDung = `Lớp học phần ${maLopHP} đã đạt đủ 30 sinh viên đăng ký và đã được duyệt tự động.`;
+
+                                      mysqlConnection.query(
+                                        "INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung) VALUES (?, ?, ?, ?, ?, 'SinhVien')",
+                                        [
+                                          maThongBao,
+                                          tieuDe,
+                                          noiDung,
+                                          ngayDangKy,
+                                          maSV,
+                                        ],
+                                        (err, result) => {
+                                          if (err) {
+                                            return mysqlConnection.rollback(
+                                              () => {
+                                                console.error(
+                                                  "Error creating news announcement:",
+                                                  err
+                                                );
+                                                res.status(500).json({
+                                                  message:
+                                                    "Lỗi khi tạo thông báo",
+                                                });
+                                              }
+                                            );
+                                          }
+
+                                          // Commit the transaction
+                                          mysqlConnection.commit((err) => {
+                                            if (err) {
+                                              return mysqlConnection.rollback(
+                                                () => {
+                                                  console.error(
+                                                    "Error committing transaction:",
+                                                    err
+                                                  );
+                                                  res.status(500).json({
+                                                    message:
+                                                      "Lỗi khi hoàn tất giao dịch",
+                                                  });
+                                                }
+                                              );
+                                            }
+
+                                            res.status(200).json({
+                                              message:
+                                                "Tham gia lớp học thành công. Lớp học đã đủ điều kiện mở.",
+                                              studentCount,
+                                              approved: true,
+                                            });
+                                          });
+                                        }
+                                      );
+                                    }
+                                  );
+                                } else {
                                   // Commit the transaction
                                   mysqlConnection.commit((err) => {
                                     if (err) {
@@ -389,45 +387,23 @@ exports.joinClassRequest = (req, res) => {
                                     }
 
                                     res.status(200).json({
-                                      message:
-                                        "Tham gia lớp học thành công. Lớp học đã đủ điều kiện mở.",
+                                      message: "Tham gia lớp học thành công",
                                       studentCount,
-                                      approved: true,
+                                      approved: false,
                                     });
                                   });
                                 }
-                              );
-                            }
-                          );
-                        } else {
-                          // Commit the transaction
-                          mysqlConnection.commit((err) => {
-                            if (err) {
-                              return mysqlConnection.rollback(() => {
-                                console.error(
-                                  "Error committing transaction:",
-                                  err
-                                );
-                                res.status(500).json({
-                                  message: "Lỗi khi hoàn tất giao dịch",
-                                });
-                              });
-                            }
-
-                            res.status(200).json({
-                              message: "Tham gia lớp học thành công",
-                              studentCount,
-                              approved: false,
-                            });
-                          });
-                        }
+                              }
+                            );
+                          }
+                        );
                       }
                     );
                   }
                 );
-              }
-            );
-          });
+              });
+            }
+          );
         }
       );
     }
