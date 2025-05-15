@@ -1,32 +1,32 @@
-"use client"
+"use client";
 
-import { FaTimes } from "react-icons/fa"
-import { useNavigate, Link } from "react-router-dom"
-import { useState } from "react"
-import "../assets/SideBar.css"
-import { useSessionMonitor } from "../hook/useSession"
+import { FaTimes } from "react-icons/fa";
+import { useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
+import "../assets/SideBar.css";
+import { useSessionMonitor } from "../hook/useSession";
 
 export default function SideBar() {
-  const navigate = useNavigate()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const tabId = sessionStorage.getItem("tabId")
-  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
-  const userRole = authData.userRole || "guest"
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const tabId = sessionStorage.getItem("tabId");
+  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
+  const userRole = authData.userRole || "guest";
 
   // Use the session monitor
-  useSessionMonitor()
+  useSessionMonitor();
 
   const handleLogout = () => {
     // Chỉ xóa thông tin đăng nhập của tab hiện tại
-    sessionStorage.removeItem(`auth_${tabId}`)
-    navigate("/login", { replace: true })
-  }
+    sessionStorage.removeItem(`auth_${tabId}`);
+    navigate("/login", { replace: true });
+  };
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen)
-  }
+    setIsMenuOpen(!isMenuOpen);
+  };
 
-  let menuItems
+  let menuItems;
 
   switch (userRole) {
     case "admin":
@@ -36,8 +36,8 @@ export default function SideBar() {
         { icon: "📅", text: "Lịch học", path: "/schedule" },
         { icon: "📚", text: "Courses", path: "#" },
         { icon: "⚙️", text: "Settings", path: "#" },
-      ]
-      break
+      ];
+      break;
     case "SinhVien":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
@@ -45,15 +45,26 @@ export default function SideBar() {
         { icon: "📅", text: "Lịch học", path: "/schedule" },
         { icon: "📚", text: "Khóa học", path: "/student-dashboard" },
         { icon: "⚙️", text: "Cài đặt", path: "#" },
-      ]
-      break
+      ];
+      break;
+    case "GiaoVu":
+    case "TruongBoMon":
+    case "TruongKhoa":
+      menuItems = [
+        { icon: "🏠", text: "Home", path: "/home" },
+        { icon: "💬", text: "Chat", path: "/chat-page" },
+        { icon: "📅", text: "Lịch học", path: "/schedule" },
+        { icon: "📝", text: "Phê duyệt mở lớp", path: "/approve-requests" },
+        { icon: "⚙️", text: "Cài đặt", path: "#" },
+      ];
+      break;
     default:
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
         { icon: "📅", text: "Lịch học", path: "/schedule" },
         { icon: "⚙️", text: "Cài đặt", path: "#" },
-      ]
+      ];
   }
 
   return (
@@ -64,8 +75,14 @@ export default function SideBar() {
 
       <div className={`side-bar-wrapper ${isMenuOpen ? "menu-open" : ""}`}>
         <div className="side-bar-header">
-          <img alt="avatar" src="https://placehold.co/52x52/png" className="side-bar-avatar" />
-          <div className="side-bar-user-name">{authData.username || "Guest"}</div>
+          <img
+            alt="avatar"
+            src="https://placehold.co/52x52/png"
+            className="side-bar-avatar"
+          />
+          <div className="side-bar-user-name">
+            {authData.username || "Guest"}
+          </div>
         </div>
         <nav className="side-bar-main">
           {menuItems.map((item, index) => (
@@ -86,5 +103,5 @@ export default function SideBar() {
 
       {isMenuOpen && <div className="menu-overlay" onClick={toggleMenu}></div>}
     </>
-  )
+  );
 }
