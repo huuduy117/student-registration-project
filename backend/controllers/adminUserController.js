@@ -113,3 +113,4 @@ async function createUserWithDetail(userData, detailData, type) {
 }
 
 module.exports = { createUserWithDetail };
+//How the hell ts working?
