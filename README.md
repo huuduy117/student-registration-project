@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 --Mysql
 https://dev.mysql.com/downloads/mysql/
 --SQL Workbench
@@ -57,3 +58,7 @@ npm install --save-dev nodemon
 --icon 
 npm install react-icons
 
+=======
+# Project_WebApp_YeuCauMoLopHocPhan
+app dăng kí học phần
+>>>>>>> 86571415c83efacda25dce6458d43eeb27642d75
