@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import DashboardSV from "./SinhVien/dashboard_SV.jsx";
 import "../assets/MainContainer.css";
 import { useSession } from "../hook/useSession";
 
@@ -28,9 +29,7 @@ export default function MainContainer() {
     case "SinhVien":
       dashboardContent = (
         <div className="content-section">
-          <h2>Student Dashboard</h2>
-          <p>Welcome, {username}!</p>
-          <Link to="/student-dashboard">Go to Student Dashboard</Link>
+          <DashboardSV username={username} />
         </div>
       );
       break;

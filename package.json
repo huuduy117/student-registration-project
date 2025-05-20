@@ -3,6 +3,7 @@
     "nodemon": "^3.1.9"
   },
   "dependencies": {
-    "mongoose": "^8.13.2"
+    "mongoose": "^8.13.2",
+    "recharts": "^2.15.3"
   }
 }
