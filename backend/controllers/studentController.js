@@ -34,8 +34,8 @@ exports.getStudent = (req, res) => {
       thoiGianNhapHoc: student.thoiGianNhapHoc,
       trangThai: student.trangThai,
       maCN: student.maCN,
-      tenLop: student.tenLop,
       tenCN: student.tenCN,
+      tenLop: student.tenLop,
     });
   });
 };
