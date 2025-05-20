@@ -43,10 +43,10 @@ const StudentModel = {
   },
   getStudentById: (maSV, callback) => {
     const query = `
-      SELECT sv.*, l.tenLop AS tenLop, cn.tenCN AS tenCN
+      SELECT sv.*, cn.tenCN AS tenCN, l.tenLop AS tenLop
       FROM SinhVien sv
-      LEFT JOIN Lop l ON sv.maSV = l.maSV
       LEFT JOIN ChuyenNganh cn ON sv.maCN = cn.maCN
+      LEFT JOIN Lop l ON sv.maSV = l.maSV
       WHERE sv.maSV = ?
     `;
     db.mysqlConnection.query(query, [maSV], (err, result) => {
