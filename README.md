@@ -7,6 +7,7 @@
 ![last-commit](https://img.shields.io/github/last-commit/huuduy117/student-registration-project?style=flat&logo=git&logoColor=white&color=0080ff)
 ![repo-top-language](https://img.shields.io/github/languages/top/huuduy117/student-registration-project?style=flat&color=0080ff)
 ![repo-language-count](https://img.shields.io/github/languages/count/huuduy117/student-registration-project?style=flat&color=0080ff)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/huuduy117/student-registration-project)
 
 ---
 
