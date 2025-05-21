@@ -131,4 +131,4 @@ Run the test suite:
 
 ---
 
-<div align="right">⬆️ [Return to Top](#-student-registration-project)</div>
+<div align="left" class=""><a href="#top">⬆ Return</a></div>
