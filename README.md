@@ -32,12 +32,12 @@
 
 ## 📚 Table of Contents
 
-- [Overview](#overview)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Testing](#testing)
+- [🔍 Overview](#-overview)
+- [🚀 Getting Started](#-getting-started)
+  - [✅ Prerequisites](#-prerequisites)
+  - [🧰 Installation](#-installation)
+  - [▶️ Usage](#-usage)
+  - [🧪 Testing](#-testing)
 
 ---
 
@@ -131,4 +131,4 @@ Run the test suite:
 
 ---
 
-<div align="right">⬆️ [Return to Top](#readme)</div>
+<div align="right">⬆️ [Return to Top](#-student-registration-project)</div>
