@@ -1,65 +1,135 @@
-<<<<<<< HEAD
---Mysql
-https://dev.mysql.com/downloads/mysql/
---SQL Workbench
+<div align="center">
 
---tree
-student-registration-project/
-├── backend/
-│   ├── config/
-│   │   └── db.js            # Cấu hình kết nối MySQL
-│   ├── controllers/
-│   │   └── studentController.js  # Xử lý logic cho sinh viên
-│   ├── models/
-│   │   └── studentModel.js  # Câu lệnh SQL liên quan tới sinh viên
-│   ├── routes/
-│   │   └── studentRoutes.js # Khai báo API route
-│   ├── app.js               # File khởi động Express
-│   └── package.json         # Dependencies cho Node.js
-│
-├── frontend/
-│   ├── src/
-│   │   ├── assets/          # Hình ảnh, icon, CSS riêng
-│   │   ├── components/      # Component React tái sử dụng
-│   │   ├── pages/           # Các trang: Trang chủ, Đăng ký học phần
-│   │   ├── services/        # Gọi API tới backend (axios / fetch)
-│   │   ├── App.jsx          # Root component React
-│   │   └── main.jsx         # File khởi động React
-│   ├── public/              # File public (favicon, index.html)
-│   └── package.json         # Dependencies cho React
-│
-├── README.md                # Mô tả đồ án
-└── .gitignore               # File loại trừ khi đẩy lên Git
+# 🎓 STUDENT-REGISTRATION-PROJECT
 
---backend 
-mkdir backend
-cd backend
-npm init -y
-npm install express mysql2 dotenv cors
+*Empowering Students, Simplifying Course Management Effortlessly*
 
---frontend
-npm create vite@latest frontend -- --template react
-cd frontend
-npm install axios
+![last-commit](https://img.shields.io/github/last-commit/huuduy117/student-registration-project?style=flat&logo=git&logoColor=white&color=0080ff)
+![repo-top-language](https://img.shields.io/github/languages/top/huuduy117/student-registration-project?style=flat&color=0080ff)
+![repo-language-count](https://img.shields.io/github/languages/count/huuduy117/student-registration-project?style=flat&color=0080ff)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/huuduy117/student-registration-project)
 
---postman
-https://app.getpostman.com/join-team?invite_code=e8ba87411d47dfd1b9e74ec4dbce3a43e575d894baddd919d97ae13d18b7cff2
+---
 
---jwt
-cd backend
-npm install jsonwebtoken bcryptjs
+### 🛠️ Built with:
 
---express 
-npm install express@4.18.2
+![Express](https://img.shields.io/badge/Express-000000.svg?style=flat&logo=Express&logoColor=white)
+![JSON](https://img.shields.io/badge/JSON-000000.svg?style=flat&logo=JSON&logoColor=white)
+![npm](https://img.shields.io/badge/npm-CB3837.svg?style=flat&logo=npm&logoColor=white)
+![Mongoose](https://img.shields.io/badge/Mongoose-F04D35.svg?style=flat&logo=Mongoose&logoColor=white)
+![.ENV](https://img.shields.io/badge/.ENV-ECD53F.svg?style=flat&logo=dotenv&logoColor=black)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E.svg?style=flat&logo=JavaScript&logoColor=black)
+![Nodemon](https://img.shields.io/badge/Nodemon-76D04B.svg?style=flat&logo=Nodemon&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248.svg?style=flat&logo=MongoDB&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB.svg?style=flat&logo=React&logoColor=black)
+![Docker](https://img.shields.io/badge/Docker-2496ED.svg?style=flat&logo=Docker&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF.svg?style=flat&logo=Vite&logoColor=white)
+![ESLint](https://img.shields.io/badge/ESLint-4B32C3.svg?style=flat&logo=ESLint&logoColor=white)
+![Axios](https://img.shields.io/badge/Axios-5A29E4.svg?style=flat&logo=Axios&logoColor=white)
 
---nodemon cuc bo
-npm install --save-dev nodemon
+</div>
 
---icon 
-npm install react-icons
+---
 
-=======
-# Project_WebApp_YeuCauMoLopHocPhan
-app dăng kí học phần
->>>>>>> 86571415c83efacda25dce6458d43eeb27642d75
->>>>>>> nay code ncc khong có gì để commit
+## 📚 Table of Contents
+
+- [🔍 Overview](#-overview)
+- [🚀 Getting Started](#-getting-started)
+  - [✅ Prerequisites](#-prerequisites)
+  - [🧰 Installation](#-installation)
+  - [▶️ Usage](#-usage)
+  - [🧪 Testing](#-testing)
+
+---
+
+## 🔍 Overview
+
+**Student Registration Project** is a comprehensive tool designed to streamline course management and enhance user interactions within educational institutions.
+
+### Why Student Registration Project?
+
+This project empowers educational institutions with a robust platform for managing student registrations, course requests, and real-time interactions. Core features include:
+
+- 🎨 **Dynamic Data Visualization:** Create engaging visual representations of student data with Recharts.
+- 🔒 **Robust User Authentication:** Secure access through JWT, ensuring only authorized users can interact with sensitive data.
+- ⚡ **Real-Time Communication:** Implement WebSocket support for instant messaging and notifications among users.
+- 🛠️ **Efficient Development Workflow:** Utilize Nodemon for automatic server restarts, enhancing development efficiency.
+- 🗄️ **Seamless Database Integration:** Leverage MySQL for reliable data persistence and management.
+
+---
+
+## 🚀 Getting Started
+
+### ✅ Prerequisites
+
+- **Programming Language:** JavaScript  
+- **Package Manager:** npm  
+- **Container Runtime:** Docker  
+
+### 🧰 Installation
+
+Build from source and install dependencies:
+
+1. **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/huuduy117/student-registration-project
+    ```
+
+2. **Navigate to the project directory:**
+
+    ```bash
+    cd student-registration-project
+    ```
+
+3. **Install dependencies:**
+
+    - **Using [Docker](https://www.docker.com/):**
+
+        ```bash
+        docker build -t huuduy117/student-registration-project .
+        ```
+
+    - **Using [npm](https://www.npmjs.com/):**
+
+        ```bash
+        npm install
+        ```
+
+### ▶️ Usage
+
+Run the project with:
+
+- **Docker:**
+
+    ```bash
+    docker run -it <image_name>
+    ```
+
+- **npm:**
+
+    ```bash
+    npm start
+    ```
+
+### 🧪 Testing
+
+> `student-registration-project` uses **{test_framework}** for testing.
+
+Run the test suite:
+
+- **Docker:**
+
+    ```bash
+    echo 'INSERT-TEST-COMMAND-HERE'
+    ```
+
+- **npm:**
+
+    ```bash
+    npm test
+    ```
+
+---
+
+<div align="left" class=""><a href="#top">⬆ Return</a></div>
