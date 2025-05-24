@@ -46,7 +46,7 @@ exports.createClassRequest = (req, res) => {
     return res.status(400).json({ message: "Thiếu thông tin cần thiết" });
   }
 
-  // Check if the user is a student
+  // check đúng role sinh viên
   mysqlConnection.query(
     "SELECT loaiNguoiDung FROM NguoiDung WHERE maNguoiDung = ?",
     [maSV],
