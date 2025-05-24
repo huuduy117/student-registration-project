@@ -1,35 +1,21 @@
-CREATE DATABASE test;
-USE test;
+CREATE DATABASE DKHP;
+USE DKHP;
 
--- Bảng: NguoiDung
+-- 1. Bảng NguoiDung
 CREATE TABLE NguoiDung (
     maNguoiDung VARCHAR(20) PRIMARY KEY,
     tenDangNhap VARCHAR(50) NOT NULL,
     matKhau VARCHAR(50) NOT NULL,
     loaiNguoiDung ENUM('SinhVien', 'GiangVien', 'GiaoVu', 'TruongBoMon', 'QuanTriVien', 'TruongKhoa') NOT NULL
 );
- -- Bảng : Chuyên nghành
+
+-- 2. Bảng ChuyenNganh
 CREATE TABLE ChuyenNganh (
     maCN VARCHAR(20) PRIMARY KEY,
     tenCN VARCHAR(100)
 );
--- Bảng: SinhVien
-CREATE TABLE SinhVien (
-    maSV VARCHAR(20) PRIMARY KEY,
-    hoTen VARCHAR(100),
-    email VARCHAR(100),
-    soDienThoai VARCHAR(20),
-    diaChi VARCHAR(255),
-    ngaySinh DATE,
-    gioiTinh ENUM('Nam', 'Nu', 'Khac'),
-    thoiGianNhapHoc DATE,
-    trangThai ENUM('Dang hoc','Da tot nghiep','Nghi hoc','Bao luu'),
-    maCN VARCHAR(20),
-    FOREIGN KEY (maSV) REFERENCES NguoiDung(maNguoiDung),
-    FOREIGN KEY (maCN) REFERENCES ChuyenNganh(maCN)
-);
 
--- Bảng: BoMon
+-- 3. Bảng BoMon
 CREATE TABLE BoMon (
     maBM VARCHAR(20) PRIMARY KEY,
     tenBM VARCHAR(100),
@@ -37,7 +23,7 @@ CREATE TABLE BoMon (
     ngayThanhLap DATE
 );
 
--- Bảng: GiangVien (gồm cả GiaoVu, TruongBoMon, TruongKhoa)
+-- 4. Bảng GiangVien
 CREATE TABLE GiangVien (
     maGV VARCHAR(20) PRIMARY KEY,
     hoTen VARCHAR(100),
@@ -52,17 +38,15 @@ CREATE TABLE GiangVien (
     FOREIGN KEY (maBM) REFERENCES BoMon(maBM)
 );
 
--- Bảng: Lop
+-- 5. Bảng Lop
 CREATE TABLE Lop (
     maLop VARCHAR(20) PRIMARY KEY,
     tenLop VARCHAR(100),
     maCVHT VARCHAR(20),
-    maSV VARCHAR(20),
-    FOREIGN KEY (maSV) REFERENCES SinhVien(maSV),
     FOREIGN KEY (maCVHT) REFERENCES GiangVien(maGV)
 );
 
--- Bảng: MonHoc
+-- 6. Bảng MonHoc
 CREATE TABLE MonHoc (
     maMH VARCHAR(20) PRIMARY KEY,
     tenMH VARCHAR(100),
@@ -74,7 +58,7 @@ CREATE TABLE MonHoc (
     soTietThucHanh INT
 );
 
--- Bảng: LopHocPhan
+-- 7. Bảng LopHocPhan
 CREATE TABLE LopHocPhan (
     maLopHP VARCHAR(20) PRIMARY KEY,
     maMH VARCHAR(20),
@@ -85,7 +69,25 @@ CREATE TABLE LopHocPhan (
     FOREIGN KEY (maMH) REFERENCES MonHoc(maMH)
 );
 
--- Bảng: YeuCauMoLop
+-- 8. Bảng SinhVien
+CREATE TABLE SinhVien (
+    maSV VARCHAR(20) PRIMARY KEY,
+    hoTen VARCHAR(100),
+    email VARCHAR(100),
+    soDienThoai VARCHAR(20),
+    diaChi VARCHAR(255),
+    ngaySinh DATE,
+    gioiTinh ENUM('Nam', 'Nu', 'Khac'),
+    thoiGianNhapHoc DATE,
+    trangThai ENUM('Dang hoc','Da tot nghiep','Nghi hoc','Bao luu'),
+    maCN VARCHAR(20),
+    maLop VARCHAR(20),
+    FOREIGN KEY (maSV) REFERENCES NguoiDung(maNguoiDung),
+    FOREIGN KEY (maCN) REFERENCES ChuyenNganh(maCN),
+    FOREIGN KEY (maLop) REFERENCES Lop(maLop)
+);
+
+-- 9. Bảng YeuCauMoLop
 CREATE TABLE YeuCauMoLop (
     maYeuCau VARCHAR(20) PRIMARY KEY,
     ngayGui DATE,
@@ -93,47 +95,47 @@ CREATE TABLE YeuCauMoLop (
     trangThaiXuLy ENUM('0_ChuaGui','1_GiaoVuNhan','2_TBMNhan','3_TruongKhoaNhan','4_ChoMoLop') DEFAULT '0_ChuaGui',
     maSV VARCHAR(20),
     maLopHP VARCHAR(20), 
-	maMH VARCHAR(20),
+    maMH VARCHAR(20),
     soLuongThamGia INT,
-    description TEXT NULL,
+    description TEXT,
     FOREIGN KEY (maSV) REFERENCES SinhVien(maSV),
     FOREIGN KEY (maLopHP) REFERENCES LopHocPhan(maLopHP),
     FOREIGN KEY (maMH) REFERENCES MonHoc(maMH)
 );
 
--- Bảng lưu lịch sử thay đổi trạng thái phiếu yêu cầu mở lớp
+-- 10. Bảng LichSuThayDoiYeuCau
 CREATE TABLE LichSuThayDoiYeuCau (
     maLichSu VARCHAR(20) PRIMARY KEY,
     maYeuCau VARCHAR(20),
-    cotTrangThaiCu ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TKMNhan', '4_ChoiMoLop'),
-    cotTrangThaiMoi ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TKMNhan', '4_ChoiMoLop'),
+    cotTrangThaiCu ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TKMNhan', '4_ChoMoLop'),
+    cotTrangThaiMoi ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TKMNhan', '4_ChoMoLop'),
     ngayThayDoi DATE,
     nguoiThayDoi VARCHAR(20),
     FOREIGN KEY (maYeuCau) REFERENCES YeuCauMoLop(maYeuCau),
     FOREIGN KEY (nguoiThayDoi) REFERENCES NguoiDung(maNguoiDung)
 );
 
--- Bảng nối: ChuyenNganh_MonHoc
+-- 11. Bảng ChuyenNganh_MonHoc
 CREATE TABLE ChuyenNganh_MonHoc (
-	MaCN VARCHAR(10), 
-	MaMH VARCHAR(10),
-	BatBuoc BIT NOT NULL, -- 1: Bắt buộc, 0: Tự chọn
-	PRIMARY KEY (MaCN, MaMH),
-	FOREIGN KEY (MaCN) REFERENCES ChuyenNganh(MaCN),
-	FOREIGN KEY (MaMH) REFERENCES MonHoc(MaMH)
+    maCN VARCHAR(20), 
+    maMH VARCHAR(20),
+    BatBuoc BIT NOT NULL,
+    PRIMARY KEY (maCN, maMH),
+    FOREIGN KEY (maCN) REFERENCES ChuyenNganh(maCN),
+    FOREIGN KEY (maMH) REFERENCES MonHoc(maMH)
 );
 
- -- Bảng nối : HocKyChuyenNganh_MonHoc
+-- 12. Bảng HocKyChuyenNganh_MonHoc
 CREATE TABLE HocKyChuyenNganh_MonHoc (
-	maCN VARCHAR(20),
-	maMH VARCHAR(20),
-	hocKy INT, -- Học kỳ đề xuất (1, 2, 3,...)
-	PRIMARY KEY (maCN, maMH),
-	FOREIGN KEY (maCN) REFERENCES ChuyenNganh(maCN),
-	FOREIGN KEY (maMH) REFERENCES MonHoc(maMH)
+    maCN VARCHAR(20),
+    maMH VARCHAR(20),
+    hocKy INT,
+    PRIMARY KEY (maCN, maMH),
+    FOREIGN KEY (maCN) REFERENCES ChuyenNganh(maCN),
+    FOREIGN KEY (maMH) REFERENCES MonHoc(maMH)
 );
 
--- Bảng: SinhVien_MonHoc
+-- 13. Bảng SinhVien_MonHoc
 CREATE TABLE SinhVien_MonHoc (
     maSV VARCHAR(20),
     maMH VARCHAR(20),
@@ -145,10 +147,10 @@ CREATE TABLE SinhVien_MonHoc (
     FOREIGN KEY (maLopHP) REFERENCES LopHocPhan(maLopHP)
 );
 
--- Bảng: ThoiKhoaBieu
+-- 14. Bảng ThoiKhoaBieu
 CREATE TABLE ThoiKhoaBieu (
-	maTKB VARCHAR(20) PRIMARY KEY,
-    ngayHoc date ,
+    maTKB VARCHAR(20) PRIMARY KEY,
+    ngayHoc DATE,
     tietBD VARCHAR(10),
     tietKT VARCHAR(10),
     maLopHP VARCHAR(20),
@@ -160,8 +162,9 @@ CREATE TABLE ThoiKhoaBieu (
     FOREIGN KEY (maLopHP) REFERENCES LopHocPhan(maLopHP)
 );
 
--- Bảng: BangTin
-CREATE TABLE BangTin (maThongBao VARCHAR(20) PRIMARY KEY,
+-- 15. Bảng BangTin
+CREATE TABLE BangTin (
+    maThongBao VARCHAR(20) PRIMARY KEY,
     tieuDe VARCHAR(255),
     noiDung TEXT,
     ngayDang DATE,
@@ -169,7 +172,8 @@ CREATE TABLE BangTin (maThongBao VARCHAR(20) PRIMARY KEY,
     loaiNguoiDung ENUM('SinhVien', 'GiangVien', 'TatCa'),
     FOREIGN KEY (nguoiDang) REFERENCES NguoiDung(maNguoiDung)
 );
--- Bảng: DangKyLichDay (GV đăng ký dạy)
+
+-- 16. Bảng DangKyLichDay
 CREATE TABLE DangKyLichDay (
     maDangKy VARCHAR(20) PRIMARY KEY,
     maGV VARCHAR(20),
@@ -180,7 +184,7 @@ CREATE TABLE DangKyLichDay (
     FOREIGN KEY (maLopHP) REFERENCES LopHocPhan(maLopHP)
 );
 
--- Bảng: XuLyYeuCau (luồng xử lý mở lớp)
+-- 17. Bảng XuLyYeuCau
 CREATE TABLE XuLyYeuCau (
     maXuLy VARCHAR(20) PRIMARY KEY,
     maYeuCau VARCHAR(20),
@@ -193,7 +197,7 @@ CREATE TABLE XuLyYeuCau (
     FOREIGN KEY (nguoiXuLy) REFERENCES NguoiDung(maNguoiDung)
 );
 
--- Bảng: PhanCongGiangVien (TBM phân công GV)
+-- 18. Bảng PhanCongGiangVien
 CREATE TABLE PhanCongGiangVien (
     maPhanCong VARCHAR(20) PRIMARY KEY,
     maGV VARCHAR(20),
@@ -203,10 +207,8 @@ CREATE TABLE PhanCongGiangVien (
     FOREIGN KEY (maLopHP) REFERENCES LopHocPhan(maLopHP)
 );
 
--- Insert into NguoiDung
-INSERT INTO NguoiDung VALUES('2001215682','2001215682','pwd123','SinhVien');
-INSERT INTO NguoiDung VALUES('2001215641','2001215641','pwd123','SinhVien');
 INSERT INTO NguoiDung VALUES('2001215601','2001215601','pwd123','SinhVien');
+INSERT INTO NguoiDung VALUES('2001215682','2001215682','123','SinhVien');
 INSERT INTO NguoiDung VALUES('2001215602','2001215602','pwd123','SinhVien');
 INSERT INTO NguoiDung VALUES('2001215603','2001215603','pwd123','SinhVien');
 INSERT INTO NguoiDung VALUES('2001215604','2001215604','pwd123','SinhVien');
@@ -243,105 +245,96 @@ INSERT INTO NguoiDung VALUES('GV04','dungpt','pwdGV','GiangVien');
 INSERT INTO NguoiDung VALUES('GV05','daihq','pwdGV','GiangVien');
 INSERT INTO NguoiDung VALUES('GV06','hongvt','pwdGV','GiaoVu');
 INSERT INTO NguoiDung VALUES('AD01','admin1','adminpass','QuanTriVien');
--- Insert into ChuyenNganh
+
+
 INSERT INTO ChuyenNganh VALUES('CNPM', 'Công nghệ phần mềm');
 INSERT INTO ChuyenNganh VALUES('HTTT', 'Hệ thống thông tin');
 INSERT INTO ChuyenNganh VALUES('KHDL', 'Khoa học dữ liệu');
 INSERT INTO ChuyenNganh VALUES('MMT', 'Mạng máy tính');
--- Insert into SinhVien
-INSERT INTO SinhVien VALUES ('2001215641','Lương Ngọc Chung','davidtranmay@gmail.com','0912314421','Long An','2004-08-22','Nam','2020-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215682','Võ Nguyễn Hữu Duy','huuduy.study@gmail.com','0912314421','Long An','2004-08-22','Nam','2020-09-01','Dang hoc','CNPM');
 
-INSERT INTO SinhVien VALUES ('2001215601','Nguyễn Văn Hải','2001215601@huit.edu.vn','0912314421','Long An','2004-08-22','Nu','2020-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215602','Trần Thị Lan','2001215602@huit.edu.vn','0912337391','TP.HCM','2004-03-14','Nu','2020-09-01','Dang hoc','HTTT');
-INSERT INTO SinhVien VALUES ('2001215603','Lê Minh Hoàng','2001215603@huit.edu.vn','0912335981','Bình Dương','2004-05-07','Nu','2021-09-01','Dang hoc','KHDL');
-INSERT INTO SinhVien VALUES ('2001215604','Phạm Thị Hương','2001215604@huit.edu.vn','0912326259','Long An','2004-06-13','Nam','2022-09-01','Dang hoc','MMT');
-INSERT INTO SinhVien VALUES ('2001215605','Hoàng Văn Dũng','2001215605@huit.edu.vn','0912340597','Long An','2002-08-16','Nu','2020-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215606','Vũ Thị Mai','2001215606@huit.edu.vn','0912330933','TP.HCM','2004-07-09','Nu','2022-09-01','Dang hoc','HTTT');
-INSERT INTO SinhVien VALUES ('2001215607','Đỗ Văn Quân','2001215607@huit.edu.vn','0912321236','TP.HCM','2003-01-12','Nu','2021-09-01','Dang hoc','KHDL');
-INSERT INTO SinhVien VALUES ('2001215608','Đặng Thị Phương','2001215608@huit.edu.vn','0912326666','TP.HCM','2002-04-05','Nam','2020-09-01','Dang hoc','MMT');
-INSERT INTO SinhVien VALUES ('2001215609','Bùi Văn Tú','2001215609@huit.edu.vn','0912384395','Bình Dương','2004-06-02','Nu','2023-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215610','Phan Thị Ngọc','2001215610@huit.edu.vn','0912349603','Bình Dương','2003-08-15','Nam','2021-09-01','Dang hoc','HTTT');
-INSERT INTO SinhVien VALUES ('2001215611','Trương Minh Triết','2001215611@huit.edu.vn','0912371955','Đồng Nai','2004-08-31','Nu','2022-09-01','Dang hoc','KHDL');
-INSERT INTO SinhVien VALUES  ('2001215612','Lý Thị Thanh','2001215612@huit.edu.vn','0912396307','TP.HCM','2002-05-28','Nu','2020-09-01','Dang hoc','MMT');
-INSERT INTO SinhVien VALUES ('2001215613','Hồ Văn Lộc','2001215613@huit.edu.vn','0912395681','Đồng Nai','2004-02-01','Nam','2022-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215614','Ngô Thị Kim','2001215614@huit.edu.vn','0912362970','Bình Dương','2004-05-08','Nu','2022-09-01','Dang hoc','HTTT');
-INSERT INTO SinhVien VALUES ('2001215615','Dương Văn Khánh','2001215615@huit.edu.vn','0912368278','TP.HCM','2002-11-01','Nam','2020-09-01','Dang hoc','KHDL');
-INSERT INTO SinhVien VALUES ('2001215616','Đinh Thị Ngân','2001215616@huit.edu.vn','0912395725','TP.HCM','2002-03-17','Nu','2020-09-01','Dang hoc','MMT');
-INSERT INTO SinhVien VALUES ('2001215617','Vương Minh Đức','2001215617@huit.edu.vn','0912316908','Đồng Nai','2002-06-27','Nu','2020-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215618','Hà Thị Mỹ','2001215618@huit.edu.vn','0912391443','Đồng Nai','2003-01-06','Nam','2021-09-01','Dang hoc','HTTT');
-INSERT INTO SinhVien VALUES ('2001215619','Phùng Văn Tiến','2001215619@huit.edu.vn','0912346617','Đồng Nai','2003-02-07','Nu','2021-09-01','Dang hoc','KHDL');
-INSERT INTO SinhVien VALUES ('2001215620','Mai Thị Phương','2001215620@huit.edu.vn','0912333825','Long An','2003-04-30','Nam','2021-09-01','Dang hoc','MMT');
-INSERT INTO SinhVien VALUES ('2001215621','Tạ Văn Khoa','2001215621@huit.edu.vn','0912363916','TP.HCM','2004-08-30','Nu','2023-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215622','Phùng Thị Thu','2001215622@huit.edu.vn','0912317652','Bình Dương','2002-08-13','Nam','2020-09-01','Dang hoc','HTTT');
-INSERT INTO SinhVien VALUES ('2001215623','Trịnh Văn Tài','2001215623@huit.edu.vn','0912310246','Bình Dương','2003-07-22','Nu','2021-09-01','Dang hoc','KHDL');
-INSERT INTO SinhVien VALUES ('2001215624','Chu Thị Ánh','2001215624@huit.edu.vn','0912370145','Đồng Nai','2002-12-11','Nam','2020-09-01','Dang hoc','MMT');
-INSERT INTO SinhVien VALUES ('2001215625','Nguyễn Thị Thanh','2001215625@huit.edu.vn','0912393780','Bình Dương','2003-12-16','Nu','2021-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215626','Lê Thị Phúc','2001215626@huit.edu.vn','0912329101','Bình Dương','2002-09-18','Nam','2020-09-01','Dang hoc','HTTT');
-INSERT INTO SinhVien VALUES ('2001215627','Trần Văn Sơn','2001215627@huit.edu.vn','0912347961','TP.HCM','2002-08-25','Nu','2020-09-01','Dang hoc','KHDL');
-INSERT INTO SinhVien VALUES ('2001215628','Phạm Minh Châu','2001215628@huit.edu.vn','0912394259','Bình Dương','2004-08-10','Nam','2023-09-01','Dang hoc','MMT');
-INSERT INTO SinhVien VALUES ('2001215629','Võ Thị Bích','2001215629@huit.edu.vn','0912372174','Long An','2002-02-12','Nu','2020-09-01','Dang hoc','CNPM');
-INSERT INTO SinhVien VALUES ('2001215630','Huỳnh Văn Bình','2001215630@huit.edu.vn','0912385273','Đồng Nai','2004-05-13','Nu','2022-09-01','Dang hoc','HTTT');
--- Insert into BoMon
-INSERT INTO BoMon VALUES('BM01','Công Nghệ Thông Tin','Chuyên về lập trình và hệ thống thông tin','2010-09-01');
-INSERT INTO BoMon VALUES('BM02','Toán Tin','Chuyên toán ứng dụng trong tin học','2008-03-15');
-INSERT INTO BoMon VALUES('BM03','Khoa Học Máy Tính','Nghiên cứu khoa học cơ bản và AI','2012-06-20');
--- Insert into GiangVien
-INSERT INTO GiangVien VALUES('GV01','Nguyễn Thị Ánh','GV01@huit.edu.vn','0977000001','BM01','TS','Trưởng Khoa','Khoa học dữ liệu','TruongKhoa');
-INSERT INTO GiangVien VALUES('GV02','Trần Văn Bình','GV02@huit.edu.vn','0977000002','BM02','ThS','Trưởng Bộ Môn','Toán rời rạc','TruongBoMon');
-INSERT INTO GiangVien VALUES('GV03','Lê Minh Châu','GV03@huit.edu.vn','0977000003','BM01','TS','','Mạng máy tính','GiangVien');
-INSERT INTO GiangVien VALUES('GV04','Phạm Thị Dung','GV04@huit.edu.vn','0977000004','BM02','ThS','','Cấu trúc dữ liệu','GiangVien');
-INSERT INTO GiangVien VALUES('GV05','Hoàng Quốc Đại','GV05@huit.edu.vn','0977000005','BM03','TS','','AI & ML','GiangVien');
-INSERT INTO GiangVien VALUES('GV06','Võ Thị Hồng','GV06@huit.edu.vn','0977000006','BM03','ThS','','Quản trị văn phòng','GiaoVu');
--- Insert into Lop
-INSERT INTO Lop VALUES('12DHTH11_01','12DHTH11','GV03','2001215601');
-INSERT INTO Lop VALUES('12DHTH11_02','12DHTH11','GV03','2001215602');
-INSERT INTO Lop VALUES('12DHTH11_03','12DHTH11','GV03','2001215603');
-INSERT INTO Lop VALUES('12DHTH11_04','12DHTH11','GV03','2001215604');
-INSERT INTO Lop VALUES('12DHTH11_05','12DHTH11','GV03','2001215605');
-INSERT INTO Lop VALUES('12DHTH11_06','12DHTH11','GV03','2001215606');
-INSERT INTO Lop VALUES('12DHTH11_07','12DHTH11','GV03','2001215607');
-INSERT INTO Lop VALUES('12DHTH11_08','12DHTH11','GV03','2001215608');
-INSERT INTO Lop VALUES('12DHTH11_09','12DHTH11','GV03','2001215609');
-INSERT INTO Lop VALUES('12DHTH11_10','12DHTH11','GV03','2001215610');
-INSERT INTO Lop VALUES('12DHTH11_11','12DHTH11','GV03','2001215611');
-INSERT INTO Lop VALUES('12DHTH11_12','12DHTH11','GV03','2001215612');
-INSERT INTO Lop VALUES('12DHTH11_13','12DHTH11','GV03','2001215613');
-INSERT INTO Lop VALUES('12DHTH11_14','12DHTH11','GV03','2001215614');
-INSERT INTO Lop VALUES('12DHTH11_15','12DHTH11','GV03','2001215615');
-INSERT INTO Lop VALUES('12DHTH11_16','12DHTH11','GV03','2001215616');
-INSERT INTO Lop VALUES('12DHTH11_17','12DHTH11','GV03','2001215617');
-INSERT INTO Lop VALUES('12DHTH11_18','12DHTH11','GV03','2001215618');
-INSERT INTO Lop VALUES('12DHTH11_19','12DHTH11','GV03','2001215619');
-INSERT INTO Lop VALUES('12DHTH11_20','12DHTH11','GV03','2001215620');
-INSERT INTO Lop VALUES('12DHTH11_21','12DHTH11','GV03','2001215621');
-INSERT INTO Lop VALUES('12DHTH11_22','12DHTH11','GV03','2001215622');
-INSERT INTO Lop VALUES('12DHTH11_23','12DHTH11','GV03','2001215623');
-INSERT INTO Lop VALUES('12DHTH11_24','12DHTH11','GV03','2001215624');
-INSERT INTO Lop VALUES('12DHTH11_25','12DHTH11','GV03','2001215625');
-INSERT INTO Lop VALUES('12DHTH11_26','12DHTH11','GV03','2001215626');
-INSERT INTO Lop VALUES('12DHTH11_27','12DHTH11','GV03','2001215627');
-INSERT INTO Lop VALUES('12DHTH11_28','12DHTH11','GV03','2001215628');
-INSERT INTO Lop VALUES('12DHTH11_29','12DHTH11','GV03','2001215629');
-INSERT INTO Lop VALUES('12DHTH11_30','12DHTH11','GV03','2001215630');
--- Insert into MonHoc
-INSERT INTO MonHoc VALUES('MH01','Lập Trình C',3,'','BatBuoc',NULL,30,15);
-INSERT INTO MonHoc VALUES('MH02','Cấu Trúc Dữ Liệu',3,'','BatBuoc',NULL,30,15);
-INSERT INTO MonHoc VALUES('MH03','Cơ Sở Dữ Liệu',3,'','BatBuoc',NULL,30,15);
-INSERT INTO MonHoc VALUES('MH04','Mạng Máy Tính',3,'','BatBuoc',NULL,30,15);
-INSERT INTO MonHoc VALUES('MH05','Toán Rời Rạc',2,'','BatBuoc',NULL,30,15);
-INSERT INTO MonHoc VALUES('MH06','Lập Trình Java',3,'','BatBuoc',NULL,30,15);
-INSERT INTO MonHoc VALUES('MH07','Trí Tuệ Nhân Tạo',3,'','BatBuoc',NULL,30,15);
-INSERT INTO MonHoc VALUES('MH08','Phân Tích Dữ Liệu',2,'','BatBuoc',NULL,30,15);
--- Insert into LopHocPhan
-INSERT INTO LopHocPhan VALUES('LHP01','MH01','2024-2025','HK1',50,0);
-INSERT INTO LopHocPhan VALUES('LHP02','MH02','2024-2025','HK1',50,0);
-INSERT INTO LopHocPhan VALUES('LHP03','MH03','2024-2025','HK1',50,0);
-INSERT INTO LopHocPhan VALUES('LHP04','MH04','2024-2025','HK1',50,0);
-INSERT INTO LopHocPhan VALUES('LHP05','MH05','2024-2025','HK1',50,0);
-INSERT INTO LopHocPhan VALUES('LHP06','MH06','2024-2025','HK1',50,0);
-INSERT INTO LopHocPhan VALUES('LHP07','MH07','2024-2025','HK1',50,0);
-INSERT INTO LopHocPhan VALUES('LHP08','MH08','2024-2025','HK1',50,0);
+
+INSERT INTO BoMon (maBM, tenBM, moTa, ngayThanhLap) VALUES
+('BM_CNPM', 'Bộ môn Công nghệ phần mềm', 'Phụ trách giảng dạy và nghiên cứu về phát triển phần mềm, kỹ thuật phần mềm.', '2005-09-01'),
+('BM_HTTT', 'Bộ môn Hệ thống thông tin', 'Phụ trách các môn học liên quan đến hệ thống thông tin, cơ sở dữ liệu, phân tích thiết kế.', '2006-03-15'),
+('BM_KHDL', 'Bộ môn Khoa học dữ liệu', 'Chuyên về dữ liệu lớn, khai phá dữ liệu, học máy, AI.', '2012-05-20'),
+('BM_MMT', 'Bộ môn Mạng máy tính', 'Chuyên giảng dạy và nghiên cứu về mạng máy tính, mạng truyền thông, bảo mật.', '2007-10-10');
+
+
+INSERT INTO GiangVien (maGV, hoTen, email, soDienThoai, maBM, hocVi, hocHam, chuyenNganh, chucVu) VALUES
+('GV01','Nguyễn Thị Ánh','GV01@huit.edu.vn','0977000001','BM_KHDL','TS','Trưởng Khoa','Khoa học dữ liệu','TruongKhoa'),
+('GV02','Trần Văn Bình','GV02@huit.edu.vn','0977000002','BM_HTTT','ThS','Trưởng Bộ Môn','Bộ môn Hệ thống thông tin','TruongBoMon'),
+('GV03','Lê Minh Châu','GV03@huit.edu.vn','0977000003','BM_KHDL','TS','','Khoa học dữ liệu','GiangVien'),
+('GV04','Phạm Thị Dung','GV04@huit.edu.vn','0977000004','BM_KHDL','ThS','','Khoa học dữ liệu','GiangVien'),
+('GV05','Hoàng Quốc Đại','GV05@huit.edu.vn','0977000005','BM_KHDL','TS','','Khoa học dữ liệu','GiangVien'),
+('GV06','Võ Thị Hồng','GV06@huit.edu.vn','0977000006','BM_MMT','ThS','','Mạng máy tính','GiaoVu');
+
+
+INSERT INTO Lop (maLop, tenLop, maCVHT) VALUES
+('12DHTH10', '12DHTH10', 'GV01'),
+('12DHTH11', '12DHTH11', 'GV02'),
+('12DHTH12', '12DHTH12', 'GV03');
+
+
+INSERT INTO MonHoc (maMH, tenMH, soTinChi, moTa, loaiMon, hocPhanTienQuyet, soTietLyThuyet, soTietThucHanh) VALUES
+('MH01','Lập Trình C',3,'Học các khái niệm lập trình căn bản với ngôn ngữ C.','BatBuoc','',30,15),
+('MH02','Cấu Trúc Dữ Liệu',3,'Nắm bắt các cấu trúc dữ liệu cơ bản như danh sách, cây, đồ thị.','BatBuoc','',30,15),
+('MH03','Cơ Sở Dữ Liệu',3,'Giới thiệu về hệ quản trị CSDL và truy vấn SQL.','BatBuoc','',30,15),
+('MH04','Mạng Máy Tính',3,'Cung cấp kiến thức về mạng máy tính và giao thức.','BatBuoc','',30,15),
+('MH05','Toán Rời Rạc',2,'Trang bị kiến thức toán học ứng dụng trong CNTT.','BatBuoc','',30,0),
+('MH06','Lập Trình Java',3,'Lập trình hướng đối tượng sử dụng Java.','BatBuoc','',30,15),
+('MH07','Trí Tuệ Nhân Tạo',3,'Giới thiệu các thuật toán AI và ứng dụng.','BatBuoc','',30,15),
+('MH08','Phân Tích Dữ Liệu',2,'Phân tích và trực quan hóa dữ liệu.','BatBuoc','',15,15);
+
+INSERT INTO LopHocPhan VALUES
+('LHP01','MH01','2024-2025','HK1',50,0),
+('LHP02','MH02','2024-2025','HK1',50,0),
+('LHP03','MH03','2024-2025','HK1',50,0),
+('LHP04','MH04','2024-2025','HK1',50,0),
+('LHP05','MH05','2024-2025','HK1',50,0),
+('LHP06','MH06','2024-2025','HK1',50,0),
+('LHP07','MH07','2024-2025','HK1',50,0),
+('LHP08','MH08','2024-2025','HK1',50,0);
+
+INSERT INTO SinhVien VALUES ('2001215601','Nguyễn Văn Hải','2001215601@huit.edu.vn','0912314421','Long An','2004-08-22','Nu','2020-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215682','Võ Nguyễn Hữu Duy','huuduy.study@gmail.com','0912314421','Long An','2004-08-22','Nam','2020-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215602','Trần Thị Lan','2001215602@huit.edu.vn','0912337391','TP.HCM','2004-03-14','Nu','2020-09-01','Dang hoc','HTTT','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215603','Lê Minh Hoàng','2001215603@huit.edu.vn','0912335981','Bình Dương','2004-05-07','Nu','2021-09-01','Dang hoc','KHDL','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215604','Phạm Thị Hương','2001215604@huit.edu.vn','0912326259','Long An','2004-06-13','Nam','2022-09-01','Dang hoc','MMT','12DHTH12');
+INSERT INTO SinhVien VALUES ('2001215605','Hoàng Văn Dũng','2001215605@huit.edu.vn','0912340597','Long An','2002-08-16','Nu','2020-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215606','Vũ Thị Mai','2001215606@huit.edu.vn','0912330933','TP.HCM','2004-07-09','Nu','2022-09-01','Dang hoc','HTTT','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215607','Đỗ Văn Quân','2001215607@huit.edu.vn','0912321236','TP.HCM','2003-01-12','Nu','2021-09-01','Dang hoc','KHDL','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215608','Đặng Thị Phương','2001215608@huit.edu.vn','0912326666','TP.HCM','2002-04-05','Nam','2020-09-01','Dang hoc','MMT','12DHTH12');
+INSERT INTO SinhVien VALUES ('2001215609','Bùi Văn Tú','2001215609@huit.edu.vn','0912384395','Bình Dương','2004-06-02','Nu','2023-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215610','Phan Thị Ngọc','2001215610@huit.edu.vn','0912349603','Bình Dương','2003-08-15','Nam','2021-09-01','Dang hoc','HTTT','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215611','Trương Minh Triết','2001215611@huit.edu.vn','0912371955','Đồng Nai','2004-08-31','Nu','2022-09-01','Dang hoc','KHDL','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215612','Lý Thị Thanh','2001215612@huit.edu.vn','0912396307','TP.HCM','2002-05-28','Nu','2020-09-01','Dang hoc','MMT','12DHTH12');
+INSERT INTO SinhVien VALUES ('2001215613','Hồ Văn Lộc','2001215613@huit.edu.vn','0912395681','Đồng Nai','2004-02-01','Nam','2022-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215614','Ngô Thị Kim','2001215614@huit.edu.vn','0912362970','Bình Dương','2004-05-08','Nu','2022-09-01','Dang hoc','HTTT','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215615','Dương Văn Khánh','2001215615@huit.edu.vn','0912368278','TP.HCM','2002-11-01','Nam','2020-09-01','Dang hoc','KHDL','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215616','Đinh Thị Ngân','2001215616@huit.edu.vn','0912395725','TP.HCM','2002-03-17','Nu','2020-09-01','Dang hoc','MMT','12DHTH12');
+INSERT INTO SinhVien VALUES ('2001215617','Vương Minh Đức','2001215617@huit.edu.vn','0912316908','Đồng Nai','2002-06-27','Nu','2020-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215618','Hà Thị Mỹ','2001215618@huit.edu.vn','0912391443','Đồng Nai','2003-01-06','Nam','2021-09-01','Dang hoc','HTTT','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215619','Phùng Văn Tiến','2001215619@huit.edu.vn','0912346617','Đồng Nai','2003-02-07','Nu','2021-09-01','Dang hoc','KHDL','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215620','Mai Thị Phương','2001215620@huit.edu.vn','0912333825','Long An','2003-04-30','Nam','2021-09-01','Dang hoc','MMT','12DHTH12');
+INSERT INTO SinhVien VALUES ('2001215621','Tạ Văn Khoa','2001215621@huit.edu.vn','0912363916','TP.HCM','2004-08-30','Nu','2023-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215622','Phùng Thị Thu','2001215622@huit.edu.vn','0912317652','Bình Dương','2002-08-13','Nam','2020-09-01','Dang hoc','HTTT','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215623','Trịnh Văn Tài','2001215623@huit.edu.vn','0912310246','Bình Dương','2003-07-22','Nu','2021-09-01','Dang hoc','KHDL','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215624','Chu Thị Ánh','2001215624@huit.edu.vn','0912370145','Đồng Nai','2002-12-11','Nam','2020-09-01','Dang hoc','MMT','12DHTH12');
+INSERT INTO SinhVien VALUES ('2001215625','Nguyễn Thị Thanh','2001215625@huit.edu.vn','0912393780','Bình Dương','2003-12-16','Nu','2021-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215626','Lê Thị Phúc','2001215626@huit.edu.vn','0912329101','Bình Dương','2002-09-18','Nam','2020-09-01','Dang hoc','HTTT','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215627','Trần Văn Sơn','2001215627@huit.edu.vn','0912347961','TP.HCM','2002-08-25','Nu','2020-09-01','Dang hoc','KHDL','12DHTH11');
+INSERT INTO SinhVien VALUES ('2001215628','Phạm Minh Châu','2001215628@huit.edu.vn','0912394259','Bình Dương','2004-08-10','Nam','2023-09-01','Dang hoc','MMT','12DHTH12');
+INSERT INTO SinhVien VALUES ('2001215629','Võ Thị Bích','2001215629@huit.edu.vn','0912372174','Long An','2002-02-12','Nu','2020-09-01','Dang hoc','CNPM','12DHTH10');
+INSERT INTO SinhVien VALUES ('2001215630','Huỳnh Văn Bình','2001215630@huit.edu.vn','0912385273','Đồng Nai','2004-05-13','Nu','2022-09-01','Dang hoc','HTTT','12DHTH11');
+
+INSERT INTO YeuCauMoLop VALUES
+('YC001', '2025-01-06', 'DaGui', '1_GiaoVuNhan', '2001215601', 'LHP01', 'MH01', 35, 'Yêu cầu mở lớp bổ sung'),
+('YC002', '2025-01-07', 'TuChoi', '3_TruongKhoaNhan', '2001215602', 'LHP02', 'MH02', 20, 'Môn chuyên ngành bị trùng lịch'),
+('YC003', '2025-01-08', 'DaGui', '2_TBMNhan', '2001215603', 'LHP03', 'MH03', 30, 'Lớp học phần cần thiết cho tiến độ học tập'),
+('YC004', '2025-01-09', 'TuChoi', '2_TBMNhan', '2001215604', 'LHP04', 'MH04', 18, 'Không đủ số lượng đăng ký'),
+('YC005', '2025-01-10', 'DaDuyet', '4_ChoMoLop', '2001215605', 'LHP05', 'MH05', 45, 'Lớp đã được duyệt mở');
+
+
 -- Insert into SinhVien_MonHoc
 INSERT INTO SinhVien_MonHoc VALUES('2001215601','MH06','LHP06','2025-02-04');
 INSERT INTO SinhVien_MonHoc VALUES('2001215601','MH04','LHP04','2025-01-24');
@@ -490,6 +483,7 @@ INSERT INTO SinhVien_MonHoc VALUES('2001215630','MH07','LHP07','2025-02-02');
 INSERT INTO SinhVien_MonHoc VALUES('2001215630','MH03','LHP03','2025-02-06');
 INSERT INTO SinhVien_MonHoc VALUES('2001215630','MH01','LHP01','2025-02-04');
 INSERT INTO SinhVien_MonHoc VALUES('2001215630','MH05','LHP05','2025-02-06');
+
 -- Insert into ThoiKhoaBieu
 INSERT INTO ThoiKhoaBieu VALUES('TK0101','2025-02-03','Tiet4','Tiet6','LHP07','C303','2001215601','GV06');
 INSERT INTO ThoiKhoaBieu VALUES('TK0102','2025-02-05','Tiet3','Tiet5','LHP06','B202','2001215601','GV06');
@@ -612,24 +606,10 @@ INSERT INTO ThoiKhoaBieu VALUES('TK3002','2025-02-05','Tiet3','Tiet5','LHP06','E
 INSERT INTO ThoiKhoaBieu VALUES('TK3003','2025-02-06','Tiet3','Tiet5','LHP05','E505','2001215630','GV03');
 INSERT INTO ThoiKhoaBieu VALUES('TK3004','2025-02-07','Tiet4','Tiet6','LHP08','D404','2001215630','GV01');
 -- Insert into BangTin
-select *from YeuCauMolop;
 INSERT INTO BangTin VALUES('TB01', 'Lịch Thi Giữa Kỳ', 'Lịch thi giữa kỳ được công bố ngày 15/03', '2025-02-20', 'GV06', 'TatCa');
 INSERT INTO BangTin VALUES('TB02', 'Bảo trì Hệ Thống', 'Hệ thống đăng ký sẽ bảo trì ngày 01/03', '2025-02-25', 'GV05', 'SinhVien');
 INSERT INTO BangTin VALUES('TB03', 'Hội Thảo AI', 'Mời tham gia hội thảo AI ngày 10/04', '2025-03-01', 'GV01', 'TatCa');
--- Insert into YeuCauMoLop
-INSERT INTO YeuCauMoLop VALUES
-('YC001', '2025-01-06', 'DaGui', '1_GiaoVuNhan', '2001215601', 'LHP01', 'MH01', 35, 'Yêu cầu mở lớp bổ sung'),
-('YC002', '2025-01-07', 'TuChoi', '3_TruongKhoaNhan', '2001215602', 'LHP02', 'MH02', 20, 'Môn chuyên ngành bị trùng lịch'),
-('YC003', '2025-01-08', 'DaGui', '2_TBMNhan', '2001215603', 'LHP03', 'MH03', 30, 'Lớp học phần cần thiết cho tiến độ học tập'),
-('YC004', '2025-01-09', 'TuChoi', '2_TBMNhan', '2001215604', 'LHP04', 'MH04', 18, 'Không đủ số lượng đăng ký'),
-('YC005', '2025-01-10', 'DaDuyet', '4_ChoMoLop', '2001215605', 'LHP05', 'MH05', 45, 'Lớp đã được duyệt mở');
--- Insert into XuLyYeuCau
-INSERT INTO XuLyYeuCau VALUES
-('XL001', 'YC001', 'TruongKhoa', 'GV01', '2025-01-06', 'TuChoi', 'Chưa phù hợp kế hoạch học kỳ'),
-('XL002', 'YC002', 'TruongKhoa', 'GV01', '2025-01-07', 'TuChoi', 'Môn học không mở trong học kỳ này'),
-('XL003', 'YC003', 'TruongBoMon', 'GV02', '2025-01-08', 'TuChoi', 'Không đủ giảng viên đảm nhiệm'),
-('XL004', 'YC004', 'TruongBoMon', 'GV02', '2025-01-09', 'TuChoi', 'Không đảm bảo cơ sở vật chất'),
-('XL005', 'YC005', 'GiaoVu', 'GV06', '2025-01-10', 'DongY', 'Đã duyệt vì đủ số lượng đăng ký');
+
 -- Insert into DangKyLichDay
 INSERT INTO DangKyLichDay VALUES('DK001','GV04','LHP01','2025-01-03','TuChoi');
 INSERT INTO DangKyLichDay VALUES('DK002','GV06','LHP02','2025-01-04','ChapNhan');
@@ -646,118 +626,8 @@ INSERT INTO PhanCongGiangVien VALUES('PC005','GV05','LHP05','2025-01-07');
 INSERT INTO PhanCongGiangVien VALUES('PC006','GV06','LHP06','2025-01-08');
 INSERT INTO PhanCongGiangVien VALUES('PC007','GV04','LHP07','2025-01-09');
 INSERT INTO PhanCongGiangVien VALUES('PC008','GV05','LHP08','2025-01-10');
-select *from lophocphan
-select * from nguoidung;
-select * from sinhvien;
-select * from yeucaumolop
-update yeucaumolop
-set soLuongThamGia = 45
-where maYeuCau = "YC336943"
- -- SinhVien
- -- Công thức đơn giản (theo năm học có 2 học kỳ):
-SET @hocKyHienTai = FLOOR(TIMESTAMPDIFF(MONTH, sv.thoiGianNhapHoc, CURDATE()) / 6) + 1;
- -- Truy vấn: lấy các lớp học phần hợp lệ cho sinh viên trong học kỳ hiện tại
-SELECT
-	lhp.maLopHP,
-	mh.tenMH,
-	lhp.hocKy,
-	lhp.namHoc,
-	mh.soTinChi
-FROM SinhVien sv
-JOIN ChuyenNganh_MonHoc cnmh ON sv.maCN = cnmh.maCN
-JOIN HocKyChuyenNganh_MonHoc hk ON cnmh.maMH = hk.maMH AND cnmh.maCN = hk.maCN
-JOIN LopHocPhan lhp ON lhp.maMH = cnmh.maMH
-JOIN MonHoc mh ON mh.maMH = cnmh.maMH
-WHERE sv.maSV = 'SV001'
-	AND hk.hocKy = (
-	FLOOR(TIMESTAMPDIFF(MONTH, sv.thoiGianNhapHoc, CURDATE()) / 6) + 1
-	)
-	AND mh.loaiMon = 'BatBuoc';
------------------------------------------------------------------
--- GiaoVu
- -- thao tác(xem, thay đổi trạng thái)
- -- Cập nhật trạng thái phiếu yêu cầu sau khi giáo vụ nhận
-UPDATE YeuCauMoLop
-SET cotTrangThaiXuLy = '1_GiaoVuNhan'
-WHERE maYeuCau = 'YEC001';
 
--- Cập nhật trạng thái phiếu yêu cầu sau khi trưởng bộ môn nhận
-UPDATE YeuCauMoLop
-SET cotTrangThaiXuLy = '2_TBMNhan'
-WHERE maYeuCau = 'YEC001';
 
--- Cập nhật trạng thái phiếu yêu cầu sau khi trưởng khoa nhận
-UPDATE YeuCauMoLop
-SET cotTrangThaiXuLy = '3_TruongKhoaNhan'
-WHERE maYeuCau = 'YEC001';
-
--- Cập nhật trạng thái khi đủ số lượng mở lớp
-UPDATE YeuCauMoLop
-SET cotTrangThaiXuLy = '4_ChoMoLop'
-WHERE soLuongThamGia >= 30;
-----------------------------------
--- Truong bo mon
---  Phân công Giảng Viên nếu không có ai đăng ký
--- Kiểm tra xem lớp học phần có giảng viên nào đã đăng ký không
-SELECT * 
-FROM DangKyLichDay
-WHERE maLopHP = 'LHP001' AND maGV IS NULL;
-
--- Phân công giảng viên vào lớp học phần
-INSERT INTO PhanCongGiangVien (maPhanCong, maGV, maLopHP, ngayPhanCong)
-VALUES ('PC001', 'GV001', 'LHP001', CURDATE());
-
--- Từ chối yêu cầu mở lớp nếu có lý do đặc biệt
--- Cập nhật trạng thái yêu cầu mở lớp khi từ chối
-UPDATE YeuCauMoLop
-SET cotTrangThaiXuLy = '2_TBMNhan', tinhTrang = 'TuChoi', description = 'Không đủ điều kiện mở lớp'
-WHERE maYeuCau = 'YEC001';
-----------------------------------
--- GiangVien
--- Xem số lớp đang dạy và môn đang dạy của giảng viên
-SELECT 
-    gv.hoTen AS giangVien,
-    COUNT(DISTINCT lhp.maLopHP) AS soLopDangDay,
-    GROUP_CONCAT(DISTINCT mh.tenMH ORDER BY mh.tenMH) AS monDangDay
-FROM GiangVien gv
-JOIN PhanCongGiangVien pc ON gv.maGV = pc.maGV
-JOIN LopHocPhan lhp ON pc.maLopHP = lhp.maLopHP
-JOIN MonHoc mh ON lhp.maMH = mh.maMH
-WHERE gv.maGV = 'GV001'  -- Giảng viên cụ thể
-GROUP BY gv.maGV;
-
--- Xem thời khóa biểu của giảng viên
-SELECT 
-    tkb.ngayHoc,
-    tkb.tietBD,
-    tkb.tietKT,
-    lhp.tenLop,
-    mh.tenMH,
-    tkb.phongHoc
-FROM ThoiKhoaBieu tkb
-JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
-JOIN MonHoc mh ON lhp.maMH = mh.maMH
-WHERE tkb.maGV = 'GV001'  -- Giảng viên cụ thể
-ORDER BY tkb.ngayHoc, tkb.tietBD;
-
--- Giảng viên đăng ký lớp dạy mới
-INSERT INTO DangKyLichDay (maDangKy, maGV, maLopHP, ngayDangKy, trangThai)
-VALUES ('DK001', 'GV001', 'LHP001', CURDATE(), 'ChoDuyet');
-----------------------------------
--- Truong Khoa
--- Xem số lượng phiếu yêu cầu mở lớp cho Trưởng khoa
-SELECT 
-    COUNT(*) AS soLuongYeuCau
-FROM YeuCauMoLop ycm
-WHERE ycm.cotTrangThaiXuLy IN ('3_TKMNhan');  -- Trưởng khoa sẽ thấy yêu cầu có trạng thái nhận
-
--- Trưởng khoa thay đổi trạng thái của phiếu yêu cầu mở lớp
-UPDATE YeuCauMoLop
-SET cotTrangThaiXuLy = '4_ChoMoLop', 
-    ghiChu = 'Lý do từ chối mở lớp'
-WHERE maYeuCau = 'YC001';
-
-----------------------------------
 DELIMITER //
 -- proc xem thời khóa biểu
 CREATE PROCEDURE sp_view_tkb(IN p_maSV VARCHAR(20))
@@ -778,27 +648,12 @@ END;
 //
 DELIMITER ;
 
--- gọi proc theo mã sv
-CALL sp_view_tkb('2001215601');
-USE test;
--- Chinh sua 
-
-ALTER TABLE YeuCauMoLop
-ADD COLUMN tinhTrangTongQuat ENUM('DaGui', 'DaDuyet', 'TuChoi', 'Huy') DEFAULT 'DaGui',
-ADD COLUMN trangThaiXuLy ENUM('0_ChuaGui','1_GiaoVuNhan','2_TBMNhan','3_TruongKhoaNhan','4_ChoMoLop') DEFAULT '0_ChuaGui',
-ADD COLUMN soLuongThamGia INT,
-ADD COLUMN maMH VARCHAR(20);
-
-select * from nguoidung 
-select * from Yeucaumolop
-
-
 -- fix lỗi ghi log
 ALTER TABLE LichSuThayDoiYeuCau
   MODIFY cotTrangThaiCu ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TruongKhoaNhan', '4_ChoMoLop'),
   MODIFY cotTrangThaiMoi ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TruongKhoaNhan', '4_ChoMoLop');
-
--- trigger cập nhật trạng thái 
+  
+-- proc update trang thai phieu mo lop
 DELIMITER $$
 
 CREATE TRIGGER trg_auto_update_trangThai_before_insert
@@ -829,8 +684,3 @@ END$$
 
 DELIMITER ;
 
-
-SHOW TRIGGERS LIKE 'YeuCauMoLop';
-
-#Drop TRIGGER trg_auto_update_trangThai_before_update;
-#Drop  TRIGGER trg_auto_update_trangThai_before_insert;
