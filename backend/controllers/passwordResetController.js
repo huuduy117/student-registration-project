@@ -1,6 +1,6 @@
-const { mysqlConnection } = require("../config/db")
-const passwordResetModel = require("../models/passwordResetModel")
-const nodemailer = require("nodemailer")
+const { mysqlConnection } = require("../config/db");
+const passwordResetModel = require("../models/passwordResetModel");
+const nodemailer = require("nodemailer");
 
 // Configure nodemailer with Gmail
 const transporter = nodemailer.createTransport({
@@ -9,15 +9,15 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER || "chungluong4423@gmail.com", // Use environment variable or default
     pass: process.env.EMAIL_PASSWORD || "pjqk kaju zxem xjpp", // Use environment variable or default
   },
-})
+});
 
 // Request password reset
 exports.requestReset = async (req, res) => {
   try {
-    const { username } = req.body
+    const { username } = req.body;
 
     if (!username) {
-      return res.status(400).json({ message: "Vui lòng nhập tên đăng nhập" })
+      return res.status(400).json({ message: "Vui lòng nhập tên đăng nhập" });
     }
 
     // Find user by username
@@ -34,32 +34,38 @@ exports.requestReset = async (req, res) => {
       LEFT JOIN SinhVien sv ON n.maNguoiDung = sv.maSV 
       LEFT JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
       WHERE n.tenDangNhap = ?
-    `
+    `;
 
     mysqlConnection.query(findUserQuery, [username], async (err, results) => {
       if (err) {
-        console.error("Error finding user:", err)
-        return res.status(500).json({ message: "Lỗi hệ thống" })
+        console.error("Error finding user:", err);
+        return res.status(500).json({ message: "Lỗi hệ thống" });
       }
 
       if (results.length === 0) {
-        return res.status(404).json({ message: "Không tìm thấy người dùng với tên đăng nhập này" })
+        return res
+          .status(404)
+          .json({ message: "Không tìm thấy người dùng với tên đăng nhập này" });
       }
 
-      const user = results[0]
+      const user = results[0];
 
       if (!user.email) {
-        return res.status(400).json({ message: "Người dùng không có email để gửi mã đặt lại mật khẩu" })
+        return res.status(400).json({
+          message: "Người dùng không có email để gửi mã đặt lại mật khẩu",
+        });
       }
 
       // Create reset token
-      const { token, expiresAt } = await passwordResetModel.createResetToken(user.maNguoiDung)
+      const { token, expiresAt } = await passwordResetModel.createResetToken(
+        user.maNguoiDung
+      );
 
       // Calculate expiration time in minutes
-      const expirationMinutes = 30
+      const expirationMinutes = 30;
 
       // Send email with reset link
-      const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${token}`
+      const resetLink = `http://localhost:5000/reset-password?token=${token}`;
 
       const mailOptions = {
         from: process.env.EMAIL_USER || "your-email@gmail.com",
@@ -76,94 +82,106 @@ exports.requestReset = async (req, res) => {
           <p>Trân trọng,</p>
           <p>Đội ngũ hỗ trợ</p>
         `,
-      }
+      };
 
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-          console.error("Error sending email:", error)
-          return res.status(500).json({ message: "Lỗi khi gửi email" })
+          console.error("Error sending email:", error);
+          return res.status(500).json({ message: "Lỗi khi gửi email" });
         }
 
-        console.log("Email sent:", info.response)
+        console.log("Email sent:", info.response);
         res.status(200).json({
-          message: "Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.",
+          message:
+            "Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.",
           email: user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3"), // Mask email for privacy
-        })
-      })
-    })
+        });
+      });
+    });
   } catch (error) {
-    console.error("Password reset request error:", error)
-    res.status(500).json({ message: "Lỗi hệ thống" })
+    console.error("Password reset request error:", error);
+    res.status(500).json({ message: "Lỗi hệ thống" });
   }
-}
+};
 
 // Verify reset token
 exports.verifyToken = async (req, res) => {
   try {
-    const { token } = req.params
+    const { token } = req.params;
 
     if (!token) {
-      return res.status(400).json({ message: "Token không hợp lệ" })
+      return res.status(400).json({ message: "Token không hợp lệ" });
     }
 
-    const tokenData = await passwordResetModel.verifyResetToken(token)
+    const tokenData = await passwordResetModel.verifyResetToken(token);
 
     if (!tokenData) {
-      return res.status(400).json({ message: "Token không hợp lệ hoặc đã hết hạn" })
+      return res
+        .status(400)
+        .json({ message: "Token không hợp lệ hoặc đã hết hạn" });
     }
 
     // Calculate remaining time in minutes
-    const expiresAt = new Date(tokenData.expiresAt)
-    const now = new Date()
-    const remainingMinutes = Math.floor((expiresAt - now) / (1000 * 60))
+    const expiresAt = new Date(tokenData.expiresAt);
+    const now = new Date();
+    const remainingMinutes = Math.floor((expiresAt - now) / (1000 * 60));
 
     res.status(200).json({
       valid: true,
       maNguoiDung: tokenData.maNguoiDung,
       remainingMinutes,
-    })
+    });
   } catch (error) {
-    console.error("Token verification error:", error)
-    res.status(500).json({ message: "Lỗi hệ thống" })
+    console.error("Token verification error:", error);
+    res.status(500).json({ message: "Lỗi hệ thống" });
   }
-}
+};
 
 // Reset password
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body
+    const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
-      return res.status(400).json({ message: "Thiếu thông tin cần thiết" })
+      return res.status(400).json({ message: "Thiếu thông tin cần thiết" });
     }
 
     // Verify token
-    const tokenData = await passwordResetModel.verifyResetToken(token)
+    const tokenData = await passwordResetModel.verifyResetToken(token);
 
     if (!tokenData) {
-      return res.status(400).json({ message: "Token không hợp lệ hoặc đã hết hạn" })
+      return res
+        .status(400)
+        .json({ message: "Token không hợp lệ hoặc đã hết hạn" });
     }
 
     // Update password
-    const updateQuery = "UPDATE NguoiDung SET matKhau = ? WHERE maNguoiDung = ?"
+    const updateQuery =
+      "UPDATE NguoiDung SET matKhau = ? WHERE maNguoiDung = ?";
 
-    mysqlConnection.query(updateQuery, [newPassword, tokenData.maNguoiDung], async (err, result) => {
-      if (err) {
-        console.error("Error updating password:", err)
-        return res.status(500).json({ message: "Lỗi khi cập nhật mật khẩu" })
+    mysqlConnection.query(
+      updateQuery,
+      [newPassword, tokenData.maNguoiDung],
+      async (err, result) => {
+        if (err) {
+          console.error("Error updating password:", err);
+          return res.status(500).json({ message: "Lỗi khi cập nhật mật khẩu" });
+        }
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Không tìm thấy người dùng" });
+        }
+
+        // Delete the used token
+        await passwordResetModel.deleteResetToken(token);
+
+        res
+          .status(200)
+          .json({ message: "Mật khẩu đã được cập nhật thành công" });
       }
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Không tìm thấy người dùng" })
-      }
-
-      // Delete the used token
-      await passwordResetModel.deleteResetToken(token)
-
-      res.status(200).json({ message: "Mật khẩu đã được cập nhật thành công" })
-    })
+    );
   } catch (error) {
-    console.error("Password reset error:", error)
-    res.status(500).json({ message: "Lỗi hệ thống" })
+    console.error("Password reset error:", error);
+    res.status(500).json({ message: "Lỗi hệ thống" });
   }
-}
+};
