@@ -418,15 +418,14 @@ exports.getParticipants = (req, res) => {
     return res.status(400).json({ message: "Thiếu mã lớp học phần" });
   }
 
-  const query = `
-    SELECT 
+  const query = `    SELECT 
       sm.maSV,
       sv.hoTen,
       l.tenLop AS lop,
       sm.ngayDangKy
     FROM SinhVien_MonHoc sm
     JOIN SinhVien sv ON sm.maSV = sv.maSV
-    LEFT JOIN Lop l ON sv.maSV = l.maSV
+    LEFT JOIN Lop l ON sv.maLop = l.maLop
     WHERE sm.maLopHP = ?
     ORDER BY sm.ngayDangKy
   `;
