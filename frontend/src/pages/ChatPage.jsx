@@ -139,14 +139,13 @@ const ChatPage = () => {
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
   };
-
   const handleJoinClassRequest = async (joinData) => {
     try {
       const response = await axios.post(
         "/api/class-requests/join",
         {
           maSV: userId,
-          maLopHP: joinData.requestId,
+          maLopHP: joinData.maLopHP,
         },
         {
           headers: {
@@ -218,12 +217,12 @@ const ChatPage = () => {
       setShowRequestDetails(true);
     }
   };
-
   const handleJoinRequest = (requestId) => {
     const request = classRequests.find((req) => req.maLopHP === requestId);
     if (request) {
       setSelectedRequest({
         ...request,
+        maLopHP: request.maLopHP, // Make sure maLopHP is included
       });
       setShowJoinForm(true);
     }
