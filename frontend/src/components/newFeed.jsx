@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { FaTimes } from "react-icons/fa";
 import Chat from "../pages/Chat";
 import ClassRequestTicket from "./Chat/ClassRequestTicket";
+import ParticipantsList from "./Chat/ParticipantsList";
+import RequestDetails from "./Chat/RequestDetails";
 import axios from "axios";
 
 export default function NewFeed() {
@@ -17,6 +19,10 @@ export default function NewFeed() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  // Add new state variables for modals and participant details
+  const [showParticipantsList, setShowParticipantsList] = useState(false);
+  const [showRequestDetails, setShowRequestDetails] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   useEffect(() => {
     // Get user info from session storage
@@ -153,6 +159,90 @@ export default function NewFeed() {
     localStorage.setItem("pinnedRequests", JSON.stringify(newPinnedRequests));
   };
 
+  const handleViewParticipants = async (requestId) => {
+    try {
+      const response = await axios.get(
+        `/api/class-requests/${requestId}/participants`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              JSON.parse(
+                sessionStorage.getItem(
+                  `auth_${sessionStorage.getItem("tabId")}`
+                )
+              ).token
+            }`,
+          },
+        }
+      );
+
+      const request = openRequests.find((req) => req.maLopHP === requestId);
+      if (request) {
+        setSelectedRequest({
+          id: request.maLopHP,
+          courseName: request.tenMH,
+          participantCount: request.soLuongDangKy,
+          participants: response.data.map((p) => ({
+            studentId: p.maSV,
+            fullName: p.hoTen,
+            class: p.lop,
+            joinDate: p.ngayDangKy,
+          })),
+        });
+        setShowParticipantsList(true);
+      }
+    } catch (error) {
+      console.error("Error fetching participants:", error);
+      alert("Lỗi khi lấy danh sách sinh viên tham gia");
+    }
+  };
+
+  const handleViewDetails = async (requestId) => {
+    try {
+      const participantsResponse = await axios.get(
+        `/api/class-requests/${requestId}/participants`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              JSON.parse(
+                sessionStorage.getItem(
+                  `auth_${sessionStorage.getItem("tabId")}`
+                )
+              ).token
+            }`,
+          },
+        }
+      );
+
+      const request = openRequests.find((req) => req.maLopHP === requestId);
+      if (request) {
+        setSelectedRequest({
+          id: request.maLopHP,
+          courseName: request.tenMH,
+          creatorName: request.tenSinhVien,
+          creatorStudentId: request.maSV,
+          creatorClass: request.tenLop,
+          semester: request.hocKy ? request.hocKy.replace("HK", "") : "",
+          batch: request.namHoc,
+          participantCount: request.soLuongDangKy,
+          description: request.description,
+          createdAt: request.ngayGui,
+          participants: participantsResponse.data,
+        });
+        setShowRequestDetails(true);
+      }
+    } catch (error) {
+      console.error("Error fetching request details:", error);
+      alert("Lỗi khi lấy thông tin chi tiết yêu cầu");
+    }
+  };
+
+  const closeModal = () => {
+    setShowParticipantsList(false);
+    setShowRequestDetails(false);
+    setSelectedRequest(null);
+  };
+
   return (
     <>
       <div className="new-feed-wrapper">
@@ -230,8 +320,8 @@ export default function NewFeed() {
                             createdAt: request.ngayGui,
                           }}
                           onJoin={handleJoinRequest}
-                          onViewParticipants={() => {}}
-                          onViewDetails={() => {}}
+                          onViewParticipants={handleViewParticipants}
+                          onViewDetails={handleViewDetails}
                           currentUser={userId}
                           isPinned={pinnedRequests.includes(request.maLopHP)}
                           onTogglePin={handleTogglePin}
@@ -274,8 +364,8 @@ export default function NewFeed() {
                             createdAt: request.ngayGui,
                           }}
                           onJoin={handleJoinRequest}
-                          onViewParticipants={() => {}}
-                          onViewDetails={() => {}}
+                          onViewParticipants={handleViewParticipants}
+                          onViewDetails={handleViewDetails}
                           currentUser={userId}
                           isPinned={true}
                           onTogglePin={handleTogglePin}
@@ -304,6 +394,27 @@ export default function NewFeed() {
           <div className="chat-content">
             <Chat isFloating={true} username={username} />
           </div>
+        </div>
+      )}
+
+      {/* Add Modal Components */}
+      {showParticipantsList && selectedRequest && (
+        <div className="modal-overlay">
+          <ParticipantsList
+            request={selectedRequest}
+            onClose={() => setShowParticipantsList(false)}
+          />
+        </div>
+      )}
+
+      {showRequestDetails && selectedRequest && (
+        <div className="modal-overlay">
+          <RequestDetails
+            request={selectedRequest}
+            onClose={() => setShowRequestDetails(false)}
+            onJoin={handleJoinRequest}
+            currentUser={userId}
+          />
         </div>
       )}
     </>
