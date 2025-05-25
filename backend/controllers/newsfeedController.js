@@ -101,11 +101,9 @@ exports.createClassRequest = (req, res) => {
                   if (err) {
                     return mysqlConnection.rollback(() => {
                       console.error("Error registering participants:", err);
-                      res
-                        .status(500)
-                        .json({
-                          message: "Lỗi khi đăng ký sinh viên tham gia",
-                        });
+                      res.status(500).json({
+                        message: "Lỗi khi đăng ký sinh viên tham gia",
+                      });
                     });
                   }
 
@@ -152,11 +150,9 @@ exports.createClassRequest = (req, res) => {
                                   "Error committing transaction:",
                                   err
                                 );
-                                res
-                                  .status(500)
-                                  .json({
-                                    message: "Lỗi khi hoàn tất giao dịch",
-                                  });
+                                res.status(500).json({
+                                  message: "Lỗi khi hoàn tất giao dịch",
+                                });
                               });
                             }
 
@@ -308,12 +304,10 @@ exports.joinClassRequest = (req, res) => {
                                     "Error updating request status:",
                                     err
                                   );
-                                  res
-                                    .status(500)
-                                    .json({
-                                      message:
-                                        "Lỗi khi cập nhật trạng thái yêu cầu",
-                                    });
+                                  res.status(500).json({
+                                    message:
+                                      "Lỗi khi cập nhật trạng thái yêu cầu",
+                                  });
                                 });
                               }
 
@@ -334,11 +328,9 @@ exports.joinClassRequest = (req, res) => {
                                         "Error creating news announcement:",
                                         err
                                       );
-                                      res
-                                        .status(500)
-                                        .json({
-                                          message: "Lỗi khi tạo thông báo",
-                                        });
+                                      res.status(500).json({
+                                        message: "Lỗi khi tạo thông báo",
+                                      });
                                     });
                                   }
 
@@ -350,12 +342,9 @@ exports.joinClassRequest = (req, res) => {
                                           "Error committing transaction:",
                                           err
                                         );
-                                        res
-                                          .status(500)
-                                          .json({
-                                            message:
-                                              "Lỗi khi hoàn tất giao dịch",
-                                          });
+                                        res.status(500).json({
+                                          message: "Lỗi khi hoàn tất giao dịch",
+                                        });
                                       });
                                     }
 
@@ -379,11 +368,9 @@ exports.joinClassRequest = (req, res) => {
                                   "Error committing transaction:",
                                   err
                                 );
-                                res
-                                  .status(500)
-                                  .json({
-                                    message: "Lỗi khi hoàn tất giao dịch",
-                                  });
+                                res.status(500).json({
+                                  message: "Lỗi khi hoàn tất giao dịch",
+                                });
                               });
                             }
 
@@ -465,5 +452,170 @@ exports.getAvailableCourses = (req, res) => {
     }
 
     res.json(results);
+  });
+};
+
+// Get newsfeed
+exports.getNewsFeed = (req, res) => {
+  const { loaiNguoiDung } = req.query;
+
+  let query = `
+    SELECT 
+      bt.maThongBao,
+      bt.tieuDe,
+      bt.noiDung,
+      bt.ngayDang,
+      bt.nguoiDang,
+      bt.loaiNguoiDung,
+      CASE 
+        WHEN nd.loaiNguoiDung = 'SinhVien' THEN sv.hoTen
+        WHEN nd.loaiNguoiDung = 'GiangVien' THEN gv.hoTen
+        ELSE nd.tenDangNhap
+      END as tenNguoiDang
+    FROM BangTin bt
+    JOIN NguoiDung nd ON bt.nguoiDang = nd.maNguoiDung
+    LEFT JOIN SinhVien sv ON nd.maNguoiDung = sv.maSV
+    LEFT JOIN GiangVien gv ON nd.maNguoiDung = gv.maGV
+    WHERE 1=1
+  `;
+
+  const queryParams = [];
+
+  // Nếu có filter theo loại người dùng
+  if (loaiNguoiDung) {
+    query += ` AND (bt.loaiNguoiDung = ? OR bt.loaiNguoiDung = 'TatCa')`;
+    queryParams.push(loaiNguoiDung);
+  }
+
+  // Sắp xếp theo thời gian mới nhất
+  query += ` ORDER BY bt.ngayDang DESC`;
+
+  mysqlConnection.query(query, queryParams, (err, results) => {
+    if (err) {
+      console.error("Error fetching newsfeed:", err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi khi lấy danh sách bảng tin" });
+    }
+
+    res.json(results);
+  });
+};
+
+// Get newsfeed item by ID
+exports.getBangTinById = (req, res) => {
+  const { id } = req.params;
+
+  const query = `
+    SELECT 
+      bt.maThongBao,
+      bt.tieuDe,
+      bt.noiDung,
+      bt.ngayDang,
+      bt.nguoiDang,
+      bt.loaiNguoiDung,
+      CASE 
+        WHEN nd.loaiNguoiDung = 'SinhVien' THEN sv.hoTen
+        WHEN nd.loaiNguoiDung = 'GiangVien' THEN gv.hoTen
+        ELSE nd.tenDangNhap
+      END as tenNguoiDang
+    FROM BangTin bt
+    JOIN NguoiDung nd ON bt.nguoiDang = nd.maNguoiDung
+    LEFT JOIN SinhVien sv ON nd.maNguoiDung = sv.maSV
+    LEFT JOIN GiangVien gv ON nd.maNguoiDung = gv.maGV
+    WHERE bt.maThongBao = ?
+  `;
+
+  mysqlConnection.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching newsfeed item:", err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi khi lấy thông tin bảng tin" });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy bảng tin" });
+    }
+
+    res.json(results[0]);
+  });
+};
+
+// Create a new newsfeed item
+exports.createBangTin = (req, res) => {
+  const { tieuDe, noiDung, loaiNguoiDung } = req.body;
+  const nguoiDang = req.user.maNguoiDung;
+  const ngayDang = new Date().toISOString().split("T")[0];
+  const maThongBao = `TB${Date.now().toString().slice(-6)}`;
+
+  const query = `
+    INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  mysqlConnection.query(
+    query,
+    [maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung],
+    (err, result) => {
+      if (err) {
+        console.error("Error creating newsfeed item:", err);
+        return res.status(500).json({ message: "Lỗi khi tạo bảng tin" });
+      }
+
+      res.status(201).json({
+        message: "Tạo bảng tin thành công",
+        maThongBao,
+      });
+    }
+  );
+};
+
+// Update a newsfeed item
+exports.updateBangTin = (req, res) => {
+  const { id } = req.params;
+  const { tieuDe, noiDung, loaiNguoiDung } = req.body;
+
+  const query = `
+    UPDATE BangTin 
+    SET tieuDe = ?, noiDung = ?, loaiNguoiDung = ?
+    WHERE maThongBao = ?
+  `;
+
+  mysqlConnection.query(
+    query,
+    [tieuDe, noiDung, loaiNguoiDung, id],
+    (err, result) => {
+      if (err) {
+        console.error("Error updating newsfeed item:", err);
+        return res.status(500).json({ message: "Lỗi khi cập nhật bảng tin" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Không tìm thấy bảng tin" });
+      }
+
+      res.json({ message: "Cập nhật bảng tin thành công" });
+    }
+  );
+};
+
+// Delete a newsfeed item
+exports.deleteBangTin = (req, res) => {
+  const { id } = req.params;
+
+  const query = `DELETE FROM BangTin WHERE maThongBao = ?`;
+
+  mysqlConnection.query(query, [id], (err, result) => {
+    if (err) {
+      console.error("Error deleting newsfeed item:", err);
+      return res.status(500).json({ message: "Lỗi khi xóa bảng tin" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Không tìm thấy bảng tin" });
+    }
+
+    res.json({ message: "Xóa bảng tin thành công" });
   });
 };
