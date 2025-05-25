@@ -72,8 +72,8 @@ const JoinClassForm = ({ request, onSubmit, onCancel }) => {
     e.preventDefault();
     if (validateForm()) {
       onSubmit({
-        requestId: request.id,
-        maLopHP: request.classId,
+        requestId: request.maLopHP,
+        maLopHP: request.maLopHP,
         ...studentInfo,
       });
     }
