@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 const ParticipantsList = ({ request, onClose }) => {
   if (!request || !request.participants) {
@@ -6,7 +6,9 @@ const ParticipantsList = ({ request, onClose }) => {
       <div className="participants-list-modal">
         <div className="modal-content">
           <h2 className="modal-title">👥 Danh sách sinh viên tham gia</h2>
-          <p className="no-data-message">Không có dữ liệu về sinh viên tham gia.</p>
+          <p className="no-data-message">
+            Không có dữ liệu về sinh viên tham gia.
+          </p>
           <div className="modal-actions">
             <button onClick={onClose} className="close-button">
               Đóng
@@ -14,8 +16,24 @@ const ParticipantsList = ({ request, onClose }) => {
           </div>
         </div>
       </div>
-    )
+    );
   }
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return (
+      date.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }) +
+      " " +
+      date.toLocaleDateString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    );
+  };
 
   return (
     <div className="participants-list-modal">
@@ -23,7 +41,9 @@ const ParticipantsList = ({ request, onClose }) => {
         <h2 className="modal-title">👥 Danh sách sinh viên tham gia</h2>
         <div className="modal-subtitle">
           <span className="course-name">{request.courseName}</span>
-          <span className="participant-count">({request.participants.length} sinh viên)</span>
+          <span className="participant-count">
+            ({request.participantCount} sinh viên)
+          </span>
         </div>
 
         <div className="participants-table-container">
@@ -34,6 +54,7 @@ const ParticipantsList = ({ request, onClose }) => {
                 <th>MSSV</th>
                 <th>Họ tên</th>
                 <th>Lớp</th>
+                <th>Ngày đăng ký</th>
               </tr>
             </thead>
             <tbody>
@@ -43,6 +64,7 @@ const ParticipantsList = ({ request, onClose }) => {
                   <td>{participant.studentId}</td>
                   <td>{participant.fullName}</td>
                   <td>{participant.class}</td>
+                  <td>{formatDate(participant.joinDate)}</td>
                 </tr>
               ))}
             </tbody>
@@ -56,7 +78,7 @@ const ParticipantsList = ({ request, onClose }) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ParticipantsList
+export default ParticipantsList;

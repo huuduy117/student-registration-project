@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 const RequestDetails = ({ request, onClose, onJoin, currentUser }) => {
   if (!request) {
@@ -14,22 +14,29 @@ const RequestDetails = ({ request, onClose, onJoin, currentUser }) => {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("vi-VN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
+    const date = new Date(dateString);
+    return (
+      date.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }) +
+      " " +
+      date.toLocaleDateString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    );
+  };
 
   // Check if current user is already a participant
-  const isParticipant = request.participants?.some((p) => p.studentId === currentUser || p.fullName === currentUser)
+  const isParticipant = request.participants?.some(
+    (p) => p.studentId === currentUser
+  );
 
   return (
     <div className="request-details-modal">
@@ -52,7 +59,8 @@ const RequestDetails = ({ request, onClose, onJoin, currentUser }) => {
           <div className="info-item">
             👤<span className="info-label">Người tạo:</span>
             <span className="info-value">
-              {request.creatorName} {request.creatorStudentId && `(${request.creatorStudentId})`}{" "}
+              {request.creatorName}{" "}
+              {request.creatorStudentId && `(${request.creatorStudentId})`}{" "}
               {request.creatorClass && `- ${request.creatorClass}`}
             </span>
           </div>
@@ -65,7 +73,7 @@ const RequestDetails = ({ request, onClose, onJoin, currentUser }) => {
           <div className="info-item">
             👥<span className="info-label">Số lượng:</span>
             <span className="info-value">
-              {request.participantCount || request.participants?.length || 0} sinh viên
+              {request.participantCount} sinh viên
             </span>
           </div>
         </div>
@@ -89,7 +97,7 @@ const RequestDetails = ({ request, onClose, onJoin, currentUser }) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default RequestDetails
+export default RequestDetails;
