@@ -1,10 +1,7 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-// Remove this line:
-// import { FaEye, FaUsers, FaThumbTack } from "react-icons/fa"
+import { useState } from "react";
 
-// And update the component to use Unicode symbols instead of icons
 const ClassRequestTicket = ({
   request,
   onJoin,
@@ -14,25 +11,32 @@ const ClassRequestTicket = ({
   isPinned,
   onTogglePin,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleExpand = () => {
-    setIsExpanded(!isExpanded)
-  }
+    setIsExpanded(!isExpanded);
+  };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("vi-VN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
+    const date = new Date(dateString);
+    return (
+      date.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }) +
+      " " +
+      date.toLocaleDateString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    );
+  };
 
   // Check if current user is already a participant
-  const isParticipant = request.participants?.some((p) => p.studentId === currentUser || p.fullName === currentUser)
+  const isParticipant = request.participants?.some(
+    (p) => p.studentId === currentUser || p.fullName === currentUser
+  );
 
   return (
     <div className={`class-request-ticket ${isPinned ? "pinned" : ""}`}>
@@ -44,7 +48,9 @@ const ClassRequestTicket = ({
           </span>
         </div>
         <div className="ticket-meta">
-          <span className="participant-count">👥 {request.participantCount || request.participants?.length || 0}</span>
+          <span className="participant-count">
+            👥 {request.participantCount}
+          </span>
           <span className="created-at">{formatDate(request.createdAt)}</span>
         </div>
       </div>
@@ -54,7 +60,8 @@ const ClassRequestTicket = ({
           <div className="creator-info">
             <span className="label">Người tạo:</span>
             <span className="value">
-              {request.creatorName} {request.creatorStudentId && `(${request.creatorStudentId})`}{" "}
+              {request.creatorName}{" "}
+              {request.creatorStudentId && `(${request.creatorStudentId})`}{" "}
               {request.creatorClass && `- ${request.creatorClass}`}
             </span>
           </div>
@@ -68,21 +75,30 @@ const ClassRequestTicket = ({
 
           <div className="ticket-actions">
             {!isParticipant && (
-              <button onClick={() => onJoin(request.id)} className="join-button">
+              <button
+                onClick={() => onJoin(request.id)}
+                className="join-button"
+              >
                 Tham gia
               </button>
             )}
-            <button onClick={() => onViewParticipants(request.id)} className="view-participants-button">
+            <button
+              onClick={() => onViewParticipants(request.id)}
+              className="view-participants-button"
+            >
               👥 Xem danh sách
             </button>
-            <button onClick={() => onViewDetails(request.id)} className="view-details-button">
+            <button
+              onClick={() => onViewDetails(request.id)}
+              className="view-details-button"
+            >
               👁️ Chi tiết
             </button>
             {onTogglePin && (
               <button
                 onClick={(e) => {
-                  e.stopPropagation()
-                  onTogglePin(request.id)
+                  e.stopPropagation();
+                  onTogglePin(request.id);
                 }}
                 className={`pin-ticket-button ${isPinned ? "pinned" : ""}`}
                 title={isPinned ? "Bỏ ghim" : "Ghim yêu cầu"}
@@ -94,7 +110,7 @@ const ClassRequestTicket = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default ClassRequestTicket
+export default ClassRequestTicket;

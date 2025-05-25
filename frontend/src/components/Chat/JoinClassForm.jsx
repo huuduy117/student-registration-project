@@ -67,14 +67,11 @@ const JoinClassForm = ({ request, onSubmit, onCancel }) => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
       onSubmit({
-        requestId: request.maLopHP,
         maLopHP: request.maLopHP,
-        ...studentInfo,
       });
     }
   };
