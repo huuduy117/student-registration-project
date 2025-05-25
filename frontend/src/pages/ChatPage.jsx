@@ -184,7 +184,6 @@ const ChatPage = () => {
       alert(msg);
     }
   };
-
   const handleViewParticipants = async (requestId) => {
     try {
       const response = await axios.get(
@@ -205,8 +204,15 @@ const ChatPage = () => {
       const request = classRequests.find((req) => req.maLopHP === requestId);
       if (request) {
         setSelectedRequest({
-          ...request,
-          participants: response.data,
+          id: request.maLopHP,
+          courseName: request.tenMH,
+          participantCount: request.soLuongThamGia,
+          participants: response.data.map((p) => ({
+            studentId: p.maSV,
+            fullName: p.hoTen,
+            class: p.lop,
+            joinDate: p.ngayDangKy,
+          })),
         });
         setShowParticipantsList(true);
       }
@@ -215,12 +221,44 @@ const ChatPage = () => {
       alert("Lỗi khi lấy danh sách sinh viên tham gia");
     }
   };
+  const handleViewDetails = async (requestId) => {
+    try {
+      // Get participants data
+      const participantsResponse = await axios.get(
+        `/api/class-requests/${requestId}/participants`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              JSON.parse(
+                sessionStorage.getItem(
+                  `auth_${sessionStorage.getItem("tabId")}`
+                )
+              ).token
+            }`,
+          },
+        }
+      );
 
-  const handleViewDetails = (requestId) => {
-    const request = classRequests.find((req) => req.maLopHP === requestId);
-    if (request) {
-      setSelectedRequest(request);
-      setShowRequestDetails(true);
+      const request = classRequests.find((req) => req.maLopHP === requestId);
+      if (request) {
+        setSelectedRequest({
+          id: request.maLopHP,
+          courseName: request.tenMH,
+          creatorName: request.tenSinhVien,
+          creatorStudentId: request.maSV,
+          creatorClass: request.tenLop,
+          semester: request.hocKy ? request.hocKy.replace("HK", "") : "",
+          batch: request.namHoc,
+          participantCount: request.soLuongThamGia,
+          description: request.description,
+          createdAt: request.ngayGui,
+          participants: participantsResponse.data,
+        });
+        setShowRequestDetails(true);
+      }
+    } catch (error) {
+      console.error("Error fetching request details:", error);
+      alert("Lỗi khi lấy thông tin chi tiết yêu cầu");
     }
   };
   const handleJoinRequest = (requestId) => {
