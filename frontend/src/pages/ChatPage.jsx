@@ -141,6 +141,12 @@ const ChatPage = () => {
   };
   const handleJoinClassRequest = async (joinData) => {
     try {
+      if (!userId) {
+        setErrorMessage("Không tìm thấy thông tin sinh viên");
+        console.error("Missing userId when attempting to join class");
+        return;
+      }
+
       const response = await axios.post(
         "/api/class-requests/join",
         {
@@ -323,7 +329,7 @@ const ChatPage = () => {
                                 ? request.hocKy.replace("HK", "")
                                 : "",
                               batch: request.namHoc,
-                              participantCount: request.soLuongDangKy,
+                              participantCount: request.soLuongThamGia,
                               createdAt: request.ngayGui,
                             }}
                             onJoin={handleJoinRequest}
@@ -351,7 +357,7 @@ const ChatPage = () => {
                               ? request.hocKy.replace("HK", "")
                               : "",
                             batch: request.namHoc,
-                            participantCount: request.soLuongDangKy,
+                            participantCount: request.soLuongThamGia,
                             createdAt: request.ngayGui,
                           }}
                           onJoin={handleJoinRequest}
