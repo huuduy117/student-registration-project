@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Routes, Route, Link } from "react-router-dom";
 import DashboardSV from "./SinhVien/dashboard_SV.jsx";
 import "../assets/MainContainer.css";
 import { useSession } from "../hook/useSession";
+import AdminHome from "../pages/admin/Home.jsx";
+import UserManagement from "../pages/admin/UserManagement.jsx";
+import Newsfeed from "../pages/admin/Newsfeed.jsx";
+import ApproveRequests from "../pages/admin/ApproveRequests.jsx";
+import Settings from "../pages/admin/Settings.jsx";
 
 export default function MainContainer() {
   const [username, setUsername] = useState("Anonymous User");
@@ -74,9 +79,16 @@ export default function MainContainer() {
     case "QuanTriVien":
       dashboardContent = (
         <div className="content-section">
-          <h2>Admin Dashboard</h2>
-          <p>Welcome, {username}!</p>
-          <Link to="/admin-dashboard">Go to Admin Dashboard</Link>
+          <Routes>
+            <Route path="/admin/home" element={<AdminHome />} />
+            <Route path="/admin/user-management" element={<UserManagement />} />
+            <Route path="/admin/newsfeed" element={<Newsfeed />} />
+            <Route
+              path="/admin/approve-requests"
+              element={<ApproveRequests />}
+            />
+            <Route path="/admin/settings" element={<Settings />} />
+          </Routes>
         </div>
       );
       break;

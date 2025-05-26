@@ -32,10 +32,11 @@ export default function SideBar() {
     case "admin":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
-        { icon: "💬", text: "Chat", path: "/chat-page" },
-        { icon: "📅", text: "Lịch học", path: "/schedule" },
-        { icon: "📚", text: "Courses", path: "#" },
-        { icon: "⚙️", text: "Settings", path: "#" },
+        { icon: "👤", text: "Quản lý tài khoản", path: "#" },
+        { icon: "📢", text: "Bảng tin", path: "#" },
+        { icon: "👥", text: "Quản lý người dùng", path: "#" },
+        { icon: "📝", text: "Xét duyệt yêu cầu", path: "#" },
+        { icon: "⚙️", text: "Cài đặt", path: "#" },
       ];
       break;
     case "SinhVien":
@@ -88,10 +89,15 @@ export default function SideBar() {
         { icon: "🏠", text: "Home", path: "/admin/home" },
         {
           icon: "👤",
-          text: "Quản lý người dùng",
+          text: "Quản lý tài khoản",
           path: "/admin/user-management",
         },
         { icon: "📢", text: "Bảng tin", path: "/admin/newsfeed" },
+        {
+          icon: "👥",
+          text: "Quản lý người dùng",
+          path: "/admin/user-management",
+        },
         {
           icon: "📝",
           text: "Xét duyệt yêu cầu",
