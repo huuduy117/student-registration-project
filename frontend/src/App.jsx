@@ -6,6 +6,8 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+
+import MainContainer from "./components/mainContainer";
 import { useSession, useSessionMonitor } from "./hook/useSession";
 import { useEffect } from "react";
 import Login from "./pages/Login";
@@ -96,7 +98,7 @@ const SessionMonitor = () => {
 
 const App = () => {
   return (
-    <Router>
+    <Router basename="/">
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -104,7 +106,7 @@ const App = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route
-          path="/home"
+          path="/home/*"
           element={
             <PrivateRoute allowedRoles={null}>
               <Home />
@@ -207,52 +209,52 @@ const App = () => {
 
         {/* Admin routes */}
         <Route
-          path="/admin/home"
+          path="/admin/home/*"
           element={
-            <PrivateRoute
-              allowedRoles={["QuanTriVien", "QuanTriVienQuanTriVien"]}
-            >
-              <AdminHome />
+            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+              <MainContainer>
+                <AdminHome />
+              </MainContainer>
             </PrivateRoute>
           }
         />
         <Route
-          path="/admin/user-management"
+          path="/admin/user-management/*"
           element={
-            <PrivateRoute
-              allowedRoles={["QuanTriVien", "QuanTriVienQuanTriVien"]}
-            >
-              <AdminUserManagement />
+            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+              <MainContainer>
+                <AdminUserManagement />
+              </MainContainer>
             </PrivateRoute>
           }
         />
         <Route
-          path="/admin/newsfeed"
+          path="/admin/newsfeed/*"
           element={
-            <PrivateRoute
-              allowedRoles={["QuanTriVien", "QuanTriVienQuanTriVien"]}
-            >
-              <AdminNewsfeed />
+            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+              <MainContainer>
+                <AdminNewsfeed />
+              </MainContainer>
             </PrivateRoute>
           }
         />
         <Route
-          path="/admin/approve-requests"
+          path="/admin/approve-requests/*"
           element={
-            <PrivateRoute
-              allowedRoles={["QuanTriVien", "QuanTriVienQuanTriVien"]}
-            >
-              <AdminApproveRequests />
+            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+              <MainContainer>
+                <AdminApproveRequests />
+              </MainContainer>
             </PrivateRoute>
           }
         />
         <Route
-          path="/admin/settings"
+          path="/admin/settings/*"
           element={
-            <PrivateRoute
-              allowedRoles={["QuanTriVien", "QuanTriVienQuanTriVien"]}
-            >
-              <AdminSettings />
+            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+              <MainContainer>
+                <AdminSettings />
+              </MainContainer>
             </PrivateRoute>
           }
         />

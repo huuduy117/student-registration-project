@@ -53,7 +53,7 @@ const AdminNewsfeed = () => {
       })
       .catch(() => setError("Không thể tải bảng tin"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [setNews]);
 
   const handleOpenDialog = (item = null) => {
     setEditNews(item);
