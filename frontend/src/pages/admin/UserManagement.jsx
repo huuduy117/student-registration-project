@@ -47,7 +47,7 @@ const AdminUserManagement = () => {
       const res = await axios.get(`/api/admin/users`, {
         params: { type: userType },
       });
-      setUsers(res.data);
+      setUsers(res.data || []);
     } catch {
       setError("Không thể tải danh sách người dùng");
     } finally {
@@ -136,26 +136,27 @@ const AdminUserManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.username}</td>
-                <td>{u.fullName}</td>
-                <td>{u.email}</td>
-                <td>{u.classOrDept}</td>
-                <td>
-                  <Button size="small" onClick={() => handleOpenDialog(u)}>
-                    Sửa
-                  </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    onClick={() => handleDelete(u.id)}
-                  >
-                    Xoá
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {Array.isArray(users) &&
+              users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.username}</td>
+                  <td>{u.fullName}</td>
+                  <td>{u.email}</td>
+                  <td>{u.classOrDept}</td>
+                  <td>
+                    <Button size="small" onClick={() => handleOpenDialog(u)}>
+                      Sửa
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={() => handleDelete(u.id)}
+                    >
+                      Xoá
+                    </Button>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       )}

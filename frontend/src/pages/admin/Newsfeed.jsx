@@ -68,7 +68,7 @@ const AdminNewsfeed = () => {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-  const handleSave = async () => {
+  const handleSave = React.useCallback(async () => {
     try {
       if (editNews) {
         await axios.put(`/api/admin/newsfeed/${editNews.id}`, form);
@@ -82,7 +82,7 @@ const AdminNewsfeed = () => {
     } catch {
       setError("Lưu thông báo thất bại");
     }
-  };
+  }, [editNews, form]);
   const handleDelete = async (id) => {
     if (!window.confirm("Xác nhận xoá thông báo?")) return;
     try {
