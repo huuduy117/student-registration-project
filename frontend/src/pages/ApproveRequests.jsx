@@ -1,80 +1,220 @@
 import SideBar from "../components/sideBar";
 import "../assets/Dashboard.css";
 import "../assets/ApproveRequests.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
 const ApproveRequestsPage = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
   const tabId = sessionStorage.getItem("tabId");
   const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
   const userRole = authData.userRole;
 
-  useEffect(() => {
-    const fetchRequests = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await axios.get("/api/class-requests", {
-          headers: { Authorization: `Bearer ${authData.token}` },
-        });
-        setRequests(
-          res.data.filter((r) => {
-            if (userRole === "GiaoVu")
-              return r.trangThaiXuLy === "1_GiaoVuNhan";
-            if (userRole === "TruongBoMon")
-              return r.trangThaiXuLy === "2_TBMNhan";
-            if (userRole === "TruongKhoa")
-              return r.trangThaiXuLy === "3_TruongKhoaNhan";
-            return false;
-          })
-        );
-      } catch (err) {
-        console.error("Error fetching requests:", err);
-        setError("Không thể tải danh sách yêu cầu");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRequests();
-  }, [userRole, authData.token]);
-
-  const handleApprove = async (id) => {
+  const fetchRequests = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      console.log(`Sending approve request for ID: ${id}`);
-      const response = await axios.patch(
-        `/api/class-requests/${id}/approve`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${authData.token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      console.log("Approve response:", response.data);
-      setRequests(requests.filter((r) => r.maYeuCau !== id));
-    } catch (error) {
-      console.error("Approve error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        headers: error.response?.headers,
+      const res = await axios.get("/api/class-requests", {
+        headers: { Authorization: `Bearer ${authData.token}` },
       });
-      alert(
-        `Duyệt thất bại: ${error.response?.data?.message || error.message}`
+
+      console.log("Raw requests:", res.data); // Debug log
+
+      const filteredRequests = res.data.filter((r) => {
+        console.log("Checking request:", r); // Debug log
+
+        // Chỉ hiển thị các yêu cầu chưa bị từ chối hoặc hủy
+        if (r.tinhTrangTongQuat === "TuChoi" || r.tinhTrangTongQuat === "Huy") {
+          console.log(
+            "Filtered out due to tinhTrangTongQuat:",
+            r.tinhTrangTongQuat
+          );
+          return false;
+        }
+
+        // Kiểm tra trạng thái xử lý phù hợp với role
+        if (userRole === "GiaoVu" && r.trangThaiXuLy === "1_GiaoVuNhan") {
+          console.log("Matched GiaoVu");
+          return true;
+        }
+        if (userRole === "TruongBoMon" && r.trangThaiXuLy === "2_TBMNhan") {
+          console.log("Matched TruongBoMon");
+          return true;
+        }
+        if (
+          userRole === "TruongKhoa" &&
+          r.trangThaiXuLy === "3_TruongKhoaNhan"
+        ) {
+          console.log("Matched TruongKhoa");
+          return true;
+        }
+        console.log("No role match for:", userRole, r.trangThaiXuLy);
+        return false;
+      });
+
+      console.log("Filtered requests:", filteredRequests); // Debug log
+      setRequests(filteredRequests);
+    } catch (err) {
+      console.error("Error fetching requests:", err);
+      setError(
+        err.response?.data?.message || "Không thể tải danh sách yêu cầu"
       );
+    } finally {
+      setLoading(false);
+    }
+  }, [userRole, authData.token]); // Chỉ tạo lại hàm khi userRole hoặc token thay đổi
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const handleApprove = async (id, currentRequest) => {
+    try {
+      setIsProcessing(true);
+      console.log(`Sending approve request for ID: ${id}`);
+
+      // Xác định trạng thái tiếp theo và tình trạng tổng quát dựa vào vai trò
+      const roleTransitions = {
+        GiaoVu: {
+          nextState: "2_TBMNhan",
+          tinhTrang: "DaGui",
+          message:
+            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng bộ môn.",
+        },
+        TruongBoMon: {
+          nextState: "3_TruongKhoaNhan",
+          tinhTrang: "DaGui",
+          message: "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng khoa.",
+        },
+        TruongKhoa: {
+          nextState: "4_ChoMoLop",
+          tinhTrang: "DaDuyet",
+          message:
+            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển sang trạng thái chờ mở lớp.",
+        },
+      };
+
+      const transition = roleTransitions[userRole];
+      if (!transition) {
+        throw new Error("Vai trò người dùng không hợp lệ");
+      }
+
+      const nextState = transition.nextState;
+      const tinhTrangTongQuat = transition.tinhTrang;
+
+      console.log("State transition:", {
+        currentState: currentRequest.trangThaiXuLy,
+        nextState,
+        tinhTrangTongQuat,
+        role: userRole,
+      });
+
+      // Tạo mã xử lý yêu cầu
+      const maXuLy = `XL_${id}_${Date.now()}`;
+
+      const requestData = {
+        currentState: currentRequest.trangThaiXuLy,
+        nextState,
+        tinhTrangTongQuat,
+        xuLyYeuCau: {
+          maXuLy, // Thêm mã xử lý để tracking
+          maYeuCau: id,
+          vaiTroNguoiXuLy: userRole,
+          nguoiXuLy: authData.userId,
+          trangThai: userRole === "TruongKhoa" ? "DongY" : "ChuyenTiep",
+          ghiChu:
+            userRole === "TruongKhoa"
+              ? "Đã duyệt yêu cầu"
+              : "Chuyển tiếp yêu cầu lên cấp cao hơn",
+          ngayXuLy: new Date().toISOString(),
+        },
+      };
+
+      await axios.patch(`/api/class-requests/${id}/approve`, requestData, {
+        headers: {
+          Authorization: `Bearer ${authData.token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      // Cập nhật UI và hiển thị thông báo thành công
+      setRequests(requests.filter((r) => r.maYeuCau !== id));
+      alert(transition.message);
+    } catch (error) {
+      console.error("Approve error:", error);
+      const errorMessage = error.response?.data?.message || error.message;
+
+      // Nếu message trả về là 'Duyệt yêu cầu thành công' thì không alert lỗi
+      if (errorMessage && errorMessage.toLowerCase().includes("thành công")) {
+        // Đã xử lý thành công, không cần alert lỗi
+        console.log("Server message (success):", errorMessage);
+        return;
+      }
+
+      // Xử lý các trường hợp lỗi thực sự
+      if (errorMessage.includes("Status mismatch")) {
+        alert(
+          "Trạng thái yêu cầu đã thay đổi. Vui lòng tải lại danh sách để xem trạng thái mới nhất."
+        );
+      } else if (errorMessage.includes("history")) {
+        alert("Không thể lưu lịch sử xử lý. Vui lòng thử lại sau.");
+      } else {
+        alert(`Không thể xử lý yêu cầu: ${errorMessage}`);
+      }
+      await fetchRequests();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleReject = async (id) => {
+  const openRejectDialog = (id) => {
+    setSelectedRequestId(id);
+    setRejectReason("");
+    setShowRejectDialog(true);
+  };
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      alert("Vui lòng nhập lý do từ chối yêu cầu");
+      return;
+    }
+
     try {
-      console.log(`Sending reject request for ID: ${id}`);
+      setIsProcessing(true);
+      console.log(`Sending reject request for ID: ${selectedRequestId}`);
+
+      const currentRequest = requests.find(
+        (r) => r.maYeuCau === selectedRequestId
+      );
+      if (!currentRequest) {
+        throw new Error("Không tìm thấy yêu cầu");
+      }
+
+      // Tạo mã xử lý yêu cầu
+      const maXuLy = `XL_${selectedRequestId}_${Date.now()}`;
+
+      const requestData = {
+        currentState: currentRequest.trangThaiXuLy, // Gửi trạng thái hiện tại để validate
+        tinhTrangTongQuat: "TuChoi",
+        xuLyYeuCau: {
+          maXuLy,
+          maYeuCau: selectedRequestId,
+          vaiTroNguoiXuLy: userRole,
+          nguoiXuLy: authData.userId,
+          trangThai: "TuChoi",
+          ghiChu: rejectReason,
+          ngayXuLy: new Date().toISOString(),
+        },
+      };
       const response = await axios.patch(
-        `/api/class-requests/${id}/reject`,
-        {},
+        `/api/class-requests/${selectedRequestId}/reject`,
+        requestData,
         {
           headers: {
             Authorization: `Bearer ${authData.token}`,
@@ -82,18 +222,38 @@ const ApproveRequestsPage = () => {
           },
         }
       );
-      console.log("Reject response:", response.data);
-      setRequests(requests.filter((r) => r.maYeuCau !== id));
+
+      // Nếu có lỗi từ server
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      // Cập nhật UI
+      setRequests(requests.filter((r) => r.maYeuCau !== selectedRequestId));
+      setShowRejectDialog(false);
+
+      // Hiển thị thông báo thành công
+      alert("Đã từ chối yêu cầu thành công");
     } catch (error) {
-      console.error("Reject error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        headers: error.response?.headers,
-      });
-      alert(
-        `Từ chối thất bại: ${error.response?.data?.message || error.message}`
-      );
+      console.error("Reject error:", error);
+      const errorMessage = error.response?.data?.message || error.message;
+
+      // Xử lý các trường hợp lỗi
+      if (errorMessage.includes("Status mismatch")) {
+        alert(
+          "Trạng thái yêu cầu đã thay đổi. Vui lòng tải lại danh sách để xem trạng thái mới nhất."
+        );
+      } else if (errorMessage.includes("history")) {
+        alert("Không thể lưu lịch sử từ chối. Vui lòng thử lại sau.");
+      } else {
+        alert(`Không thể xử lý yêu cầu: ${errorMessage}`);
+      }
+      await fetchRequests();
+    } finally {
+      setIsProcessing(false);
+      if (showRejectDialog) {
+        setShowRejectDialog(false);
+      }
     }
   };
 
@@ -121,54 +281,93 @@ const ApproveRequestsPage = () => {
             ) : error ? (
               <div className="error-message">{error}</div>
             ) : requests.length === 0 ? (
-              <div className="empty-state">Không có yêu cầu nào cần duyệt</div>
-            ) : (
-              <div className="responsive-table-wrapper">
-                <table className="requests-table">
-                  <thead>
-                    <tr>
-                      <th>Mã yêu cầu</th>
-                      <th>Môn học</th>
-                      <th>Sinh viên</th>
-                      <th>Mã SV</th>
-                      <th>Ngày gửi</th>
-                      <th>Số lượng SV</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {requests.map((r) => (
-                      <tr key={r.maYeuCau}>
-                        <td>{r.maYeuCau}</td>
-                        <td>{r.tenMH}</td>
-                        <td>{r.tenSinhVien}</td>
-                        <td>{r.maSV}</td>
-                        <td>
-                          {new Date(r.ngayGui).toLocaleDateString("vi-VN")}
-                        </td>
-                        <td>{r.soLuongThamGia}/30</td>
-                        <td>
-                          <button
-                            className="approve-btn"
-                            onClick={() => handleApprove(r.maYeuCau)}
-                          >
-                            Duyệt
-                          </button>
-                          <button
-                            className="reject-btn"
-                            onClick={() => handleReject(r.maYeuCau)}
-                          >
-                            Từ chối
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="empty-state">
+                <p>Không có yêu cầu nào cần duyệt</p>
+                <button onClick={fetchRequests} className="refresh-btn">
+                  Tải lại danh sách
+                </button>
               </div>
+            ) : (
+              <>
+                <div className="refresh-container">
+                  <button onClick={fetchRequests} className="refresh-btn">
+                    Tải lại danh sách
+                  </button>
+                </div>
+                <div className="responsive-table-wrapper">
+                  <table className="requests-table">
+                    <thead>
+                      <tr>
+                        <th>Mã yêu cầu</th>
+                        <th>Môn học</th>
+                        <th>Sinh viên</th>
+                        <th>Mã SV</th>
+                        <th>Ngày gửi</th>
+                        <th>Số lượng SV</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requests.map((r) => (
+                        <tr key={r.maYeuCau}>
+                          <td>{r.maYeuCau}</td>
+                          <td>{r.tenMH}</td>
+                          <td>{r.tenSinhVien}</td>
+                          <td>{r.maSV}</td>
+                          <td>
+                            {new Date(r.ngayGui).toLocaleDateString("vi-VN")}
+                          </td>
+                          <td>{r.soLuongThamGia}/30</td>
+                          <td>
+                            <button
+                              className="approve-btn"
+                              onClick={() => handleApprove(r.maYeuCau, r)}
+                              disabled={isProcessing}
+                            >
+                              {isProcessing ? "Đang xử lý..." : "Duyệt"}
+                            </button>
+                            <button
+                              className="reject-btn"
+                              onClick={() => openRejectDialog(r.maYeuCau)}
+                              disabled={isProcessing}
+                            >
+                              {isProcessing ? "Đang xử lý..." : "Từ chối"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
         </div>
+
+        {showRejectDialog && (
+          <div className="reject-dialog-overlay">
+            <div className="reject-dialog">
+              <h3>Nhập lý do từ chối</h3>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Nhập lý do từ chối yêu cầu..."
+                rows={4}
+              />
+              <div className="dialog-buttons">
+                <button onClick={handleReject} disabled={isProcessing}>
+                  {isProcessing ? "Đang xử lý..." : "Xác nhận"}
+                </button>
+                <button
+                  onClick={() => setShowRejectDialog(false)}
+                  disabled={isProcessing}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
