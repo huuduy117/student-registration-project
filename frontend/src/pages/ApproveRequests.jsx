@@ -8,6 +8,10 @@ const ApproveRequestsPage = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
   const tabId = sessionStorage.getItem("tabId");
   const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
   const userRole = authData.userRole;
@@ -22,12 +26,24 @@ const ApproveRequestsPage = () => {
         });
         setRequests(
           res.data.filter((r) => {
-            if (userRole === "GiaoVu")
+            // Chỉ hiển thị các yêu cầu chưa bị từ chối hoặc hủy
+            if (
+              r.tinhTrangTongQuat === "TuChoi" ||
+              r.tinhTrangTongQuat === "Huy"
+            ) {
+              return false;
+            }
+
+            // Kiểm tra trạng thái xử lý phù hợp với role
+            if (userRole === "GiaoVu") {
               return r.trangThaiXuLy === "1_GiaoVuNhan";
-            if (userRole === "TruongBoMon")
+            }
+            if (userRole === "TruongBoMon") {
               return r.trangThaiXuLy === "2_TBMNhan";
-            if (userRole === "TruongKhoa")
+            }
+            if (userRole === "TruongKhoa") {
               return r.trangThaiXuLy === "3_TruongKhoaNhan";
+            }
             return false;
           })
         );
@@ -41,12 +57,38 @@ const ApproveRequestsPage = () => {
     fetchRequests();
   }, [userRole, authData.token]);
 
-  const handleApprove = async (id) => {
+  const handleApprove = async (id, currentRequest) => {
     try {
+      setIsProcessing(true);
       console.log(`Sending approve request for ID: ${id}`);
+
+      // Xác định trạng thái tiếp theo dựa vào role
+      const nextState =
+        userRole === "GiaoVu"
+          ? "2_TBMNhan"
+          : userRole === "TruongBoMon"
+          ? "3_TruongKhoaNhan"
+          : "4_ChoMoLop";
+
+      const requestData = {
+        currentState: currentRequest.trangThaiXuLy, // Gửi trạng thái hiện tại để validate
+        nextState, // Trạng thái tiếp theo
+        tinhTrangTongQuat: userRole === "TruongKhoa" ? "DaDuyet" : "DaGui",
+        xuLyYeuCau: {
+          maYeuCau: id,
+          vaiTroNguoiXuLy: userRole,
+          nguoiXuLy: authData.userId,
+          trangThai: userRole === "TruongKhoa" ? "DongY" : "ChuyenTiep",
+          ghiChu:
+            userRole === "TruongKhoa"
+              ? "Đã duyệt yêu cầu"
+              : "Chuyển tiếp yêu cầu lên cấp cao hơn",
+        },
+      };
+
       const response = await axios.patch(
         `/api/class-requests/${id}/approve`,
-        {},
+        requestData,
         {
           headers: {
             Authorization: `Bearer ${authData.token}`,
@@ -54,27 +96,68 @@ const ApproveRequestsPage = () => {
           },
         }
       );
+
       console.log("Approve response:", response.data);
       setRequests(requests.filter((r) => r.maYeuCau !== id));
-    } catch (error) {
-      console.error("Approve error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        headers: error.response?.headers,
-      });
       alert(
-        `Duyệt thất bại: ${error.response?.data?.message || error.message}`
+        userRole === "TruongKhoa"
+          ? "Đã duyệt yêu cầu thành công! Yêu cầu sẽ được chuyển sang trạng thái chờ mở lớp."
+          : "Đã duyệt yêu cầu thành công!"
       );
+    } catch (error) {
+      console.error("Approve error:", error);
+      const errorMessage = error.response?.data?.message || error.message;
+      if (errorMessage.includes("Status mismatch")) {
+        alert(
+          "Không thể duyệt yêu cầu: Trạng thái yêu cầu đã thay đổi. Vui lòng tải lại trang."
+        );
+      } else {
+        alert(`Duyệt thất bại: ${errorMessage}`);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleReject = async (id) => {
+  const openRejectDialog = (id) => {
+    setSelectedRequestId(id);
+    setRejectReason("");
+    setShowRejectDialog(true);
+  };
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      alert("Vui lòng nhập lý do từ chối");
+      return;
+    }
+
     try {
-      console.log(`Sending reject request for ID: ${id}`);
+      setIsProcessing(true);
+      console.log(`Sending reject request for ID: ${selectedRequestId}`);
+
+      // Tìm request hiện tại để lấy trạng thái
+      const currentRequest = requests.find(
+        (r) => r.maYeuCau === selectedRequestId
+      );
+      if (!currentRequest) {
+        throw new Error("Không tìm thấy yêu cầu");
+      }
+
+      const requestData = {
+        currentState: currentRequest.trangThaiXuLy, // Gửi trạng thái hiện tại để validate
+        tinhTrangTongQuat: "TuChoi",
+        xuLyYeuCau: {
+          maYeuCau: selectedRequestId,
+          vaiTroNguoiXuLy: userRole,
+          nguoiXuLy: authData.userId,
+          trangThai: "TuChoi",
+          ghiChu: rejectReason,
+        },
+      };
+
       const response = await axios.patch(
-        `/api/class-requests/${id}/reject`,
-        {},
+        `/api/class-requests/${selectedRequestId}/reject`,
+        requestData,
         {
           headers: {
             Authorization: `Bearer ${authData.token}`,
@@ -82,18 +165,23 @@ const ApproveRequestsPage = () => {
           },
         }
       );
+
       console.log("Reject response:", response.data);
-      setRequests(requests.filter((r) => r.maYeuCau !== id));
+      setRequests(requests.filter((r) => r.maYeuCau !== selectedRequestId));
+      setShowRejectDialog(false);
+      alert("Đã từ chối yêu cầu thành công!");
     } catch (error) {
-      console.error("Reject error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        headers: error.response?.headers,
-      });
-      alert(
-        `Từ chối thất bại: ${error.response?.data?.message || error.message}`
-      );
+      console.error("Reject error:", error);
+      const errorMessage = error.response?.data?.message || error.message;
+      if (errorMessage.includes("Status mismatch")) {
+        alert(
+          "Không thể từ chối yêu cầu: Trạng thái yêu cầu đã thay đổi. Vui lòng tải lại trang."
+        );
+      } else {
+        alert(`Từ chối thất bại: ${errorMessage}`);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -150,15 +238,17 @@ const ApproveRequestsPage = () => {
                         <td>
                           <button
                             className="approve-btn"
-                            onClick={() => handleApprove(r.maYeuCau)}
+                            onClick={() => handleApprove(r.maYeuCau, r)}
+                            disabled={isProcessing}
                           >
-                            Duyệt
+                            {isProcessing ? "Đang xử lý..." : "Duyệt"}
                           </button>
                           <button
                             className="reject-btn"
-                            onClick={() => handleReject(r.maYeuCau)}
+                            onClick={() => openRejectDialog(r.maYeuCau)}
+                            disabled={isProcessing}
                           >
-                            Từ chối
+                            {isProcessing ? "Đang xử lý..." : "Từ chối"}
                           </button>
                         </td>
                       </tr>
@@ -169,6 +259,31 @@ const ApproveRequestsPage = () => {
             )}
           </section>
         </div>
+
+        {showRejectDialog && (
+          <div className="reject-dialog-overlay">
+            <div className="reject-dialog">
+              <h3>Nhập lý do từ chối</h3>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Nhập lý do từ chối yêu cầu..."
+                rows={4}
+              />
+              <div className="dialog-buttons">
+                <button onClick={handleReject} disabled={isProcessing}>
+                  {isProcessing ? "Đang xử lý..." : "Xác nhận"}
+                </button>
+                <button
+                  onClick={() => setShowRejectDialog(false)}
+                  disabled={isProcessing}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
