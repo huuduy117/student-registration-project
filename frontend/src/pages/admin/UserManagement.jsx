@@ -29,13 +29,17 @@ import {
   TableRow,
   TablePagination,
 } from "@mui/material"
-import { Edit, Delete, Add, Refresh, Visibility } from "@mui/icons-material"
+import { FaEdit, FaTrash, FaPlus, FaSync, FaEye } from "react-icons/fa"
 import SideBar from "../../components/sideBar"
 import "../../assets/Dashboard.css"
 
 const userTypes = [
   { label: "Sinh viên", value: "SinhVien" },
   { label: "Giảng viên", value: "GiangVien" },
+  { label: "Giáo vụ", value: "GiaoVu" },
+  { label: "Trưởng bộ môn", value: "TruongBoMon" },
+  { label: "Trưởng khoa", value: "TruongKhoa" },
+  { label: "Quản trị viên", value: "QuanTriVien" },
 ]
 
 const defaultUserData = {
@@ -86,7 +90,24 @@ const AdminUserManagement = () => {
           Authorization: `Bearer ${authData.token}`,
         },
       })
-      setUsers(Array.isArray(res.data) ? res.data : [])
+      
+      // Map the response to show correct user information
+      const mappedUsers = Array.isArray(res.data) ? res.data.map(user => ({
+        id: user.maNguoiDung || user.id,
+        username: user.tenDangNhap || user.username,
+        userType: user.loaiNguoiDung || user.userType,
+        fullName: user.hoTen || user.fullName,
+        email: user.email,
+        phone: user.soDienThoai || user.phone,
+        address: user.diaChi || user.address,
+        birthDate: user.ngaySinh || user.birthDate,
+        gender: user.gioiTinh || user.gender,
+        classOrDept: user.maLop || user.maBM || user.classOrDept,
+        degree: user.hocVi || user.degree,
+        specialization: user.chuyenNganh || user.specialization,
+      })) : []
+      
+      setUsers(mappedUsers)
     } catch (err) {
       console.error("Error fetching users:", err)
       setError("Không thể tải danh sách người dùng")
@@ -140,6 +161,7 @@ const AdminUserManagement = () => {
       const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
 
       const res = await axios.get(`/api/admin/users/${user.id}`, {
+        params: { type: userType },
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
@@ -306,7 +328,7 @@ const AdminUserManagement = () => {
               <Button
                 variant="contained"
                 color="primary"
-                startIcon={<Add />}
+                startIcon={<FaPlus />}
                 onClick={() => handleOpenDialog()}
                 disabled={loading}
               >
@@ -315,7 +337,7 @@ const AdminUserManagement = () => {
 
               <Tooltip title="Làm mới">
                 <IconButton onClick={fetchUsers} disabled={loading}>
-                  <Refresh />
+                  <FaSync />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -330,8 +352,9 @@ const AdminUserManagement = () => {
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell>Mã</TableCell>
+                        <TableCell>Mã người dùng</TableCell>
                         <TableCell>Tên đăng nhập</TableCell>
+                        <TableCell>Loại người dùng</TableCell>
                         <TableCell>Họ tên</TableCell>
                         <TableCell>Email</TableCell>
                         <TableCell>{userType === "SinhVien" ? "Lớp" : "Bộ môn"}</TableCell>
@@ -341,7 +364,7 @@ const AdminUserManagement = () => {
                     <TableBody>
                       {users.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} align="center">
+                          <TableCell colSpan={7} align="center">
                             Không có dữ liệu
                           </TableCell>
                         </TableRow>
@@ -350,18 +373,19 @@ const AdminUserManagement = () => {
                           <TableRow key={user.id}>
                             <TableCell>{user.id}</TableCell>
                             <TableCell>{user.username}</TableCell>
+                            <TableCell>{userTypes.find(t => t.value === user.userType)?.label || user.userType}</TableCell>
                             <TableCell>{user.fullName}</TableCell>
                             <TableCell>{user.email}</TableCell>
                             <TableCell>{user.classOrDept}</TableCell>
                             <TableCell align="center">
                               <Tooltip title="Xem chi tiết">
                                 <IconButton size="small" onClick={() => handleViewUser(user)}>
-                                  <Visibility />
+                                  <FaEye />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Sửa">
                                 <IconButton size="small" onClick={() => handleOpenDialog(user)} disabled={loading}>
-                                  <Edit />
+                                  <FaEdit />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Xóa">
@@ -371,7 +395,7 @@ const AdminUserManagement = () => {
                                   onClick={() => handleDelete(user)}
                                   disabled={loading}
                                 >
-                                  <Delete />
+                                  <FaTrash />
                                 </IconButton>
                               </Tooltip>
                             </TableCell>
@@ -441,6 +465,23 @@ const AdminUserManagement = () => {
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Loại người dùng</InputLabel>
+                      <Select
+                        name="loaiNguoiDung"
+                        value={userData.loaiNguoiDung}
+                        onChange={handleUserDataChange}
+                        label="Loại người dùng"
+                      >
+                        {userTypes.map((type) => (
+                          <MenuItem key={type.value} value={type.value}>
+                            {type.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       label="Họ tên *"
                       name="hoTen"
@@ -489,7 +530,7 @@ const AdminUserManagement = () => {
                         label="Giới tính"
                       >
                         <MenuItem value="Nam">Nam</MenuItem>
-                        <MenuItem value="Nữ">Nữ</MenuItem>
+                        <MenuItem value="Nu">Nữ</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
@@ -565,19 +606,25 @@ const AdminUserManagement = () => {
                       <Typography variant="body2" color="textSecondary">
                         Mã người dùng:
                       </Typography>
-                      <Typography variant="body1">{viewUser.id}</Typography>
+                      <Typography variant="body1">{viewUser.maNguoiDung || viewUser.id}</Typography>
                     </Grid>
                     <Grid item xs={6}>
                       <Typography variant="body2" color="textSecondary">
                         Tên đăng nhập:
                       </Typography>
-                      <Typography variant="body1">{viewUser.username}</Typography>
+                      <Typography variant="body1">{viewUser.tenDangNhap || viewUser.username}</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="textSecondary">
+                        Loại người dùng:
+                      </Typography>
+                      <Typography variant="body1">{userTypes.find(t => t.value === viewUser.loaiNguoiDung)?.label || viewUser.loaiNguoiDung}</Typography>
                     </Grid>
                     <Grid item xs={6}>
                       <Typography variant="body2" color="textSecondary">
                         Họ tên:
                       </Typography>
-                      <Typography variant="body1">{viewUser.fullName}</Typography>
+                      <Typography variant="body1">{viewUser.hoTen || viewUser.fullName}</Typography>
                     </Grid>
                     <Grid item xs={6}>
                       <Typography variant="body2" color="textSecondary">
@@ -589,19 +636,19 @@ const AdminUserManagement = () => {
                       <Typography variant="body2" color="textSecondary">
                         Số điện thoại:
                       </Typography>
-                      <Typography variant="body1">{viewUser.phone}</Typography>
+                      <Typography variant="body1">{viewUser.soDienThoai || viewUser.phone}</Typography>
                     </Grid>
                     <Grid item xs={6}>
                       <Typography variant="body2" color="textSecondary">
                         {userType === "SinhVien" ? "Lớp:" : "Bộ môn:"}
                       </Typography>
-                      <Typography variant="body1">{viewUser.classOrDept}</Typography>
+                      <Typography variant="body1">{viewUser.maLop || viewUser.maBM || viewUser.classOrDept}</Typography>
                     </Grid>
                     <Grid item xs={12}>
                       <Typography variant="body2" color="textSecondary">
                         Địa chỉ:
                       </Typography>
-                      <Typography variant="body1">{viewUser.address}</Typography>
+                      <Typography variant="body1">{viewUser.diaChi || viewUser.address}</Typography>
                     </Grid>
                   </Grid>
                 )}

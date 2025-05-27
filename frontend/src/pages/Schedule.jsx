@@ -5,6 +5,10 @@ import SideBar from "../components/sideBar"
 import axios from "axios"
 import "../assets/Schedule.css"
 import { useSessionMonitor } from "../hook/useSession"
+import * as XLSX from "xlsx"
+import jsPDF from "jspdf"
+import "jspdf-autotable"
+import { saveAs } from "file-saver"
 
 const Schedule = () => {
   const [schedule, setSchedule] = useState({
@@ -109,15 +113,6 @@ const Schedule = () => {
     setCurrentWeek(new Date())
   }
 
-  // Convert time format from HH:MM to display format
-  const formatTime = (timeStr) => {
-    if (timeStr.includes(":")) {
-      return timeStr
-    }
-    // Handle Tiet format if needed
-    return timeStr
-  }
-
   // Convert period numbers to time slots
   const getTietDisplay = (tietBD, tietKT) => {
     // Extract numbers from tiet strings if they contain "Tiet"
@@ -164,6 +159,73 @@ const Schedule = () => {
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
   const groupedSchedule = days.map((day) => groupByTimePeriod(schedule[day] || []))
 
+  // Export schedule to Excel
+  const exportToExcel = () => {
+    const weekStart = getStartOfWeek(currentWeek)
+    const weekDates = generateWeekDates(weekStart)
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    const data = []
+    days.forEach((day, i) => {
+      (schedule[day] || []).forEach((item) => {
+        data.push({
+          Ngay: formatDate(weekDates[i]),
+          Thu: getDayName(weekDates[i]),
+          MonHoc: item.tenMH,
+          MaLop: item.maLopHP,
+          MaMH: item.maMH,
+          Tiet: getTietDisplay(item.tietBD, item.tietKT),
+          Phong: item.phongHoc,
+          GiangVien: item.tenGiangVien,
+        })
+      })
+    })
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Schedule")
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), `lich_tuan_${formatDate(weekStart)}.xlsx`)
+  }
+
+  // Export schedule to PDF
+  const exportToPDF = () => {
+    const weekStart = getStartOfWeek(currentWeek)
+    const weekDates = generateWeekDates(weekStart)
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    const data = []
+    days.forEach((day, i) => {
+      (schedule[day] || []).forEach((item) => {
+        data.push([
+          formatDate(weekDates[i]),
+          getDayName(weekDates[i]),
+          item.tenMH,
+          item.maLopHP,
+          item.maMH,
+          getTietDisplay(item.tietBD, item.tietKT),
+          item.phongHoc,
+          item.tenGiangVien,
+        ])
+      })
+    })
+    const doc = new jsPDF()
+    doc.text(`Lịch tuần bắt đầu từ ${formatDate(weekStart)}`, 10, 10)
+    doc.autoTable({
+      head: [["Ngày", "Thứ", "Môn học", "Mã lớp", "Mã MH", "Tiết", "Phòng", "Giảng viên"]],
+      body: data,
+      startY: 20,
+      styles: { font: "Times" },
+    })
+    doc.save(`lich_tuan_${formatDate(weekStart)}.pdf`)
+  }
+
+  // Dropdown for export format
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const handleExportClick = () => setExportMenuOpen((open) => !open)
+  const handleExportFormat = (format) => {
+    setExportMenuOpen(false)
+    if (format === "excel") exportToExcel()
+    if (format === "pdf") exportToPDF()
+  }
+
   return (
     <div className="dashboard-container">
       <SideBar />
@@ -201,8 +263,16 @@ const Schedule = () => {
                   onChange={(e) => setCurrentWeek(new Date(e.target.value))}
                   className="date-input"
                 />
-                <button className="control-button">📅 Hiện tại</button>
-                <button className="control-button">🖨️ In lịch</button>
+                <button className="control-button" onClick={handleCurrentWeek}>Hiện tại</button>
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  <button className="control-button" onClick={handleExportClick}>🖨️ In lịch</button>
+                  {exportMenuOpen && (
+                    <div style={{ position: "absolute", zIndex: 10, background: "white", border: "1px solid #ccc", minWidth: 120 }}>
+                      <button style={{ width: "100%", padding: 8, border: "none", background: "white", cursor: "pointer" }} onClick={() => handleExportFormat("excel")}>Xuất Excel</button>
+                      <button style={{ width: "100%", padding: 8, border: "none", background: "white", cursor: "pointer" }} onClick={() => handleExportFormat("pdf")}>Xuất PDF</button>
+                    </div>
+                  )}
+                </div>
                 <button onClick={handlePreviousWeek} className="control-button">
                   ◀ Trở về
                 </button>
