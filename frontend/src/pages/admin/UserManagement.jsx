@@ -2,36 +2,8 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import {
-  Button,
-  Select,
-  MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Box,
-  Alert,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  Grid,
-  Paper,
-  Typography,
-  IconButton,
-  Tooltip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-} from "@mui/material";
-import { FaEdit, FaTrash, FaPlus, FaSync, FaEye } from "react-icons/fa";
 import SideBar from "../../components/sideBar";
-import "../../assets/Dashboard.css";
+import "../../assets/UserManagement.css";
 
 const userTypes = [
   { label: "Sinh viên", value: "SinhVien" },
@@ -305,293 +277,273 @@ const AdminUserManagement = () => {
   };
 
   return (
-    <div className="dashboard-container">
+    <div className="um-container">
       <SideBar />
       <main className="dashboard-main">
-        <Box p={3}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>
-              Quản lý người dùng
-            </Typography>
+        <div className="um-title">Quản lý người dùng</div>
+        {error && <div className="um-alert um-alert-error">{error}</div>}
+        {success && <div className="um-alert um-alert-success">{success}</div>}
+        <div className="um-toolbar">
+          <select
+            className="um-form-group"
+            value={userType}
+            onChange={(e) => setUserType(e.target.value)}
+          >
+            {userTypes.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <button
+            className="um-btn"
+            onClick={() => handleOpenDialog()}
+            disabled={loading}
+          >
+            Thêm mới
+          </button>
+          <button
+            className="um-btn um-btn-secondary"
+            onClick={fetchUsers}
+            disabled={loading}
+          >
+            Làm mới
+          </button>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table className="um-table">
+            <thead>
+              <tr>
+                <th>Mã người dùng</th>
+                <th>Tên đăng nhập</th>
+                <th>Loại người dùng</th>
+                <th>Họ tên</th>
+                <th>Email</th>
+                <th>{userType === "SinhVien" ? "Lớp" : "Bộ môn"}</th>
+                <th style={{ textAlign: "center" }}>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center" }}>
+                    Không có dữ liệu
+                  </td>
+                </tr>
+              ) : (
+                users
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((user) => (
+                    <tr key={user.id}>
+                      <td>{user.id}</td>
+                      <td>{user.username}</td>
+                      <td>
+                        {userTypes.find((t) => t.value === user.userType)
+                          ?.label || user.userType}
+                      </td>
+                      <td>{user.fullName}</td>
+                      <td>{user.email}</td>
+                      <td>{user.classOrDept}</td>
+                      <td>
+                        <div className="um-actions">
+                          <button
+                            className="um-btn um-btn-secondary"
+                            onClick={() => handleViewUser(user)}
+                            title="Xem chi tiết"
+                          >
+                            👁️
+                          </button>
+                          <button
+                            className="um-btn"
+                            onClick={() => handleOpenDialog(user)}
+                            disabled={loading}
+                            title="Sửa"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="um-btn um-btn-danger"
+                            onClick={() => handleDelete(user)}
+                            disabled={loading}
+                            title="Xóa"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div
+          style={{
+            marginTop: 16,
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <span>Số dòng mỗi trang:</span>
+          <select value={rowsPerPage} onChange={handleChangeRowsPerPage}>
+            {[5, 10, 25].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <span>{`${page * rowsPerPage + 1}-${Math.min(
+            (page + 1) * rowsPerPage,
+            users.length
+          )} của ${users.length}`}</span>
+          <button
+            className="um-btn um-btn-secondary"
+            onClick={(e) => handleChangePage(e, Math.max(page - 1, 0))}
+            disabled={page === 0}
+          >
+            Trước
+          </button>
+          <button
+            className="um-btn um-btn-secondary"
+            onClick={(e) =>
+              handleChangePage(
+                e,
+                Math.min(page + 1, Math.ceil(users.length / rowsPerPage) - 1)
+              )
+            }
+            disabled={(page + 1) * rowsPerPage >= users.length}
+          >
+            Sau
+          </button>
+        </div>
 
-            {error && (
-              <Alert
-                severity="error"
-                sx={{ mb: 2 }}
-                onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
-            )}
-            {success && (
-              <Alert
-                severity="success"
-                sx={{ mb: 2 }}
-                onClose={() => setSuccess(null)}
-              >
-                {success}
-              </Alert>
-            )}
-
-            <Box mb={3} display="flex" alignItems="center" gap={2}>
-              <FormControl sx={{ minWidth: 200 }}>
-                <InputLabel>Loại người dùng</InputLabel>
-                <Select
-                  value={userType}
-                  onChange={(e) => setUserType(e.target.value)}
-                  label="Loại người dùng"
-                >
-                  {userTypes.map((t) => (
-                    <MenuItem key={t.value} value={t.value}>
-                      {t.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<FaPlus />}
-                onClick={() => handleOpenDialog()}
-                disabled={loading}
-              >
-                Thêm mới
-              </Button>
-
-              <Tooltip title="Làm mới">
-                <IconButton onClick={fetchUsers} disabled={loading}>
-                  <FaSync />
-                </IconButton>
-              </Tooltip>
-            </Box>
-
-            {loading && !openDialog ? (
-              <Box display="flex" justifyContent="center" p={3}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <Paper elevation={1}>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Mã người dùng</TableCell>
-                        <TableCell>Tên đăng nhập</TableCell>
-                        <TableCell>Loại người dùng</TableCell>
-                        <TableCell>Họ tên</TableCell>
-                        <TableCell>Email</TableCell>
-                        <TableCell>
-                          {userType === "SinhVien" ? "Lớp" : "Bộ môn"}
-                        </TableCell>
-                        <TableCell align="center">Thao tác</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {users.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={7} align="center">
-                            Không có dữ liệu
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        users
-                          .slice(
-                            page * rowsPerPage,
-                            page * rowsPerPage + rowsPerPage
-                          )
-                          .map((user) => (
-                            <TableRow key={user.id}>
-                              <TableCell>{user.id}</TableCell>
-                              <TableCell>{user.username}</TableCell>
-                              <TableCell>
-                                {userTypes.find(
-                                  (t) => t.value === user.userType
-                                )?.label || user.userType}
-                              </TableCell>
-                              <TableCell>{user.fullName}</TableCell>
-                              <TableCell>{user.email}</TableCell>
-                              <TableCell>{user.classOrDept}</TableCell>
-                              <TableCell align="center">
-                                <Tooltip title="Xem chi tiết">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleViewUser(user)}
-                                  >
-                                    <FaEye />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Sửa">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleOpenDialog(user)}
-                                    disabled={loading}
-                                  >
-                                    <FaEdit />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Xóa">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleDelete(user)}
-                                    disabled={loading}
-                                  >
-                                    <FaTrash />
-                                  </IconButton>
-                                </Tooltip>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <TablePagination
-                  rowsPerPageOptions={[5, 10, 25]}
-                  component="div"
-                  count={users.length}
-                  rowsPerPage={rowsPerPage}
-                  page={page}
-                  onPageChange={handleChangePage}
-                  onRowsPerPageChange={handleChangeRowsPerPage}
-                  labelRowsPerPage="Số dòng mỗi trang:"
-                  labelDisplayedRows={({ from, to, count }) =>
-                    `${from}-${to} của ${count}`
-                  }
-                />
-              </Paper>
-            )}
-
-            {/* Edit/Add Dialog */}
-            <Dialog
-              open={openDialog}
-              onClose={handleCloseDialog}
-              maxWidth="md"
-              fullWidth
-            >
-              <DialogTitle>
+        {/* Modal Thêm/Sửa */}
+        {openDialog && (
+          <>
+            <div
+              className="um-modal-backdrop"
+              onClick={handleCloseDialog}
+            ></div>
+            <div className="um-modal">
+              <button className="um-modal-close" onClick={handleCloseDialog}>
+                ×
+              </button>
+              <div className="um-modal-title">
                 {editUser ? "Sửa người dùng" : "Thêm người dùng"}
-              </DialogTitle>
-              <DialogContent>
-                {error && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
-                  </Alert>
-                )}
-                {success && (
-                  <Alert severity="success" sx={{ mb: 2 }}>
-                    {success}
-                  </Alert>
-                )}
-
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Mã người dùng *"
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSave();
+                }}
+              >
+                <div className="um-form-row">
+                  <div className="um-form-group">
+                    <label>Mã người dùng *</label>
+                    <input
                       name="maNguoiDung"
                       value={userData.maNguoiDung}
                       onChange={handleUserDataChange}
-                      fullWidth
                       disabled={editUser !== null}
+                      required
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Tên đăng nhập *"
+                  </div>
+                  <div className="um-form-group">
+                    <label>Tên đăng nhập *</label>
+                    <input
                       name="tenDangNhap"
                       value={userData.tenDangNhap}
                       onChange={handleUserDataChange}
-                      fullWidth
+                      required
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label={
-                        editUser
-                          ? "Mật khẩu mới (để trống nếu không đổi)"
-                          : "Mật khẩu *"
-                      }
+                  </div>
+                </div>
+                <div className="um-form-row">
+                  <div className="um-form-group">
+                    <label>
+                      {editUser
+                        ? "Mật khẩu mới (để trống nếu không đổi)"
+                        : "Mật khẩu *"}
+                    </label>
+                    <input
                       name="matKhau"
                       type="password"
                       value={userData.matKhau}
                       onChange={handleUserDataChange}
-                      fullWidth
+                      required={!editUser}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Loại người dùng</InputLabel>
-                      <Select
-                        name="loaiNguoiDung"
-                        value={userData.loaiNguoiDung}
-                        onChange={handleUserDataChange}
-                        label="Loại người dùng"
-                      >
-                        {userTypes.map((type) => (
-                          <MenuItem key={type.value} value={type.value}>
-                            {type.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Họ tên *"
+                  </div>
+                  <div className="um-form-group">
+                    <label>Loại người dùng</label>
+                    <select
+                      name="loaiNguoiDung"
+                      value={userData.loaiNguoiDung}
+                      onChange={handleUserDataChange}
+                    >
+                      {userTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="um-form-row">
+                  <div className="um-form-group">
+                    <label>Họ tên *</label>
+                    <input
                       name="hoTen"
                       value={detailData.hoTen}
                       onChange={handleDetailDataChange}
-                      fullWidth
+                      required
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Email"
+                  </div>
+                  <div className="um-form-group">
+                    <label>Email</label>
+                    <input
                       name="email"
                       type="email"
                       value={detailData.email}
                       onChange={handleDetailDataChange}
-                      fullWidth
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Số điện thoại"
+                  </div>
+                </div>
+                <div className="um-form-row">
+                  <div className="um-form-group">
+                    <label>Số điện thoại</label>
+                    <input
                       name="soDienThoai"
                       value={detailData.soDienThoai}
                       onChange={handleDetailDataChange}
-                      fullWidth
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Ngày sinh"
+                  </div>
+                  <div className="um-form-group">
+                    <label>Ngày sinh</label>
+                    <input
                       name="ngaySinh"
                       type="date"
                       value={detailData.ngaySinh}
                       onChange={handleDetailDataChange}
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Giới tính</InputLabel>
-                      <Select
-                        name="gioiTinh"
-                        value={detailData.gioiTinh}
-                        onChange={handleDetailDataChange}
-                        label="Giới tính"
-                      >
-                        <MenuItem value="Nam">Nam</MenuItem>
-                        <MenuItem value="Nu">Nữ</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label={userType === "SinhVien" ? "Lớp" : "Bộ môn"}
+                  </div>
+                </div>
+                <div className="um-form-row">
+                  <div className="um-form-group">
+                    <label>Giới tính</label>
+                    <select
+                      name="gioiTinh"
+                      value={detailData.gioiTinh}
+                      onChange={handleDetailDataChange}
+                    >
+                      <option value="Nam">Nam</option>
+                      <option value="Nu">Nữ</option>
+                    </select>
+                  </div>
+                  <div className="um-form-group">
+                    <label>{userType === "SinhVien" ? "Lớp" : "Bộ môn"}</label>
+                    <input
                       name={userType === "SinhVien" ? "lop" : "boMon"}
                       value={
                         userType === "SinhVien"
@@ -599,148 +551,105 @@ const AdminUserManagement = () => {
                           : detailData.boMon
                       }
                       onChange={handleDetailDataChange}
-                      fullWidth
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Địa chỉ"
+                  </div>
+                </div>
+                <div className="um-form-row">
+                  <div className="um-form-group">
+                    <label>Địa chỉ</label>
+                    <input
                       name="diaChi"
                       value={detailData.diaChi}
                       onChange={handleDetailDataChange}
-                      fullWidth
                     />
-                  </Grid>
+                  </div>
                   {userType === "GiangVien" && (
                     <>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          label="Học vị"
+                      <div className="um-form-group">
+                        <label>Học vị</label>
+                        <input
                           name="hocVi"
-                          value={detailData.hocVi}
+                          value={detailData.hocVi || ""}
                           onChange={handleDetailDataChange}
-                          fullWidth
                         />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          label="Chuyên môn"
+                      </div>
+                      <div className="um-form-group">
+                        <label>Chuyên môn</label>
+                        <input
                           name="chuyenMon"
-                          value={detailData.chuyenMon}
+                          value={detailData.chuyenMon || ""}
                           onChange={handleDetailDataChange}
-                          fullWidth
                         />
-                      </Grid>
+                      </div>
                     </>
                   )}
-                </Grid>
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleCloseDialog} disabled={loading}>
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  variant="contained"
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} /> : null}
+                </div>
+                <div className="um-modal-actions">
+                  <button
+                    type="button"
+                    className="um-btn um-btn-secondary"
+                    onClick={handleCloseDialog}
+                    disabled={loading}
+                  >
+                    Hủy
+                  </button>
+                  <button type="submit" className="um-btn" disabled={loading}>
+                    {loading ? "Đang lưu..." : "Lưu"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </>
+        )}
+        {/* Modal Xem chi tiết */}
+        {viewDialog && viewUser && (
+          <>
+            <div
+              className="um-modal-backdrop"
+              onClick={handleCloseViewDialog}
+            ></div>
+            <div className="um-modal">
+              <button
+                className="um-modal-close"
+                onClick={handleCloseViewDialog}
+              >
+                ×
+              </button>
+              <div className="um-modal-title">
+                Thông tin chi tiết người dùng
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <b>Mã người dùng:</b> {viewUser.maNguoiDung || viewUser.id}
+                <br />
+                <b>Tên đăng nhập:</b>{" "}
+                {viewUser.tenDangNhap || viewUser.username}
+                <br />
+                <b>Loại người dùng:</b>{" "}
+                {userTypes.find((t) => t.value === viewUser.loaiNguoiDung)
+                  ?.label || viewUser.loaiNguoiDung}
+                <br />
+                <b>Họ tên:</b> {viewUser.hoTen || viewUser.fullName}
+                <br />
+                <b>Email:</b> {viewUser.email}
+                <br />
+                <b>Số điện thoại:</b> {viewUser.soDienThoai || viewUser.phone}
+                <br />
+                <b>{userType === "SinhVien" ? "Lớp" : "Bộ môn"}:</b>{" "}
+                {viewUser.maLop || viewUser.maBM || viewUser.classOrDept}
+                <br />
+                <b>Địa chỉ:</b> {viewUser.diaChi || viewUser.address}
+              </div>
+              <div className="um-modal-actions">
+                <button
+                  className="um-btn um-btn-secondary"
+                  onClick={handleCloseViewDialog}
                 >
-                  {loading ? "Đang lưu..." : "Lưu"}
-                </Button>
-              </DialogActions>
-            </Dialog>
-
-            {/* View Dialog */}
-            <Dialog
-              open={viewDialog}
-              onClose={handleCloseViewDialog}
-              maxWidth="sm"
-              fullWidth
-            >
-              <DialogTitle>Thông tin chi tiết người dùng</DialogTitle>
-              <DialogContent>
-                {viewUser && (
-                  <Grid container spacing={2} sx={{ mt: 1 }}>
-                    <Grid item xs={12}>
-                      <Typography variant="h6" gutterBottom>
-                        Thông tin cơ bản
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">
-                        Mã người dùng:
-                      </Typography>
-                      <Typography variant="body1">
-                        {viewUser.maNguoiDung || viewUser.id}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">
-                        Tên đăng nhập:
-                      </Typography>
-                      <Typography variant="body1">
-                        {viewUser.tenDangNhap || viewUser.username}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">
-                        Loại người dùng:
-                      </Typography>
-                      <Typography variant="body1">
-                        {userTypes.find(
-                          (t) => t.value === viewUser.loaiNguoiDung
-                        )?.label || viewUser.loaiNguoiDung}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">
-                        Họ tên:
-                      </Typography>
-                      <Typography variant="body1">
-                        {viewUser.hoTen || viewUser.fullName}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">
-                        Email:
-                      </Typography>
-                      <Typography variant="body1">{viewUser.email}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">
-                        Số điện thoại:
-                      </Typography>
-                      <Typography variant="body1">
-                        {viewUser.soDienThoai || viewUser.phone}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">
-                        {userType === "SinhVien" ? "Lớp:" : "Bộ môn:"}
-                      </Typography>
-                      <Typography variant="body1">
-                        {viewUser.maLop ||
-                          viewUser.maBM ||
-                          viewUser.classOrDept}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12}>
-                      <Typography variant="body2" color="textSecondary">
-                        Địa chỉ:
-                      </Typography>
-                      <Typography variant="body1">
-                        {viewUser.diaChi || viewUser.address}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                )}
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleCloseViewDialog}>Đóng</Button>
-              </DialogActions>
-            </Dialog>
-          </Paper>
-        </Box>
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
