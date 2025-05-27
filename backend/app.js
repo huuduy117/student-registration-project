@@ -13,6 +13,7 @@ const classRequestRoutes = require("./routes/classRequestRoutes")
 const scheduleRoutes = require("./routes/scheduleRoutes")
 const newsfeedRoutes = require("./routes/newsfeedRoutes")
 const passwordResetRoutes = require("./routes/passwordResetRoutes")
+const teacherScheduleRoutes = require("./routes/teacher_scheduleRoutes")
 
 const app = express()
 const server = http.createServer(app)
@@ -33,6 +34,7 @@ app.use("/api/class-requests", classRequestRoutes)
 app.use("/api/schedule", scheduleRoutes)
 app.use("/api/newsfeed", newsfeedRoutes)
 app.use("/api/password-reset", passwordResetRoutes)
+app.use("/api/teacher-schedule", teacherScheduleRoutes)
 
 // Initialize WebSocket and start server
 async function startServer() {
