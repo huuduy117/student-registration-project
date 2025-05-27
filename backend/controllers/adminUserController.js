@@ -1,4 +1,4 @@
-const { mysqlConnection } = require("../config/db")
+const { mysqlConnection } = require("../config/db");
 
 /**
  * Thêm mới người dùng và bản ghi chi tiết (giảng viên hoặc sinh viên) trong transaction
@@ -9,19 +9,19 @@ async function createUserWithDetail(userData, detailData, type) {
       return reject({
         success: false,
         message: "Thiếu hoặc sai userData trong request body",
-      })
+      });
     }
     if (!detailData || typeof detailData !== "object") {
       return reject({
         success: false,
         message: "Thiếu hoặc sai detailData trong request body",
-      })
+      });
     }
     if (!type || (type !== "GiangVien" && type !== "SinhVien")) {
       return reject({
         success: false,
         message: "Thiếu hoặc sai type trong request body",
-      })
+      });
     }
 
     mysqlConnection.beginTransaction((err) => {
@@ -29,84 +29,86 @@ async function createUserWithDetail(userData, detailData, type) {
         return reject({
           success: false,
           message: "Không thể bắt đầu transaction",
-        })
+        });
 
       // 1. Thêm vào bảng nguoidung
-      const userFields = Object.keys(userData)
-      const userValues = Object.values(userData)
-      const userSql = `INSERT INTO NguoiDung (${userFields.join(",")}) VALUES (${userFields.map(() => "?").join(",")})`
+      const userFields = Object.keys(userData);
+      const userValues = Object.values(userData);
+      const userSql = `INSERT INTO NguoiDung (${userFields.join(
+        ","
+      )}) VALUES (${userFields.map(() => "?").join(",")})`;
 
       mysqlConnection.query(userSql, userValues, (err, result) => {
         if (err) {
-          console.error("[NguoiDung] Lỗi khi thêm:", err)
+          console.error("[NguoiDung] Lỗi khi thêm:", err);
           return mysqlConnection.rollback(() => {
             if (err.code === "ER_DUP_ENTRY") {
               reject({
                 success: false,
                 message: "Mã người dùng đã tồn tại",
                 error: err,
-              })
+              });
             } else {
               reject({
                 success: false,
                 message: "Lỗi khi thêm người dùng",
                 error: err,
-              })
+              });
             }
-          })
+          });
         }
 
         // 2. Thêm vào bảng chi tiết
-        let detailSql = ""
-        const detailFields = Object.keys(detailData)
-        const detailValues = Object.values(detailData)
+        let detailSql = "";
+        const detailFields = Object.keys(detailData);
+        const detailValues = Object.values(detailData);
 
         if (type === "GiangVien") {
           detailSql = `INSERT INTO GiangVien (${detailFields.join(
-            ",",
-          )}) VALUES (${detailFields.map(() => "?").join(",")})`
+            ","
+          )}) VALUES (${detailFields.map(() => "?").join(",")})`;
         } else if (type === "SinhVien") {
           detailSql = `INSERT INTO SinhVien (${detailFields.join(
-            ",",
-          )}) VALUES (${detailFields.map(() => "?").join(",")})`
+            ","
+          )}) VALUES (${detailFields.map(() => "?").join(",")})`;
         }
 
         mysqlConnection.query(detailSql, detailValues, (err, result) => {
           if (err) {
-            console.error(`[${type}] Lỗi khi thêm chi tiết:`, err)
+            console.error(`[${type}] Lỗi khi thêm chi tiết:`, err);
             return mysqlConnection.rollback(() => {
               reject({
                 success: false,
                 message: "Lỗi khi thêm chi tiết người dùng",
                 error: err,
-              })
-            })
+              });
+            });
           }
 
           mysqlConnection.commit((err) => {
             if (err) {
-              console.error("[Transaction] Lỗi khi commit:", err)
+              console.error("[Transaction] Lỗi khi commit:", err);
               return mysqlConnection.rollback(() => {
                 reject({
                   success: false,
                   message: "Lỗi khi commit transaction",
                   error: err,
-                })
-              })
+                });
+              });
             }
-            resolve({ success: true, message: "Thêm mới thành công" })
-          })
-        })
-      })
-    })
-  })
+            resolve({ success: true, message: "Thêm mới thành công" });
+          });
+        });
+      });
+    });
+  });
 }
 
 /**
  * Lấy danh sách người dùng theo loại
  */
 function getUsersByType(type, callback) {
-  let query = ""
+  let query = "";
 
   if (type === "SinhVien") {
     query = `
@@ -117,15 +119,16 @@ function getUsersByType(type, callback) {
         sv.email,
         sv.soDienThoai as phone,
         sv.diaChi as address,
-        sv.lop as classOrDept,
+        l.tenLop as classOrDept,
         n.loaiNguoiDung as userType,
         sv.ngaySinh as birthDate,
         sv.gioiTinh as gender
       FROM NguoiDung n
       JOIN SinhVien sv ON n.maNguoiDung = sv.maSV
+      LEFT JOIN Lop l ON sv.maLop = l.maLop
       WHERE n.loaiNguoiDung = 'SinhVien'
       ORDER BY sv.hoTen
-    `
+    `;
   } else if (type === "GiangVien") {
     query = `
       SELECT 
@@ -134,23 +137,23 @@ function getUsersByType(type, callback) {
         gv.hoTen as fullName,
         gv.email,
         gv.soDienThoai as phone,
-        gv.diaChi as address,
-        gv.boMon as classOrDept,
+        bm.tenBM as classOrDept,
         n.loaiNguoiDung as userType,
-        gv.ngaySinh as birthDate,
-        gv.gioiTinh as gender,
         gv.hocVi as degree,
-        gv.chuyenMon as specialization
+        gv.hocHam as academicTitle,
+        gv.chuyenNganh as specialization,
+        gv.chucVu as position
       FROM NguoiDung n
       JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
+      LEFT JOIN BoMon bm ON gv.maBM = bm.maBM
       WHERE n.loaiNguoiDung IN ('GiangVien', 'GiaoVu', 'TruongBoMon', 'TruongKhoa')
       ORDER BY gv.hoTen
-    `
+    `;
   } else {
-    return callback(new Error("Invalid user type"))
+    return callback(new Error("Invalid user type"));
   }
 
-  mysqlConnection.query(query, callback)
+  mysqlConnection.query(query, callback);
 }
 
 /**
@@ -176,19 +179,21 @@ function getUserById(userId, callback) {
       END as phone,
       CASE 
         WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.diaChi
-        ELSE gv.diaChi
+        ELSE NULL
       END as address,
       CASE 
-        WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.lop
-        ELSE gv.boMon
+        WHEN n.loaiNguoiDung = 'SinhVien' THEN l.tenLop
+        ELSE bm.tenBM
       END as classOrDept
     FROM NguoiDung n
     LEFT JOIN SinhVien sv ON n.maNguoiDung = sv.maSV
+    LEFT JOIN Lop l ON sv.maLop = l.maLop
     LEFT JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
+    LEFT JOIN BoMon bm ON gv.maBM = bm.maBM
     WHERE n.maNguoiDung = ?
-  `
+  `;
 
-  mysqlConnection.query(query, [userId], callback)
+  mysqlConnection.query(query, [userId], callback);
 }
 
 /**
@@ -196,80 +201,95 @@ function getUserById(userId, callback) {
  */
 function updateUser(userId, userData, detailData, type, callback) {
   mysqlConnection.beginTransaction((err) => {
-    if (err) return callback(err)
+    if (err) return callback(err);
 
     // Cập nhật bảng nguoidung
     if (userData && Object.keys(userData).length > 0) {
-      const userFields = Object.keys(userData).filter((key) => userData[key] !== undefined && userData[key] !== "")
-      const userValues = userFields.map((key) => userData[key])
+      const userFields = Object.keys(userData).filter(
+        (key) => userData[key] !== undefined && userData[key] !== ""
+      );
+      const userValues = userFields.map((key) => userData[key]);
 
       if (userFields.length > 0) {
-        const userSql = `UPDATE NguoiDung SET ${userFields.map((field) => `${field} = ?`).join(", ")} WHERE maNguoiDung = ?`
+        const userSql = `UPDATE NguoiDung SET ${userFields
+          .map((field) => `${field} = ?`)
+          .join(", ")} WHERE maNguoiDung = ?`;
 
         mysqlConnection.query(userSql, [...userValues, userId], (err) => {
           if (err) {
-            return mysqlConnection.rollback(() => callback(err))
+            return mysqlConnection.rollback(() => callback(err));
           }
 
-          updateDetailTable()
-        })
+          updateDetailTable();
+        });
       } else {
-        updateDetailTable()
+        updateDetailTable();
       }
     } else {
-      updateDetailTable()
+      updateDetailTable();
     }
 
     function updateDetailTable() {
       // Cập nhật bảng chi tiết
       if (detailData && Object.keys(detailData).length > 0) {
         const detailFields = Object.keys(detailData).filter(
-          (key) => detailData[key] !== undefined && detailData[key] !== "",
-        )
-        const detailValues = detailFields.map((key) => detailData[key])
+          (key) => detailData[key] !== undefined && detailData[key] !== ""
+        );
+        const detailValues = detailFields.map((key) => detailData[key]);
 
         if (detailFields.length > 0) {
-          let detailSql = ""
-          let detailKey = ""
+          let detailSql = "";
+          let detailKey = "";
 
           if (type === "SinhVien") {
-            detailSql = `UPDATE SinhVien SET ${detailFields.map((field) => `${field} = ?`).join(", ")} WHERE maSV = ?`
-            detailKey = userId
+            detailSql = `UPDATE SinhVien SET ${detailFields
+              .map((field) => `${field} = ?`)
+              .join(", ")} WHERE maSV = ?`;
+            detailKey = userId;
           } else if (type === "GiangVien") {
-            detailSql = `UPDATE GiangVien SET ${detailFields.map((field) => `${field} = ?`).join(", ")} WHERE maGV = ?`
-            detailKey = userId
+            detailSql = `UPDATE GiangVien SET ${detailFields
+              .map((field) => `${field} = ?`)
+              .join(", ")} WHERE maGV = ?`;
+            detailKey = userId;
           }
 
-          mysqlConnection.query(detailSql, [...detailValues, detailKey], (err) => {
-            if (err) {
-              return mysqlConnection.rollback(() => callback(err))
-            }
-
-            mysqlConnection.commit((err) => {
+          mysqlConnection.query(
+            detailSql,
+            [...detailValues, detailKey],
+            (err) => {
               if (err) {
-                return mysqlConnection.rollback(() => callback(err))
+                return mysqlConnection.rollback(() => callback(err));
               }
-              callback(null, { success: true, message: "Cập nhật thành công" })
-            })
-          })
+
+              mysqlConnection.commit((err) => {
+                if (err) {
+                  return mysqlConnection.rollback(() => callback(err));
+                }
+                callback(null, {
+                  success: true,
+                  message: "Cập nhật thành công",
+                });
+              });
+            }
+          );
         } else {
           mysqlConnection.commit((err) => {
             if (err) {
-              return mysqlConnection.rollback(() => callback(err))
+              return mysqlConnection.rollback(() => callback(err));
             }
-            callback(null, { success: true, message: "Cập nhật thành công" })
-          })
+            callback(null, { success: true, message: "Cập nhật thành công" });
+          });
         }
       } else {
         mysqlConnection.commit((err) => {
           if (err) {
-            return mysqlConnection.rollback(() => callback(err))
+            return mysqlConnection.rollback(() => callback(err));
           }
-          callback(null, { success: true, message: "Cập nhật thành công" })
-        })
+          callback(null, { success: true, message: "Cập nhật thành công" });
+        });
       }
     }
-  })
+  });
 }
 
 /**
@@ -277,37 +297,91 @@ function updateUser(userId, userData, detailData, type, callback) {
  */
 function deleteUser(userId, type, callback) {
   mysqlConnection.beginTransaction((err) => {
-    if (err) return callback(err)
+    if (err) return callback(err);
 
-    // Xóa từ bảng chi tiết trước
-    let detailSql = ""
-    if (type === "SinhVien") {
-      detailSql = "DELETE FROM SinhVien WHERE maSV = ?"
-    } else if (type === "GiangVien") {
-      detailSql = "DELETE FROM GiangVien WHERE maGV = ?"
-    }
-
-    mysqlConnection.query(detailSql, [userId], (err) => {
-      if (err) {
-        return mysqlConnection.rollback(() => callback(err))
+    const deleteDetailTable = () => {
+      // Delete from detail table
+      let detailSql = "";
+      if (type === "SinhVien") {
+        detailSql = "DELETE FROM SinhVien WHERE maSV = ?";
+      } else if (type === "GiangVien") {
+        detailSql = "DELETE FROM GiangVien WHERE maGV = ?";
       }
 
-      // Xóa từ bảng nguoidung
-      const userSql = "DELETE FROM NguoiDung WHERE maNguoiDung = ?"
-      mysqlConnection.query(userSql, [userId], (err) => {
+      mysqlConnection.query(detailSql, [userId], (err) => {
         if (err) {
-          return mysqlConnection.rollback(() => callback(err))
+          return mysqlConnection.rollback(() => callback(err));
         }
 
-        mysqlConnection.commit((err) => {
+        // Finally delete from NguoiDung
+        const userSql = "DELETE FROM NguoiDung WHERE maNguoiDung = ?";
+        mysqlConnection.query(userSql, [userId], (err) => {
           if (err) {
-            return mysqlConnection.rollback(() => callback(err))
+            return mysqlConnection.rollback(() => callback(err));
           }
-          callback(null, { success: true, message: "Xóa thành công" })
-        })
-      })
-    })
-  })
+
+          mysqlConnection.commit((err) => {
+            if (err) {
+              return mysqlConnection.rollback(() => callback(err));
+            }
+            callback(null, { success: true, message: "Xóa thành công" });
+          });
+        });
+      });
+    };
+
+    // Handle dependent records based on user type
+    if (type === "SinhVien") {
+      // Delete from YeuCauMoLop first (where student is the requester)
+      mysqlConnection.query(
+        "DELETE FROM YeuCauMoLop WHERE maSV = ?",
+        [userId],
+        (err) => {
+          if (err) {
+            return mysqlConnection.rollback(() => callback(err));
+          }
+
+          // Delete from SinhVien_MonHoc (course registrations)
+          mysqlConnection.query(
+            "DELETE FROM SinhVien_MonHoc WHERE maSV = ?",
+            [userId],
+            (err) => {
+              if (err) {
+                return mysqlConnection.rollback(() => callback(err));
+              }
+
+              // Delete from ThoiKhoaBieuSinhVien (student schedules)
+              mysqlConnection.query(
+                "DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = ?",
+                [userId],
+                (err) => {
+                  if (err) {
+                    return mysqlConnection.rollback(() => callback(err));
+                  }
+
+                  // Delete from PhanLop (class assignments)
+                  mysqlConnection.query(
+                    "DELETE FROM PhanLop WHERE maSV = ?",
+                    [userId],
+                    (err) => {
+                      if (err) {
+                        return mysqlConnection.rollback(() => callback(err));
+                      }
+                      // Now safe to delete from detail tables
+                      deleteDetailTable();
+                    }
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
+    } else {
+      // For other user types, directly delete detail
+      deleteDetailTable();
+    }
+  });
 }
 
 /**
@@ -316,23 +390,20 @@ function deleteUser(userId, type, callback) {
 function getStudentStats(callback) {
   const queries = {
     total: "SELECT COUNT(*) as count FROM SinhVien",
-    byClass:
-      "SELECT lop as class, COUNT(*) as count FROM SinhVien WHERE lop IS NOT NULL GROUP BY lop ORDER BY count DESC",
+    byClass: `SELECT l.tenLop as class, COUNT(*) as count FROM SinhVien sv LEFT JOIN Lop l ON sv.maLop = l.maLop WHERE sv.maLop IS NOT NULL GROUP BY l.tenLop ORDER BY count DESC`,
     registrationStatus: `
-      SELECT 
-        CASE 
-          WHEN COUNT(tkb.maSV) > 0 THEN 'Đã đăng ký'
-          ELSE 'Chưa đăng ký'
-        END as status,
-        COUNT(DISTINCT sv.maSV) as count
-      FROM SinhVien sv
-      LEFT JOIN ThoiKhoaBieuSinhVien tkb ON sv.maSV = tkb.maSV
-      GROUP BY CASE WHEN COUNT(tkb.maSV) > 0 THEN 'Đã đăng ký' ELSE 'Chưa đăng ký' END
+      SELECT status, COUNT(*) as count FROM (
+        SELECT sv.maSV, IF(COUNT(tkb.maSV) > 0, 'Đã đăng ký', 'Chưa đăng ký') as status
+        FROM SinhVien sv
+        LEFT JOIN ThoiKhoaBieuSinhVien tkb ON sv.maSV = tkb.maSV
+        GROUP BY sv.maSV
+      ) as sub
+      GROUP BY status
     `,
     classRequests: `
       SELECT 
         ycml.maYeuCau as id,
-        mh.tenMonHoc as courseName,
+        mh.tenMH as courseName,
         ycml.tinhTrangTongQuat as status,
         ycml.ngayGui as requestDate
       FROM YeuCauMoLop ycml
@@ -343,7 +414,7 @@ function getStudentStats(callback) {
     `,
     requestHistory: `
       SELECT 
-        CONCAT('Yêu cầu mở lớp ', mh.tenMonHoc) as action,
+        CONCAT('Yêu cầu mở lớp ', mh.tenMH) as action,
         DATE_FORMAT(ycml.ngayGui, '%d/%m/%Y %H:%i') as time
       FROM YeuCauMoLop ycml
       JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
@@ -351,31 +422,31 @@ function getStudentStats(callback) {
       ORDER BY ycml.ngayGui DESC
       LIMIT 5
     `,
-  }
+  };
 
-  const results = {}
-  let completed = 0
-  const totalQueries = Object.keys(queries).length
+  const results = {};
+  let completed = 0;
+  const totalQueries = Object.keys(queries).length;
 
   Object.entries(queries).forEach(([key, query]) => {
     mysqlConnection.query(query, (err, result) => {
       if (err) {
-        console.error(`Error in ${key} query:`, err)
-        results[key] = key === "total" ? 0 : []
+        console.error(`Error in ${key} query:`, err);
+        results[key] = key === "total" ? 0 : [];
       } else {
         if (key === "total") {
-          results[key] = result[0]?.count || 0
+          results[key] = result[0]?.count || 0;
         } else {
-          results[key] = result || []
+          results[key] = result || [];
         }
       }
 
-      completed++
+      completed++;
       if (completed === totalQueries) {
-        callback(null, results)
+        callback(null, results);
       }
-    })
-  })
+    });
+  });
 }
 
 /**
@@ -396,13 +467,13 @@ function getTeacherStats(callback) {
     schedule: `
       SELECT 
         gv.hoTen as teacher,
-        CONCAT('Thứ ', tkb.thu, ' - Tiết ', tkb.tietBatDau, '-', tkb.tietKetThuc) as time,
-        mh.tenMonHoc as subject
+        CONCAT('Tiết ', tkb.tietBD, '-', tkb.tietKT, ' (', DATE_FORMAT(tkb.ngayHoc, '%d/%m/%Y'), ')') as time,
+        mh.tenMH as subject
       FROM ThoiKhoaBieuGiangVien tkb
       JOIN GiangVien gv ON tkb.maGV = gv.maGV
       JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
       JOIN MonHoc mh ON lhp.maMH = mh.maMH
-      ORDER BY tkb.thu, tkb.tietBatDau
+      ORDER BY tkb.ngayHoc, tkb.tietBD
       LIMIT 10
     `,
     approveHistory: `
@@ -412,31 +483,31 @@ function getTeacherStats(callback) {
       FROM DUAL
       LIMIT 5
     `,
-  }
+  };
 
-  const results = {}
-  let completed = 0
-  const totalQueries = Object.keys(queries).length
+  const results = {};
+  let completed = 0;
+  const totalQueries = Object.keys(queries).length;
 
   Object.entries(queries).forEach(([key, query]) => {
     mysqlConnection.query(query, (err, result) => {
       if (err) {
-        console.error(`Error in ${key} query:`, err)
-        results[key] = key === "total" ? 0 : []
+        console.error(`Error in ${key} query:`, err);
+        results[key] = key === "total" ? 0 : [];
       } else {
         if (key === "total") {
-          results[key] = result[0]?.count || 0
+          results[key] = result[0]?.count || 0;
         } else {
-          results[key] = result || []
+          results[key] = result || [];
         }
       }
 
-      completed++
+      completed++;
       if (completed === totalQueries) {
-        callback(null, results)
+        callback(null, results);
       }
-    })
-  })
+    });
+  });
 }
 
 /**
@@ -446,7 +517,7 @@ function getClassRequests(callback) {
   const query = `
     SELECT 
       ycml.maYeuCau as id,
-      mh.tenMonHoc as courseName,
+      mh.tenMH as courseName,
       ycml.soLuongThamGia as participantCount,
       ycml.description,
       ycml.tinhTrangTongQuat as status,
@@ -459,9 +530,9 @@ function getClassRequests(callback) {
     JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
     JOIN MonHoc mh ON lhp.maMH = mh.maMH
     ORDER BY ycml.ngayGui DESC
-  `
+  `;
 
-  mysqlConnection.query(query, callback)
+  mysqlConnection.query(query, callback);
 }
 
 /**
@@ -472,9 +543,9 @@ function updateClassRequestStatus(requestId, status, callback) {
     UPDATE YeuCauMoLop 
     SET tinhTrangTongQuat = ?, ngayCapNhat = NOW()
     WHERE maYeuCau = ?
-  `
+  `;
 
-  mysqlConnection.query(query, [status, requestId], callback)
+  mysqlConnection.query(query, [status, requestId], callback);
 }
 
 /**
@@ -496,9 +567,9 @@ function getRequestHistory(requestId, callback) {
     LEFT JOIN GiangVien gv ON nd.maNguoiDung = gv.maGV
     WHERE ls.maYeuCau = ?
     ORDER BY ls.ngayThayDoi DESC
-  `
+  `;
 
-  mysqlConnection.query(query, [requestId], callback)
+  mysqlConnection.query(query, [requestId], callback);
 }
 
 module.exports = {
@@ -512,4 +583,4 @@ module.exports = {
   getClassRequests,
   updateClassRequestStatus,
   getRequestHistory,
-}
+};
