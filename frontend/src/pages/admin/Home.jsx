@@ -1,44 +1,73 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import { Tabs, Tab, Box, Paper, Typography, Grid, Card, CardContent, Alert, CircularProgress } from "@mui/material"
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts"
-import SideBar from "../../components/sideBar"
-import "../../assets/Dashboard.css"
+import { useState, useEffect } from "react";
+import axiosInstance from "../../services/axios";
+import {
+  Tabs,
+  Tab,
+  Box,
+  Paper,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import SideBar from "../../components/sideBar";
+import "../../assets/Dashboard.css";
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A020F0", "#FF6384"]
+const COLORS = [
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+  "#A020F0",
+  "#FF6384",
+];
 
 const AdminHome = () => {
-  const [tab, setTab] = useState(0)
-  const [studentStats, setStudentStats] = useState({})
-  const [teacherStats, setTeacherStats] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [tab, setTab] = useState(0);
+  const [studentStats, setStudentStats] = useState({});
+  const [teacherStats, setTeacherStats] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchStats()
-  }, [])
+    fetchStats();
+  }, []);
 
   const fetchStats = async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
       const [studentRes, teacherRes] = await Promise.all([
-        axios.get("/api/admin/stats/students"),
-        axios.get("/api/admin/stats/teachers"),
-      ])
+        axiosInstance.get("/api/admin/stats/students"),
+        axiosInstance.get("/api/admin/stats/teachers"),
+      ]);
 
-      setStudentStats(studentRes.data || {})
-      setTeacherStats(teacherRes.data || {})
+      setStudentStats(studentRes.data || {});
+      setTeacherStats(teacherRes.data || {});
     } catch (err) {
-      console.error("Error fetching stats:", err)
-      setError("Không thể tải dữ liệu thống kê")
+      console.error("Error fetching stats:", err);
+      setError("Không thể tải dữ liệu thống kê");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const StatCard = ({ title, value, children }) => (
     <Card elevation={3}>
@@ -54,7 +83,7 @@ const AdminHome = () => {
         {children}
       </CardContent>
     </Card>
-  )
+  );
 
   return (
     <div className="dashboard-container">
@@ -89,12 +118,16 @@ const AdminHome = () => {
                   // Tab Sinh viên
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6} lg={3}>
-                      <StatCard title="Tổng số sinh viên" value={studentStats.total || 0} />
+                      <StatCard
+                        title="Tổng số sinh viên"
+                        value={studentStats.total || 0}
+                      />
                     </Grid>
 
                     <Grid item xs={12} md={6} lg={9}>
                       <StatCard title="Phân bố theo lớp">
-                        {studentStats.byClass && studentStats.byClass.length > 0 ? (
+                        {studentStats.byClass &&
+                        studentStats.byClass.length > 0 ? (
                           <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
                               <Pie
@@ -105,10 +138,15 @@ const AdminHome = () => {
                                 cy="50%"
                                 outerRadius={80}
                                 fill="#8884d8"
-                                label={({ class: className, count }) => `${className}: ${count}`}
+                                label={({ class: className, count }) =>
+                                  `${className}: ${count}`
+                                }
                               >
                                 {studentStats.byClass.map((entry, idx) => (
-                                  <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                                  <Cell
+                                    key={`cell-${idx}`}
+                                    fill={COLORS[idx % COLORS.length]}
+                                  />
                                 ))}
                               </Pie>
                               <Tooltip />
@@ -116,14 +154,17 @@ const AdminHome = () => {
                             </PieChart>
                           </ResponsiveContainer>
                         ) : (
-                          <Typography color="textSecondary">Không có dữ liệu</Typography>
+                          <Typography color="textSecondary">
+                            Không có dữ liệu
+                          </Typography>
                         )}
                       </StatCard>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
                       <StatCard title="Tình trạng đăng ký môn học">
-                        {studentStats.registrationStatus && studentStats.registrationStatus.length > 0 ? (
+                        {studentStats.registrationStatus &&
+                        studentStats.registrationStatus.length > 0 ? (
                           <ResponsiveContainer width="100%" height={250}>
                             <BarChart data={studentStats.registrationStatus}>
                               <XAxis dataKey="status" />
@@ -133,28 +174,39 @@ const AdminHome = () => {
                             </BarChart>
                           </ResponsiveContainer>
                         ) : (
-                          <Typography color="textSecondary">Không có dữ liệu</Typography>
+                          <Typography color="textSecondary">
+                            Không có dữ liệu
+                          </Typography>
                         )}
                       </StatCard>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
                       <StatCard title="Yêu cầu mở lớp gần đây">
-                        {studentStats.classRequests && studentStats.classRequests.length > 0 ? (
+                        {studentStats.classRequests &&
+                        studentStats.classRequests.length > 0 ? (
                           <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
                             {studentStats.classRequests.map((req) => (
-                              <Box key={req.id} sx={{ p: 1, borderBottom: "1px solid #eee" }}>
+                              <Box
+                                key={req.id}
+                                sx={{ p: 1, borderBottom: "1px solid #eee" }}
+                              >
                                 <Typography variant="body2">
                                   <strong>{req.courseName}</strong>
                                 </Typography>
-                                <Typography variant="caption" color="textSecondary">
+                                <Typography
+                                  variant="caption"
+                                  color="textSecondary"
+                                >
                                   Trạng thái: {req.status}
                                 </Typography>
                               </Box>
                             ))}
                           </Box>
                         ) : (
-                          <Typography color="textSecondary">Không có yêu cầu nào</Typography>
+                          <Typography color="textSecondary">
+                            Không có yêu cầu nào
+                          </Typography>
                         )}
                       </StatCard>
                     </Grid>
@@ -163,12 +215,16 @@ const AdminHome = () => {
                   // Tab Giảng viên
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6} lg={3}>
-                      <StatCard title="Tổng số giảng viên" value={teacherStats.total || 0} />
+                      <StatCard
+                        title="Tổng số giảng viên"
+                        value={teacherStats.total || 0}
+                      />
                     </Grid>
 
                     <Grid item xs={12} md={6} lg={9}>
                       <StatCard title="Số lớp học phần theo học kỳ">
-                        {teacherStats.classCountBySemester && teacherStats.classCountBySemester.length > 0 ? (
+                        {teacherStats.classCountBySemester &&
+                        teacherStats.classCountBySemester.length > 0 ? (
                           <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={teacherStats.classCountBySemester}>
                               <XAxis dataKey="semester" />
@@ -178,47 +234,69 @@ const AdminHome = () => {
                             </BarChart>
                           </ResponsiveContainer>
                         ) : (
-                          <Typography color="textSecondary">Không có dữ liệu</Typography>
+                          <Typography color="textSecondary">
+                            Không có dữ liệu
+                          </Typography>
                         )}
                       </StatCard>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
                       <StatCard title="Lịch giảng dạy">
-                        {teacherStats.schedule && teacherStats.schedule.length > 0 ? (
+                        {teacherStats.schedule &&
+                        teacherStats.schedule.length > 0 ? (
                           <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
                             {teacherStats.schedule.map((item, idx) => (
-                              <Box key={idx} sx={{ p: 1, borderBottom: "1px solid #eee" }}>
+                              <Box
+                                key={idx}
+                                sx={{ p: 1, borderBottom: "1px solid #eee" }}
+                              >
                                 <Typography variant="body2">
                                   <strong>{item.teacher}</strong>
                                 </Typography>
-                                <Typography variant="caption" color="textSecondary">
+                                <Typography
+                                  variant="caption"
+                                  color="textSecondary"
+                                >
                                   {item.time}
                                 </Typography>
                               </Box>
                             ))}
                           </Box>
                         ) : (
-                          <Typography color="textSecondary">Không có lịch giảng dạy</Typography>
+                          <Typography color="textSecondary">
+                            Không có lịch giảng dạy
+                          </Typography>
                         )}
                       </StatCard>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
                       <StatCard title="Lịch sử phê duyệt gần đây">
-                        {teacherStats.approveHistory && teacherStats.approveHistory.length > 0 ? (
+                        {teacherStats.approveHistory &&
+                        teacherStats.approveHistory.length > 0 ? (
                           <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
                             {teacherStats.approveHistory.map((h, idx) => (
-                              <Box key={idx} sx={{ p: 1, borderBottom: "1px solid #eee" }}>
-                                <Typography variant="body2">{h.action}</Typography>
-                                <Typography variant="caption" color="textSecondary">
+                              <Box
+                                key={idx}
+                                sx={{ p: 1, borderBottom: "1px solid #eee" }}
+                              >
+                                <Typography variant="body2">
+                                  {h.action}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="textSecondary"
+                                >
                                   {h.time}
                                 </Typography>
                               </Box>
                             ))}
                           </Box>
                         ) : (
-                          <Typography color="textSecondary">Không có lịch sử phê duyệt</Typography>
+                          <Typography color="textSecondary">
+                            Không có lịch sử phê duyệt
+                          </Typography>
                         )}
                       </StatCard>
                     </Grid>
@@ -230,7 +308,7 @@ const AdminHome = () => {
         </Box>
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default AdminHome
+export default AdminHome;
