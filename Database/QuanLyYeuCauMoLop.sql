@@ -112,8 +112,8 @@ CREATE TABLE YeuCauMoLop (
 CREATE TABLE LichSuThayDoiYeuCau (
     maLichSu VARCHAR(20) PRIMARY KEY,
     maYeuCau VARCHAR(20),
-    cotTrangThaiCu ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TKMNhan', '4_ChoMoLop'),
-    cotTrangThaiMoi ENUM('1_GiaoVuNhan', '2_TBMNhan', '3_TKMNhan', '4_ChoMoLop'),
+    cotTrangThaiCu ENUM('0_ChuaGui', '1_GiaoVuNhan', '2_TBMNhan', '3_TruongKhoaNhan', '4_ChoMoLop'),
+  cotTrangThaiMoi ENUM('0_ChuaGui', '1_GiaoVuNhan', '2_TBMNhan', '3_TruongKhoaNhan', '4_ChoMoLop'),
     ngayThayDoi DATE,
     nguoiThayDoi VARCHAR(20),
     FOREIGN KEY (maYeuCau) REFERENCES YeuCauMoLop(maYeuCau),
@@ -292,8 +292,6 @@ CREATE TABLE ThoiKhoaBieuGiangVien (
     FOREIGN KEY (maLopHP) REFERENCES LopHocPhan(maLopHP)
 );
 
-
-DELIMITER //
 
 CREATE PROCEDURE sp_xem_tkb_sinh_vien(IN p_maSV VARCHAR(20))
 BEGIN
@@ -1242,15 +1240,15 @@ select * from monhoc
 select * from chuyennganh
 select * from chuyennganh_monhoc
 select * from sinhvien_monhoc
-select  * from yeucaumolop
+select  * from yeucaumolop;
+select * from lichsuthaydoiyeucau
 select * from sinhvien_monhoc
-q
+select * from thoikhoabieugiangvien
 DELETE FROM LichSuThayDoiYeuCau
 WHERE maYeuCau IN ('YC001', 'YC002', 'YC003', 'YC004', 'YC005');
 
-DELETE FROM YeuCauMoLop
-WHERE maYeuCau IN ('YC001', 'YC002', 'YC003', 'YC004', 'YC005');
-
+DELETE FROM LichSuThayDoiYeuCau;
+DELETE FROM YeuCauMoLop;
 
 -- Procedure kiểm tra và tạo thời khóa biểu
 DELIMITER //

@@ -1,0 +1,131 @@
+.reject-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.reject-dialog {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.reject-dialog h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.reject-dialog textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  resize: vertical;
+}
+
+.reject-dialog .dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.reject-dialog button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.reject-dialog button:first-child {
+  background-color: #dc3545;
+  color: white;
+}
+
+.reject-dialog button:last-child {
+  background-color: #6c757d;
+  color: white;
+}
+
+.reject-dialog button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Update existing button styles */
+.approve-btn,
+.reject-btn {
+  padding: 8px 16px;
+  margin: 0 5px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.approve-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.reject-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.approve-btn:disabled,
+.reject-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.refresh-container {
+  margin-bottom: 1rem;
+  text-align: right;
+}
+
+.refresh-btn {
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.refresh-btn:hover {
+  background-color: #357abd;
+}
+
+.refresh-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.empty-state p {
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
