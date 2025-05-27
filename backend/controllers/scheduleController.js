@@ -16,15 +16,17 @@ exports.getStudentSchedule = (req, res) => {
       tkb.tietBD,
       tkb.tietKT,
       tkb.phongHoc,
+      tkb.loaiBuoi,
       mh.maMH,
       mh.tenMH,
       lhp.maLopHP,
       gv.maGV,
       gv.hoTen AS tenGiangVien
-    FROM ThoiKhoaBieu tkb
+    FROM ThoiKhoaBieuSinhVien tkb
     JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
     JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    JOIN GiangVien gv ON tkb.maGV = gv.maGV
+    JOIN PhanCongGiangVien pc ON lhp.maLopHP = pc.maLopHP
+    JOIN GiangVien gv ON pc.maGV = gv.maGV
     WHERE tkb.maSV = ?
   `
 
@@ -71,15 +73,17 @@ exports.getScheduleByWeek = (req, res) => {
       tkb.tietBD,
       tkb.tietKT,
       tkb.phongHoc,
+      tkb.loaiBuoi,
       mh.maMH,
       mh.tenMH,
       lhp.maLopHP,
       gv.maGV,
       gv.hoTen AS tenGiangVien
-    FROM ThoiKhoaBieu tkb
+    FROM ThoiKhoaBieuSinhVien tkb
     JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
     JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    JOIN GiangVien gv ON tkb.maGV = gv.maGV
+    JOIN PhanCongGiangVien pc ON lhp.maLopHP = pc.maLopHP
+    JOIN GiangVien gv ON pc.maGV = gv.maGV
     WHERE tkb.maSV = ? AND tkb.ngayHoc BETWEEN ? AND ?
     ORDER BY tkb.ngayHoc, tkb.tietBD
   `
@@ -151,7 +155,7 @@ exports.getAvailableWeeks = (req, res) => {
       YEARWEEK(ngayHoc) as weekNumber,
       MIN(ngayHoc) as weekStart,
       MAX(ngayHoc) as weekEnd
-    FROM ThoiKhoaBieu
+    FROM ThoiKhoaBieuSinhVien
     WHERE maSV = ?
     GROUP BY YEARWEEK(ngayHoc)
     ORDER BY weekNumber

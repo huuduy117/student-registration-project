@@ -20,11 +20,12 @@ const Schedule = () => {
   const [error, setError] = useState(null)
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [userId, setUserId] = useState(null)
+  const [viewMode, setViewMode] = useState("all") // 'all', 'classes', 'exams'
 
   // Use the session monitor
   useSessionMonitor()
 
-  // Helper function to format dates without date-fns
+  // Helper function to format dates
   const formatDate = (date) => {
     return date.toLocaleDateString("vi-VN", {
       day: "2-digit",
@@ -35,7 +36,7 @@ const Schedule = () => {
 
   // Helper function to get day name
   const getDayName = (date) => {
-    const days = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"]
+    const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
     return days[date.getDay()]
   }
 
@@ -43,7 +44,7 @@ const Schedule = () => {
   const getStartOfWeek = (date) => {
     const d = new Date(date)
     const day = d.getDay()
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust for Sunday
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
     return new Date(d.setDate(diff))
   }
 
@@ -108,44 +109,44 @@ const Schedule = () => {
     setCurrentWeek(new Date())
   }
 
-  // Helper function to get time slot label
-  const getTimeSlotLabel = (tietBD, tietKT) => {
-    const tietToTime = {
-      Tiet1: "07:00",
-      Tiet2: "07:50",
-      Tiet3: "08:40",
-      Tiet4: "09:30",
-      Tiet5: "10:20",
-      Tiet6: "11:10",
-      Tiet7: "12:00",
-      Tiet8: "12:50",
-      Tiet9: "13:40",
-      Tiet10: "14:30",
-      Tiet11: "15:20",
-      Tiet12: "16:10",
-      Tiet13: "17:00",
-      Tiet14: "17:50",
-      Tiet15: "18:40",
+  // Convert time format from HH:MM to display format
+  const formatTime = (timeStr) => {
+    if (timeStr.includes(":")) {
+      return timeStr
     }
-
-    const startTime = tietToTime[tietBD] || tietBD
-    const endTime = tietToTime[`Tiet${Number.parseInt(tietKT.replace("Tiet", ""))}`] || tietKT
-
-    return `${startTime} - ${endTime}`
+    // Handle Tiet format if needed
+    return timeStr
   }
 
-  // Generate the week dates
-  const weekStart = getStartOfWeek(currentWeek)
-  const weekDates = generateWeekDates(weekStart)
+  // Convert period numbers to time slots
+  const getTietDisplay = (tietBD, tietKT) => {
+    // Extract numbers from tiet strings if they contain "Tiet"
+    const startNum = tietBD.includes("Tiet") ? tietBD.replace("Tiet", "") : tietBD
+    const endNum = tietKT.includes("Tiet") ? tietKT.replace("Tiet", "") : tietKT
+    return `Tiết: ${startNum} - ${endNum}`
+  }
 
-  // Group schedule items by time period (morning, afternoon, evening)
+  // Group schedule items by time period
   const groupByTimePeriod = (items) => {
     return items.reduce(
       (acc, item) => {
-        const tietBD = Number.parseInt(item.tietBD.replace("Tiet", ""))
-        if (tietBD >= 1 && tietBD <= 5) {
+        const timeStr = item.tietBD
+        let tietNum
+
+        if (timeStr.includes(":")) {
+          // If it's time format, convert to period number
+          const hour = Number.parseInt(timeStr.split(":")[0])
+          if (hour < 12) tietNum = 1
+          else if (hour < 17) tietNum = 7
+          else tietNum = 13
+        } else {
+          // If it's already period format
+          tietNum = Number.parseInt(timeStr.replace("Tiet", "")) || Number.parseInt(timeStr)
+        }
+
+        if (tietNum >= 1 && tietNum <= 6) {
           acc.morning.push(item)
-        } else if (tietBD >= 6 && tietBD <= 12) {
+        } else if (tietNum >= 7 && tietNum <= 12) {
           acc.afternoon.push(item)
         } else {
           acc.evening.push(item)
@@ -156,6 +157,10 @@ const Schedule = () => {
     )
   }
 
+  // Generate the week dates
+  const weekStart = getStartOfWeek(currentWeek)
+  const weekDates = generateWeekDates(weekStart)
+
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
   const groupedSchedule = days.map((day) => groupByTimePeriod(schedule[day] || []))
 
@@ -165,20 +170,46 @@ const Schedule = () => {
       <main className="dashboard-main">
         <div className="schedule-container">
           <div className="schedule-header">
-            <h1>Thời Khóa Biểu</h1>
+            <h1>Lịch học, lịch thi theo tuần</h1>
+
             <div className="schedule-controls">
-              <button onClick={handlePreviousWeek} className="control-button">
-                ◀ Tuần trước
-              </button>
-              <button onClick={handleCurrentWeek} className="control-button current">
-                Tuần hiện tại
-              </button>
-              <button onClick={handleNextWeek} className="control-button">
-                Tuần sau ▶
-              </button>
-            </div>
-            <div className="week-display">
-              {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
+              <div className="view-mode-buttons">
+                <button
+                  className={`mode-button ${viewMode === "all" ? "active" : ""}`}
+                  onClick={() => setViewMode("all")}
+                >
+                  Tất cả
+                </button>
+                <button
+                  className={`mode-button ${viewMode === "classes" ? "active" : ""}`}
+                  onClick={() => setViewMode("classes")}
+                >
+                  Lịch học
+                </button>
+                <button
+                  className={`mode-button ${viewMode === "exams" ? "active" : ""}`}
+                  onClick={() => setViewMode("exams")}
+                >
+                  Lịch thi
+                </button>
+              </div>
+
+              <div className="date-controls">
+                <input
+                  type="date"
+                  value={currentWeek.toISOString().split("T")[0]}
+                  onChange={(e) => setCurrentWeek(new Date(e.target.value))}
+                  className="date-input"
+                />
+                <button className="control-button">📅 Hiện tại</button>
+                <button className="control-button">🖨️ In lịch</button>
+                <button onClick={handlePreviousWeek} className="control-button">
+                  ◀ Trở về
+                </button>
+                <button onClick={handleNextWeek} className="control-button">
+                  Tiếp ▶
+                </button>
+              </div>
             </div>
           </div>
 
@@ -209,10 +240,12 @@ const Schedule = () => {
                         {dayGroup.morning.map((item, itemIndex) => (
                           <div key={itemIndex} className="class-item">
                             <div className="class-name">{item.tenMH}</div>
-                            <div className="class-code">{item.maLopHP}</div>
-                            <div className="class-time">{getTimeSlotLabel(item.tietBD, item.tietKT)}</div>
-                            <div className="class-location">{item.phongHoc}</div>
-                            <div className="class-teacher">{item.tenGiangVien}</div>
+                            <div className="class-code">
+                              {item.maLopHP} - {item.maMH}
+                            </div>
+                            <div className="class-time">{getTietDisplay(item.tietBD, item.tietKT)}</div>
+                            <div className="class-location">Phòng: {item.phongHoc}</div>
+                            <div className="class-teacher">GV: {item.tenGiangVien}</div>
                           </div>
                         ))}
                       </td>
@@ -226,10 +259,12 @@ const Schedule = () => {
                         {dayGroup.afternoon.map((item, itemIndex) => (
                           <div key={itemIndex} className="class-item">
                             <div className="class-name">{item.tenMH}</div>
-                            <div className="class-code">{item.maLopHP}</div>
-                            <div className="class-time">{getTimeSlotLabel(item.tietBD, item.tietKT)}</div>
-                            <div className="class-location">{item.phongHoc}</div>
-                            <div className="class-teacher">{item.tenGiangVien}</div>
+                            <div className="class-code">
+                              {item.maLopHP} - {item.maMH}
+                            </div>
+                            <div className="class-time">{getTietDisplay(item.tietBD, item.tietKT)}</div>
+                            <div className="class-location">Phòng: {item.phongHoc}</div>
+                            <div className="class-teacher">GV: {item.tenGiangVien}</div>
                           </div>
                         ))}
                       </td>
@@ -243,10 +278,12 @@ const Schedule = () => {
                         {dayGroup.evening.map((item, itemIndex) => (
                           <div key={itemIndex} className="class-item">
                             <div className="class-name">{item.tenMH}</div>
-                            <div className="class-code">{item.maLopHP}</div>
-                            <div className="class-time">{getTimeSlotLabel(item.tietBD, item.tietKT)}</div>
-                            <div className="class-location">{item.phongHoc}</div>
-                            <div className="class-teacher">{item.tenGiangVien}</div>
+                            <div className="class-code">
+                              {item.maLopHP} - {item.maMH}
+                            </div>
+                            <div className="class-time">{getTietDisplay(item.tietBD, item.tietKT)}</div>
+                            <div className="class-location">Phòng: {item.phongHoc}</div>
+                            <div className="class-teacher">GV: {item.tenGiangVien}</div>
                           </div>
                         ))}
                       </td>
