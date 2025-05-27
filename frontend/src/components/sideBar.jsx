@@ -94,11 +94,6 @@ export default function SideBar() {
         },
         { icon: "📢", text: "Bảng tin", path: "/admin/newsfeed" },
         {
-          icon: "👥",
-          text: "Quản lý người dùng",
-          path: "/admin/user-management",
-        },
-        {
           icon: "📝",
           text: "Xét duyệt yêu cầu",
           path: "/admin/approve-requests",

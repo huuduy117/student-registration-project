@@ -332,51 +332,81 @@ function deleteUser(userId, type, callback) {
 
     // Handle dependent records based on user type
     if (type === "SinhVien") {
-      // Delete from YeuCauMoLop first (where student is the requester)
+      // 1. Lấy danh sách maYeuCau của sinh viên này
       mysqlConnection.query(
-        "DELETE FROM YeuCauMoLop WHERE maSV = ?",
+        "SELECT maYeuCau FROM YeuCauMoLop WHERE maSV = ?",
         [userId],
-        (err) => {
+        (err, results) => {
           if (err) {
             return mysqlConnection.rollback(() => callback(err));
           }
-
-          // Delete from SinhVien_MonHoc (course registrations)
-          mysqlConnection.query(
-            "DELETE FROM SinhVien_MonHoc WHERE maSV = ?",
-            [userId],
-            (err) => {
-              if (err) {
-                return mysqlConnection.rollback(() => callback(err));
-              }
-
-              // Delete from ThoiKhoaBieuSinhVien (student schedules)
-              mysqlConnection.query(
-                "DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = ?",
-                [userId],
-                (err) => {
-                  if (err) {
-                    return mysqlConnection.rollback(() => callback(err));
-                  }
-
-                  // Delete from PhanLop (class assignments)
-                  mysqlConnection.query(
-                    "DELETE FROM PhanLop WHERE maSV = ?",
-                    [userId],
-                    (err) => {
-                      if (err) {
-                        return mysqlConnection.rollback(() => callback(err));
-                      }
-                      // Now safe to delete from detail tables
-                      deleteDetailTable();
-                    }
-                  );
+          const maYeuCauList = results.map((row) => row.maYeuCau);
+          if (maYeuCauList.length > 0) {
+            // 2. Xóa các bản ghi liên quan trong LichSuThayDoiYeuCau
+            mysqlConnection.query(
+              `DELETE FROM LichSuThayDoiYeuCau WHERE maYeuCau IN (${maYeuCauList
+                .map(() => "?")
+                .join(",")})`,
+              maYeuCauList,
+              (err) => {
+                if (err) {
+                  return mysqlConnection.rollback(() => callback(err));
                 }
-              );
-            }
-          );
+                // Tiếp tục xóa các bảng khác như cũ
+                deleteYeuCauMoLopAndOthers();
+              }
+            );
+          } else {
+            // Không có yêu cầu nào, tiếp tục xóa các bảng khác như cũ
+            deleteYeuCauMoLopAndOthers();
+          }
         }
       );
+
+      function deleteYeuCauMoLopAndOthers() {
+        // Xóa YeuCauMoLop
+        mysqlConnection.query(
+          "DELETE FROM YeuCauMoLop WHERE maSV = ?",
+          [userId],
+          (err) => {
+            if (err) {
+              return mysqlConnection.rollback(() => callback(err));
+            }
+            // Delete from SinhVien_MonHoc (course registrations)
+            mysqlConnection.query(
+              "DELETE FROM SinhVien_MonHoc WHERE maSV = ?",
+              [userId],
+              (err) => {
+                if (err) {
+                  return mysqlConnection.rollback(() => callback(err));
+                }
+                // Delete from ThoiKhoaBieuSinhVien (student schedules)
+                mysqlConnection.query(
+                  "DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = ?",
+                  [userId],
+                  (err) => {
+                    if (err) {
+                      return mysqlConnection.rollback(() => callback(err));
+                    }
+                    // Delete from PhanLop (class assignments)
+                    mysqlConnection.query(
+                      "DELETE FROM PhanLop WHERE maSV = ?",
+                      [userId],
+                      (err) => {
+                        if (err) {
+                          return mysqlConnection.rollback(() => callback(err));
+                        }
+                        // Now safe to delete from detail tables
+                        deleteDetailTable();
+                      }
+                    );
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
     } else {
       // For other user types, directly delete detail
       deleteDetailTable();
