@@ -4,6 +4,25 @@ const { mysqlConnection } = require("../config/db");
  * Thêm mới người dùng và bản ghi chi tiết (giảng viên hoặc sinh viên) trong transaction
  */
 async function createUserWithDetail(userData, detailData, type) {
+  // Chuyển đổi key 'lop' thành 'maLop' nếu là SinhVien
+  if (type === "SinhVien" && detailData && detailData.lop !== undefined) {
+    detailData = { ...detailData };
+    detailData.maLop = detailData.lop;
+    delete detailData.lop;
+  }
+  // Đảm bảo maSV = userData.maNguoiDung khi thêm sinh viên
+  if (type === "SinhVien" && userData && userData.maNguoiDung) {
+    detailData = { ...detailData, maSV: userData.maNguoiDung };
+  }
+  // Chuyển đổi ngày sinh về dạng YYYY-MM-DD nếu có
+  if (detailData && detailData.ngaySinh) {
+    let d = detailData.ngaySinh;
+    if (typeof d === "string" && d.includes("T")) {
+      // Lấy phần trước 'T'
+      detailData.ngaySinh = d.split("T")[0];
+    }
+  }
+
   return new Promise((resolve, reject) => {
     if (!userData || typeof userData !== "object") {
       return reject({
@@ -200,6 +219,21 @@ function getUserById(userId, callback) {
  * Cập nhật thông tin người dùng
  */
 function updateUser(userId, userData, detailData, type, callback) {
+  // Chuyển đổi key 'lop' thành 'maLop' nếu là SinhVien
+  if (type === "SinhVien" && detailData && detailData.lop !== undefined) {
+    detailData = { ...detailData };
+    detailData.maLop = detailData.lop;
+    delete detailData.lop;
+  }
+  // Chuyển đổi ngày sinh về dạng YYYY-MM-DD nếu có
+  if (detailData && detailData.ngaySinh) {
+    let d = detailData.ngaySinh;
+    if (typeof d === "string" && d.includes("T")) {
+      // Lấy phần trước 'T'
+      detailData.ngaySinh = d.split("T")[0];
+    }
+  }
+
   mysqlConnection.beginTransaction((err) => {
     if (err) return callback(err);
 
