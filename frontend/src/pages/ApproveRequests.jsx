@@ -78,20 +78,50 @@ const ApproveRequestsPage = () => {
     try {
       setIsProcessing(true);
       console.log(`Sending approve request for ID: ${id}`);
-      const nextState =
-        userRole === "GiaoVu"
-          ? "2_TBMNhan"
-          : userRole === "TruongBoMon"
-          ? "3_TruongKhoaNhan"
-          : "4_ChoMoLop";
+
+      // Xác định trạng thái tiếp theo và tình trạng tổng quát dựa vào vai trò
+      const roleTransitions = {
+        GiaoVu: {
+          nextState: "2_TBMNhan",
+          tinhTrang: "DaGui",
+          message:
+            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng bộ môn.",
+        },
+        TruongBoMon: {
+          nextState: "3_TruongKhoaNhan",
+          tinhTrang: "DaGui",
+          message: "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng khoa.",
+        },
+        TruongKhoa: {
+          nextState: "4_ChoMoLop",
+          tinhTrang: "DaDuyet",
+          message:
+            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển sang trạng thái chờ mở lớp.",
+        },
+      };
+
+      const transition = roleTransitions[userRole];
+      if (!transition) {
+        throw new Error("Vai trò người dùng không hợp lệ");
+      }
+
+      const nextState = transition.nextState;
+      const tinhTrangTongQuat = transition.tinhTrang;
+
+      console.log("State transition:", {
+        currentState: currentRequest.trangThaiXuLy,
+        nextState,
+        tinhTrangTongQuat,
+        role: userRole,
+      });
 
       // Tạo mã xử lý yêu cầu
       const maXuLy = `XL_${id}_${Date.now()}`;
 
       const requestData = {
-        currentState: currentRequest.trangThaiXuLy, // Gửi trạng thái hiện tại để validate
-        nextState, // Trạng thái tiếp theo
-        tinhTrangTongQuat: userRole === "TruongKhoa" ? "DaDuyet" : "DaGui",
+        currentState: currentRequest.trangThaiXuLy,
+        nextState,
+        tinhTrangTongQuat,
         xuLyYeuCau: {
           maXuLy, // Thêm mã xử lý để tracking
           maYeuCau: id,
@@ -105,46 +135,29 @@ const ApproveRequestsPage = () => {
           ngayXuLy: new Date().toISOString(),
         },
       };
-      const response = await axios.patch(
-        `/api/class-requests/${id}/approve`,
-        requestData,
-        {
-          headers: {
-            Authorization: `Bearer ${authData.token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
 
-      // Nếu có lỗi từ server
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
+      await axios.patch(`/api/class-requests/${id}/approve`, requestData, {
+        headers: {
+          Authorization: `Bearer ${authData.token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       // Cập nhật UI và hiển thị thông báo thành công
       setRequests(requests.filter((r) => r.maYeuCau !== id));
-
-      let successMessage = "";
-      switch (userRole) {
-        case "GiaoVu":
-          successMessage =
-            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng bộ môn.";
-          break;
-        case "TruongBoMon":
-          successMessage =
-            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng khoa.";
-          break;
-        case "TruongKhoa":
-          successMessage =
-            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển sang trạng thái chờ mở lớp.";
-          break;
-      }
-      alert(successMessage);
+      alert(transition.message);
     } catch (error) {
       console.error("Approve error:", error);
       const errorMessage = error.response?.data?.message || error.message;
 
-      // Xử lý các trường hợp lỗi
+      // Nếu message trả về là 'Duyệt yêu cầu thành công' thì không alert lỗi
+      if (errorMessage && errorMessage.toLowerCase().includes("thành công")) {
+        // Đã xử lý thành công, không cần alert lỗi
+        console.log("Server message (success):", errorMessage);
+        return;
+      }
+
+      // Xử lý các trường hợp lỗi thực sự
       if (errorMessage.includes("Status mismatch")) {
         alert(
           "Trạng thái yêu cầu đã thay đổi. Vui lòng tải lại danh sách để xem trạng thái mới nhất."
@@ -152,7 +165,7 @@ const ApproveRequestsPage = () => {
       } else if (errorMessage.includes("history")) {
         alert("Không thể lưu lịch sử xử lý. Vui lòng thử lại sau.");
       } else {
-        alert(`Không thể xử lý yêu cầu: ${errorMessage}`); // Thông báo lỗi chung
+        alert(`Không thể xử lý yêu cầu: ${errorMessage}`);
       }
       await fetchRequests();
     } finally {
