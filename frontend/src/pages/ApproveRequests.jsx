@@ -78,7 +78,6 @@ const ApproveRequestsPage = () => {
     try {
       setIsProcessing(true);
       console.log(`Sending approve request for ID: ${id}`);
-
       const nextState =
         userRole === "GiaoVu"
           ? "2_TBMNhan"
@@ -106,7 +105,6 @@ const ApproveRequestsPage = () => {
           ngayXuLy: new Date().toISOString(),
         },
       };
-
       const response = await axios.patch(
         `/api/class-requests/${id}/approve`,
         requestData,
@@ -118,46 +116,43 @@ const ApproveRequestsPage = () => {
         }
       );
 
-      // Kiểm tra response có thành công hay không
-      if (!response.data.success) {
-        throw new Error(response.data.message || "Duyệt yêu cầu thất bại");
+      // Nếu có lỗi từ server
+      if (response.data.error) {
+        throw new Error(response.data.error);
       }
 
-      // Chỉ xóa khỏi danh sách nếu cập nhật thành công
+      // Cập nhật UI và hiển thị thông báo thành công
       setRequests(requests.filter((r) => r.maYeuCau !== id));
 
-      // Thông báo theo role
       let successMessage = "";
-      if (userRole === "GiaoVu") {
-        successMessage = "Đã duyệt và chuyển yêu cầu đến Trưởng bộ môn xem xét";
-      } else if (userRole === "TruongBoMon") {
-        successMessage = "Đã duyệt và chuyển yêu cầu đến Trưởng khoa xem xét";
-      } else if (userRole === "TruongKhoa") {
-        successMessage =
-          "Đã phê duyệt yêu cầu. Yêu cầu sẽ được chuyển sang trạng thái chờ mở lớp";
+      switch (userRole) {
+        case "GiaoVu":
+          successMessage =
+            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng bộ môn.";
+          break;
+        case "TruongBoMon":
+          successMessage =
+            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển đến Trưởng khoa.";
+          break;
+        case "TruongKhoa":
+          successMessage =
+            "Đã duyệt yêu cầu. Yêu cầu sẽ được chuyển sang trạng thái chờ mở lớp.";
+          break;
       }
       alert(successMessage);
     } catch (error) {
       console.error("Approve error:", error);
       const errorMessage = error.response?.data?.message || error.message;
 
+      // Xử lý các trường hợp lỗi
       if (errorMessage.includes("Status mismatch")) {
         alert(
           "Trạng thái yêu cầu đã thay đổi. Vui lòng tải lại danh sách để xem trạng thái mới nhất."
         );
       } else if (errorMessage.includes("history")) {
-        alert("Đã xảy ra lỗi khi lưu lịch sử xử lý. Vui lòng thử lại sau.");
+        alert("Không thể lưu lịch sử xử lý. Vui lòng thử lại sau.");
       } else {
-        let roleSpecificMessage = "";
-        if (userRole === "GiaoVu") {
-          roleSpecificMessage = "Không thể chuyển yêu cầu đến Trưởng bộ môn";
-        } else if (userRole === "TruongBoMon") {
-          roleSpecificMessage = "Không thể chuyển yêu cầu đến Trưởng khoa";
-        } else if (userRole === "TruongKhoa") {
-          roleSpecificMessage =
-            "Không thể chuyển yêu cầu sang trạng thái chờ mở lớp";
-        }
-        alert(`${roleSpecificMessage}: ${errorMessage}`);
+        alert(`Không thể xử lý yêu cầu: ${errorMessage}`); // Thông báo lỗi chung
       }
       await fetchRequests();
     } finally {
@@ -204,7 +199,6 @@ const ApproveRequestsPage = () => {
           ngayXuLy: new Date().toISOString(),
         },
       };
-
       const response = await axios.patch(
         `/api/class-requests/${selectedRequestId}/reject`,
         requestData,
@@ -216,37 +210,30 @@ const ApproveRequestsPage = () => {
         }
       );
 
-      // Kiểm tra response có thành công hay không
-      if (!response.data.success) {
-        throw new Error(response.data.message || "Từ chối yêu cầu thất bại");
+      // Nếu có lỗi từ server
+      if (response.data.error) {
+        throw new Error(response.data.error);
       }
 
-      // Chỉ xóa khỏi danh sách nếu cập nhật thành công
+      // Cập nhật UI
       setRequests(requests.filter((r) => r.maYeuCau !== selectedRequestId));
       setShowRejectDialog(false);
 
-      // Thông báo theo role
-      let successMessage = "";
-      if (userRole === "GiaoVu") {
-        successMessage = "Đã từ chối yêu cầu ở cấp Giáo vụ";
-      } else if (userRole === "TruongBoMon") {
-        successMessage = "Đã từ chối yêu cầu ở cấp Trưởng bộ môn";
-      } else if (userRole === "TruongKhoa") {
-        successMessage = "Đã từ chối yêu cầu ở cấp Trưởng khoa";
-      }
-      alert(successMessage);
+      // Hiển thị thông báo thành công
+      alert("Đã từ chối yêu cầu thành công");
     } catch (error) {
       console.error("Reject error:", error);
       const errorMessage = error.response?.data?.message || error.message;
 
+      // Xử lý các trường hợp lỗi
       if (errorMessage.includes("Status mismatch")) {
         alert(
           "Trạng thái yêu cầu đã thay đổi. Vui lòng tải lại danh sách để xem trạng thái mới nhất."
         );
       } else if (errorMessage.includes("history")) {
-        alert("Đã xảy ra lỗi khi lưu lịch sử từ chối. Vui lòng thử lại sau.");
+        alert("Không thể lưu lịch sử từ chối. Vui lòng thử lại sau.");
       } else {
-        alert(`Không thể từ chối yêu cầu: ${errorMessage}`);
+        alert(`Không thể xử lý yêu cầu: ${errorMessage}`);
       }
       await fetchRequests();
     } finally {
