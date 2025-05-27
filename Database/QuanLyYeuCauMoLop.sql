@@ -1,6 +1,7 @@
-CREATE DATABASE DKHP;
-USE DKHP;
-
+CREATE DATABASE TESTDB;
+USE TESTDB;
+-- BÔI ĐEN TỪ ĐẦU ĐẾN DÒNG 1664 ĐỂ CHẠY NHANH
+-- TẠO BẢNG
 -- 1. Bảng NguoiDung
 CREATE TABLE NguoiDung (
     maNguoiDung VARCHAR(20) PRIMARY KEY,
@@ -293,29 +294,10 @@ CREATE TABLE ThoiKhoaBieuGiangVien (
 );
 
 
-CREATE PROCEDURE sp_xem_tkb_sinh_vien(IN p_maSV VARCHAR(20))
-BEGIN
-    SELECT 
-        mh.tenMH AS 'Tên môn học',
-        tkb.maLopHP AS 'Mã học phần',
-        CONCAT(tkb.tietBD, ' - ', tkb.tietKT) AS 'Tiết học',
-        tkb.phongHoc AS 'Phòng học',
-        DATE_FORMAT(tkb.ngayHoc, '%d/%m/%Y') AS 'Ngày học',
-        gv.hoTen AS 'Giảng viên'
-    FROM ThoiKhoaBieuSinhVien tkb
-    JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
-    JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    JOIN GiangVien gv ON lhp.maGV = gv.maGV
-    WHERE tkb.maSV = p_maSV
-    ORDER BY tkb.ngayHoc, tkb.tietBD;
-END //
+-- TẠO TRIGGER
 
-DELIMITER ;
-
-
--- proc update trang thai phieu mo lop
+-- TRIGGER update trang thai phieu mo lop
 DELIMITER $$
-
 CREATE TRIGGER trg_auto_update_trangThai_before_insert
 BEFORE INSERT ON YeuCauMoLop
 FOR EACH ROW
@@ -326,11 +308,10 @@ BEGIN
         SET NEW.tinhTrangTongQuat = 'DaGui';
     END IF;
 END$$
-
 DELIMITER ;
 
+-- TRIGGER GÌ ĐÓ CHƯA BIẾT
 DELIMITER $$
-
 CREATE TRIGGER trg_auto_update_trangThai_before_update
 BEFORE UPDATE ON YeuCauMoLop
 FOR EACH ROW
@@ -341,286 +322,101 @@ BEGIN
         SET NEW.tinhTrangTongQuat = 'DaGui';
     END IF;
 END$$
-
 DELIMITER ;
 
--- Procedure tạo lịch học từ mẫu thời khóa biểu
+-- BỘ TRIGGER NGHIỆP VỤ
 DELIMITER //
-CREATE PROCEDURE sp_tao_lich_hoc(
-    IN p_maLopHP VARCHAR(20),
-    IN p_ngayBatDau DATE,
-    IN p_ngayKetThuc DATE
-)
+-- Trigger 1: Khi thêm/sửa LopHocPhan, tự động cập nhật PhanCongGiangVien
+CREATE TRIGGER trg_auto_phan_cong_giang_vien
+AFTER INSERT ON LopHocPhan
+FOR EACH ROW
 BEGIN
-    DECLARE v_thuTrongTuan TINYINT;
-    DECLARE v_tietBD VARCHAR(5);
-    DECLARE v_tietKT VARCHAR(5);
-    DECLARE v_phongHoc VARCHAR(10);
-    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
-    DECLARE v_maLichHoc VARCHAR(20);
-    DECLARE done INT DEFAULT FALSE;
-    
-    -- Cursor để lấy thông tin từ mẫu thời khóa biểu
-    DECLARE cur CURSOR FOR 
-        SELECT thuTrongTuan, tietBD, tietKT, phongHoc, loaiBuoi 
-        FROM MauThoiKhoaBieu 
-        WHERE maLopHP = p_maLopHP;
-    
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    -- Xóa lịch học cũ nếu có
-    DELETE FROM LichHoc WHERE maLopHP = p_maLopHP;
-    
-    OPEN cur;
-    
-    read_loop: LOOP
-        FETCH cur INTO v_thuTrongTuan, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
-        
-        IF done THEN
-            LEAVE read_loop;
-        END IF;
-        
-        -- Tạo mã lịch học ngắn gọn hơn
-        SET v_maLichHoc = CONCAT('LH', SUBSTRING(p_maLopHP, 4), v_thuTrongTuan, 
-                                SUBSTRING(REPLACE(v_tietBD, ':', ''), 1, 2));
-        
-        -- Thêm lịch học mới
-        INSERT INTO LichHoc (
-            maLichHoc, maLopHP, thuTrongTuan, tietBD, tietKT, 
-            phongHoc, loaiBuoi, ngayBatDau, ngayKetThuc
-        ) VALUES (
-            v_maLichHoc, p_maLopHP, v_thuTrongTuan, v_tietBD, v_tietKT,
-            v_phongHoc, v_loaiBuoi, p_ngayBatDau, p_ngayKetThuc
+    -- Nếu có maGV trong LopHocPhan, tự động tạo phân công
+    IF NEW.maGV IS NOT NULL THEN
+        INSERT INTO PhanCongGiangVien (maPhanCong, maGV, maLopHP, ngayPhanCong)
+        VALUES (
+            CONCAT('PC', NEW.maLopHP, '_', NEW.maGV),
+            NEW.maGV,
+            NEW.maLopHP,
+            CURDATE()
         );
-    END LOOP;
-    
-    CLOSE cur;
-END //
-DELIMITER ;
-
--- Procedure tạo thời khóa biểu cho lớp học phần
-DELIMITER //
-CREATE PROCEDURE sp_tao_tkb_lop_hoc_phan(
-    IN p_maLopHP VARCHAR(20),
-    IN p_ngayBatDau DATE,
-    IN p_ngayKetThuc DATE
-)
-BEGIN
-    DECLARE v_ngayHoc DATE;
-    DECLARE v_thuTrongTuan TINYINT;
-    DECLARE v_tietBD VARCHAR(5);
-    DECLARE v_tietKT VARCHAR(5);
-    DECLARE v_phongHoc VARCHAR(10);
-    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
-    DECLARE v_maTKB VARCHAR(50);
-    DECLARE done INT DEFAULT FALSE;
-    
-    -- Cursor để lấy thông tin từ lịch học
-    DECLARE cur CURSOR FOR 
-        SELECT thuTrongTuan, tietBD, tietKT, phongHoc, loaiBuoi 
-        FROM LichHoc 
-        WHERE maLopHP = p_maLopHP;
-    
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    -- Xóa thời khóa biểu cũ nếu có
-    DELETE FROM ThoiKhoaBieuLopHocPhan WHERE maLopHP = p_maLopHP;
-    
-    -- Tạo thời khóa biểu cho từng ngày trong khoảng thời gian
-    SET v_ngayHoc = p_ngayBatDau;
-    
-    WHILE v_ngayHoc <= p_ngayKetThuc DO
-        OPEN cur;
-        
-        read_loop: LOOP
-            FETCH cur INTO v_thuTrongTuan, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
-            
-            IF done THEN
-                LEAVE read_loop;
-            END IF;
-            
-            -- Kiểm tra nếu ngày học trùng với thứ trong tuần
-            IF DAYOFWEEK(v_ngayHoc) = v_thuTrongTuan THEN
-                -- Tạo mã thời khóa biểu
-                SET v_maTKB = CONCAT(p_maLopHP, '_', DATE_FORMAT(v_ngayHoc, '%Y%m%d'), '_',
-                                   v_thuTrongTuan, '_', REPLACE(v_tietBD, ':', ''));
-                
-                -- Thêm thời khóa biểu mới
-                INSERT INTO ThoiKhoaBieuLopHocPhan (
-                    maTKB, maLopHP, ngayHoc, tietBD, tietKT, 
-                    phongHoc, loaiBuoi
-                ) VALUES (
-                    v_maTKB, p_maLopHP, v_ngayHoc, v_tietBD, v_tietKT,
-                    v_phongHoc, v_loaiBuoi
-                );
-            END IF;
-        END LOOP;
-        
-        CLOSE cur;
-        SET done = FALSE;
-        SET v_ngayHoc = DATE_ADD(v_ngayHoc, INTERVAL 1 DAY);
-    END WHILE;
-END //
-DELIMITER ;
-
--- Procedure tạo thời khóa biểu cho sinh viên
-DELIMITER //
-CREATE PROCEDURE sp_tao_tkb_sinh_vien(
-    IN p_maSV VARCHAR(20)
-)
-BEGIN
-    DECLARE v_maLopHP VARCHAR(20);
-    DECLARE v_ngayHoc DATE;
-    DECLARE v_tietBD VARCHAR(5);
-    DECLARE v_tietKT VARCHAR(5);
-    DECLARE v_phongHoc VARCHAR(10);
-    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
-    DECLARE v_maTKB VARCHAR(50);
-    DECLARE done INT DEFAULT FALSE;
-    
-    -- Cursor để lấy thông tin từ thời khóa biểu lớp học phần
-    DECLARE cur CURSOR FOR 
-        SELECT t.maLopHP, t.ngayHoc, t.tietBD, t.tietKT, t.phongHoc, t.loaiBuoi
-        FROM ThoiKhoaBieuLopHocPhan t
-        JOIN PhanLop p ON t.maLopHP = p.maLopHP
-        WHERE p.maSV = p_maSV AND p.trangThai = 'DangHoc';
-    
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    -- Xóa thời khóa biểu cũ nếu có
-    DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = p_maSV;
-    
-    OPEN cur;
-    
-    read_loop: LOOP
-        FETCH cur INTO v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
-        
-        IF done THEN
-            LEAVE read_loop;
-        END IF;
-        
-        -- Tạo mã thời khóa biểu
-        SET v_maTKB = CONCAT(p_maSV, '_', v_maLopHP, '_', DATE_FORMAT(v_ngayHoc, '%Y%m%d'), '_',
-                           REPLACE(v_tietBD, ':', ''));
-        
-        -- Thêm thời khóa biểu mới
-        INSERT INTO ThoiKhoaBieuSinhVien (
-            maTKB, maSV, maLopHP, ngayHoc, tietBD, tietKT, 
-            phongHoc, loaiBuoi
-        ) VALUES (
-            v_maTKB, p_maSV, v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT,
-            v_phongHoc, v_loaiBuoi
-        );
-    END LOOP;
-    
-    CLOSE cur;
-END //
-DELIMITER ;
-
--- Procedure tạo thời khóa biểu cho giảng viên
-DELIMITER //
-CREATE PROCEDURE sp_tao_tkb_giang_vien(
-    IN p_maGV VARCHAR(20)
-)
-BEGIN
-    DECLARE v_maLopHP VARCHAR(20);
-    DECLARE v_ngayHoc DATE;
-    DECLARE v_tietBD VARCHAR(5);
-    DECLARE v_tietKT VARCHAR(5);
-    DECLARE v_phongHoc VARCHAR(10);
-    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
-    DECLARE v_maTKB VARCHAR(50);
-    DECLARE done INT DEFAULT FALSE;
-    
-    -- Cursor để lấy thông tin từ thời khóa biểu lớp học phần
-    DECLARE cur CURSOR FOR 
-        SELECT t.maLopHP, t.ngayHoc, t.tietBD, t.tietKT, t.phongHoc, t.loaiBuoi
-        FROM ThoiKhoaBieuLopHocPhan t
-        JOIN PhanCongGiangVien p ON t.maLopHP = p.maLopHP
-        WHERE p.maGV = p_maGV;
-    
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    -- Xóa thời khóa biểu cũ nếu có
-    DELETE FROM ThoiKhoaBieuGiangVien WHERE maGV = p_maGV;
-    
-    OPEN cur;
-    
-    read_loop: LOOP
-        FETCH cur INTO v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
-        
-        IF done THEN
-            LEAVE read_loop;
-        END IF;
-        
-        -- Tạo mã thời khóa biểu
-        SET v_maTKB = CONCAT(p_maGV, '_', v_maLopHP, '_', DATE_FORMAT(v_ngayHoc, '%Y%m%d'), '_',
-                           REPLACE(v_tietBD, ':', ''));
-        
-        -- Thêm thời khóa biểu mới
-        INSERT INTO ThoiKhoaBieuGiangVien (
-            maTKB, maGV, maLopHP, ngayHoc, tietBD, tietKT, 
-            phongHoc, loaiBuoi
-        ) VALUES (
-            v_maTKB, p_maGV, v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT,
-            v_phongHoc, v_loaiBuoi
-        );
-    END LOOP;
-    
-    CLOSE cur;
-END //
-DELIMITER ;
-
--- Procedure kiểm tra xung đột lịch học
-DELIMITER //
-CREATE PROCEDURE sp_kiem_tra_xung_dot_lich(
-    IN p_maLopHP VARCHAR(20),
-    IN p_ngayHoc DATE,
-    IN p_tietBD VARCHAR(5),
-    IN p_tietKT VARCHAR(5),
-    OUT p_coXungDot BOOLEAN
-)
-BEGIN
-    DECLARE v_count INT;
-    
-    -- Kiểm tra xung đột với giảng viên
-    SELECT COUNT(*) INTO v_count
-    FROM ThoiKhoaBieuGiangVien t
-    JOIN PhanCongGiangVien p ON t.maLopHP = p.maLopHP
-    WHERE p.maGV IN (
-        SELECT maGV FROM PhanCongGiangVien WHERE maLopHP = p_maLopHP
-    )
-    AND t.ngayHoc = p_ngayHoc
-    AND (
-        (CAST(t.tietBD AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
-        OR
-        (CAST(t.tietKT AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
-    );
-    
-    IF v_count > 0 THEN
-        SET p_coXungDot = TRUE;
-    ELSE
-        -- Kiểm tra xung đột với sinh viên
-        SELECT COUNT(*) INTO v_count
-        FROM ThoiKhoaBieuSinhVien t
-        JOIN PhanLop p ON t.maLopHP = p.maLopHP
-        WHERE p.maSV IN (
-            SELECT maSV FROM PhanLop WHERE maLopHP = p_maLopHP
-        )
-        AND t.ngayHoc = p_ngayHoc
-        AND (
-            (CAST(t.tietBD AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
-            OR
-            (CAST(t.tietKT AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
-        );
-        
-        SET p_coXungDot = (v_count > 0);
     END IF;
 END //
+
+-- Trigger 2: Khi cập nhật maGV trong LopHocPhan
+CREATE TRIGGER trg_update_phan_cong_giang_vien
+AFTER UPDATE ON LopHocPhan
+FOR EACH ROW
+BEGIN
+    IF NEW.maGV != OLD.maGV THEN
+        -- Xóa phân công cũ
+        DELETE FROM PhanCongGiangVien 
+        WHERE maLopHP = NEW.maLopHP;
+        
+        -- Thêm phân công mới
+        IF NEW.maGV IS NOT NULL THEN
+            INSERT INTO PhanCongGiangVien (maPhanCong, maGV, maLopHP, ngayPhanCong)
+            VALUES (
+                CONCAT('PC', NEW.maLopHP, '_', NEW.maGV),
+                NEW.maGV,
+                NEW.maLopHP,
+                CURDATE()
+            );
+        END IF;
+    END IF;
+END //
+
+-- Trigger 3: Khi xóa LopHocPhan
+CREATE TRIGGER trg_delete_phan_cong_giang_vien
+BEFORE DELETE ON LopHocPhan
+FOR EACH ROW
+BEGIN
+    -- Xóa phân công giảng viên
+    DELETE FROM PhanCongGiangVien WHERE maLopHP = OLD.maLopHP;
+    -- Xóa thời khóa biểu giảng viên
+    DELETE FROM ThoiKhoaBieuGiangVien WHERE maLopHP = OLD.maLopHP;
+END //
+
+-- Trigger 4: Khi thêm/sửa PhanCongGiangVien
+CREATE TRIGGER trg_auto_update_tkb_giang_vien
+AFTER INSERT ON PhanCongGiangVien
+FOR EACH ROW
+BEGIN
+    -- Xóa thời khóa biểu cũ của giảng viên cho lớp này
+    DELETE FROM ThoiKhoaBieuGiangVien 
+    WHERE maGV = NEW.maGV AND maLopHP = NEW.maLopHP;
+    
+    -- Thêm thời khóa biểu mới
+    INSERT INTO ThoiKhoaBieuGiangVien (
+        maTKB, maGV, maLopHP, ngayHoc, tietBD, tietKT, phongHoc, loaiBuoi
+    )
+    SELECT 
+        CONCAT(NEW.maGV, '_', tkb.maLopHP, '_', DATE_FORMAT(tkb.ngayHoc, '%Y%m%d'), '_',
+               SUBSTRING(REPLACE(tkb.tietBD, ':', ''), 1, 2)),
+        NEW.maGV,
+        tkb.maLopHP,
+        tkb.ngayHoc,
+        tkb.tietBD,
+        tkb.tietKT,
+        tkb.phongHoc,
+        tkb.loaiBuoi
+    FROM ThoiKhoaBieuLopHocPhan tkb
+    WHERE tkb.maLopHP = NEW.maLopHP;
+END //
+
+-- Trigger 5: Khi xóa PhanCongGiangVien
+CREATE TRIGGER trg_delete_tkb_giang_vien
+BEFORE DELETE ON PhanCongGiangVien
+FOR EACH ROW
+BEGIN
+    -- Xóa thời khóa biểu của giảng viên cho lớp này
+    DELETE FROM ThoiKhoaBieuGiangVien 
+    WHERE maGV = OLD.maGV AND maLopHP = OLD.maLopHP;
+END //
 DELIMITER ;
 
 
-
+-- INSERT DATA
 INSERT INTO NguoiDung VALUES('2001215601','2001215601','pwd123','SinhVien');
 INSERT INTO NguoiDung VALUES('2001215682','2001215682','123','SinhVien');
 INSERT INTO NguoiDung VALUES('2001215602','2001215602','pwd123','SinhVien');
@@ -1224,106 +1020,152 @@ INSERT INTO MauThoiKhoaBieu (maLopHP, thuTrongTuan, tietBD, tietKT, phongHoc) VA
     ('LHP_MMT_08', 3, '09:30', '11:10', 'D104'),
     ('LHP_MMT_08', 5, '12:00', '13:40', 'D104');
 
--- kết thúc proc
 
-select * from yeucaumolop
-select * from sinhvien
-select * from lophocphan
-select * from lop
-select * from phanlop
-select * from nguoidung
-select * from giangvien
-select * from phanconggiangvien
-SELECT * FROM LopHocPhan WHERE trangThai = 'DangHoc'
-SELECT * FROM ThoiKhoaBieuGiangVien where magv = 'gv07'
-select * from monhoc
-select * from chuyennganh
-select * from chuyennganh_monhoc
-select * from sinhvien_monhoc
-select  * from yeucaumolop;
-select * from lichsuthaydoiyeucau
-select * from sinhvien_monhoc
-select * from thoikhoabieugiangvien
-DELETE FROM LichSuThayDoiYeuCau
-WHERE maYeuCau IN ('YC001', 'YC002', 'YC003', 'YC004', 'YC005');
+-- KẾT THÚC INSERT
 
-DELETE FROM LichSuThayDoiYeuCau;
-DELETE FROM YeuCauMoLop;
-
--- Procedure kiểm tra và tạo thời khóa biểu
+-- PROCEDURE
+-- PROC PHÂN NHANH LỚP CHO TOÀN BỘ SINH VIÊN (PROC NÀY XẾP RANDOM CÁC SINH VIÊN VÀO CÁC LỚP HỌC PHẦN ĐANG HOẠT ĐỘNG - NHẰM TẠO THỜI KHÓA BIỂU )
 DELIMITER //
-CREATE PROCEDURE sp_kiem_tra_va_tao_tkb(
-    IN p_maLopHP VARCHAR(20),
+CREATE PROCEDURE sp_phan_lop_nhanh(
     IN p_ngayBatDau DATE,
-    IN p_ngayKetThuc DATE,
-    IN p_maGV VARCHAR(20)
+    IN p_ngayKetThuc DATE
 )
 BEGIN
-    DECLARE v_coXungDot BOOLEAN;
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_maSV VARCHAR(20);
+    DECLARE v_maCN VARCHAR(20);
+    DECLARE v_count INT;
+    DECLARE v_maLopHP VARCHAR(20);
+
+    -- Cursor lấy danh sách sinh viên
+    DECLARE cur_sv CURSOR FOR 
+        SELECT maSV, maCN FROM SinhVien;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Xóa dữ liệu phân lớp cũ
+    DELETE FROM PhanLop;
+
+    -- Cập nhật trạng thái các lớp học phần
+    UPDATE LopHocPhan 
+    SET trangThai = 'DangHoc',
+        ngayBatDau = p_ngayBatDau,
+        ngayKetThuc = p_ngayKetThuc;
+
+    OPEN cur_sv;
+    read_loop: LOOP
+        FETCH cur_sv INTO v_maSV, v_maCN;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        SET v_count = 0;
+        WHILE_LOOP: WHILE v_count < 4 DO
+            SET v_maLopHP = NULL;
+            SELECT lhp.maLopHP INTO v_maLopHP
+            FROM LopHocPhan lhp
+            JOIN MonHoc mh ON lhp.maMH = mh.maMH
+            JOIN ChuyenNganh_MonHoc cnmh ON mh.maMH = cnmh.maMH
+            WHERE cnmh.maCN = v_maCN
+            AND lhp.trangThai = 'DangHoc'
+            AND NOT EXISTS (
+                SELECT 1 FROM PhanLop pl WHERE pl.maSV = v_maSV AND pl.maLopHP = lhp.maLopHP
+            )
+            AND NOT EXISTS (
+                SELECT 1
+                FROM PhanLop pl2
+                JOIN ThoiKhoaBieuLopHocPhan tkb1 ON pl2.maLopHP = tkb1.maLopHP
+                JOIN ThoiKhoaBieuLopHocPhan tkb2 ON tkb2.maLopHP = lhp.maLopHP
+                WHERE pl2.maSV = v_maSV
+                AND tkb1.ngayHoc = tkb2.ngayHoc
+                AND (
+                    (CAST(tkb1.tietBD AS UNSIGNED) BETWEEN CAST(tkb2.tietBD AS UNSIGNED) AND CAST(tkb2.tietKT AS UNSIGNED))
+                    OR
+                    (CAST(tkb1.tietKT AS UNSIGNED) BETWEEN CAST(tkb2.tietBD AS UNSIGNED) AND CAST(tkb2.tietKT AS UNSIGNED))
+                )
+            )
+            LIMIT 1;
+
+            IF v_maLopHP IS NULL THEN
+                LEAVE WHILE_LOOP;
+            END IF;
+
+            INSERT INTO PhanLop (maSV, maLopHP, trangThai, ngayDangKy)
+            VALUES (v_maSV, v_maLopHP, 'DangHoc', CURDATE());
+            SET v_count = v_count + 1;
+        END WHILE;
+    END LOOP;
+    CLOSE cur_sv;
+
+    -- Cập nhật siSoHienTai cho tất cả các lớp học phần
+    UPDATE LopHocPhan lhp
+    SET lhp.siSoHienTai = (
+        SELECT COUNT(*)
+        FROM PhanLop pl
+        WHERE pl.maLopHP = lhp.maLopHP
+        AND pl.trangThai = 'DangHoc'
+    );
+
+    -- Tạo thời khóa biểu cho tất cả các lớp
+    CALL sp_tao_tkb_toan_bo_he_thong(p_ngayBatDau, p_ngayKetThuc);
+
+END //
+DELIMITER ;
+
+-- Procedure tạo lịch học từ bảng mẫu thời khóa biểu
+DELIMITER //
+CREATE PROCEDURE sp_tao_lich_hoc(
+    IN p_maLopHP VARCHAR(20),
+    IN p_ngayBatDau DATE,
+    IN p_ngayKetThuc DATE
+)
+BEGIN
     DECLARE v_thuTrongTuan TINYINT;
     DECLARE v_tietBD VARCHAR(5);
     DECLARE v_tietKT VARCHAR(5);
+    DECLARE v_phongHoc VARCHAR(10);
+    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
+    DECLARE v_maLichHoc VARCHAR(20);
     DECLARE done INT DEFAULT FALSE;
     
     -- Cursor để lấy thông tin từ mẫu thời khóa biểu
     DECLARE cur CURSOR FOR 
-        SELECT thuTrongTuan, tietBD, tietKT
+        SELECT thuTrongTuan, tietBD, tietKT, phongHoc, loaiBuoi 
         FROM MauThoiKhoaBieu 
         WHERE maLopHP = p_maLopHP;
     
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
     
-    -- Mở cursor
+    -- Xóa lịch học cũ nếu có
+    DELETE FROM LichHoc WHERE maLopHP = p_maLopHP;
+    
     OPEN cur;
     
-    -- Kiểm tra từng buổi học
-    check_loop: LOOP
-        FETCH cur INTO v_thuTrongTuan, v_tietBD, v_tietKT;
+    read_loop: LOOP
+        FETCH cur INTO v_thuTrongTuan, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
         
         IF done THEN
-            LEAVE check_loop;
+            LEAVE read_loop;
         END IF;
         
-        -- Kiểm tra xung đột
-        CALL sp_kiem_tra_xung_dot_lich(p_maLopHP, p_ngayBatDau, v_tietBD, v_tietKT, v_coXungDot);
+        -- Tạo mã lịch học ngắn gọn hơn
+        SET v_maLichHoc = CONCAT('LH', SUBSTRING(p_maLopHP, 4), v_thuTrongTuan, 
+                                SUBSTRING(REPLACE(v_tietBD, ':', ''), 1, 2));
         
-        IF v_coXungDot THEN
-            SIGNAL SQLSTATE '45000' 
-            SET MESSAGE_TEXT = 'Phát hiện xung đột lịch học!';
-        END IF;
+        -- Thêm lịch học mới
+        INSERT INTO LichHoc (
+            maLichHoc, maLopHP, thuTrongTuan, tietBD, tietKT, 
+            phongHoc, loaiBuoi, ngayBatDau, ngayKetThuc
+        ) VALUES (
+            v_maLichHoc, p_maLopHP, v_thuTrongTuan, v_tietBD, v_tietKT,
+            v_phongHoc, v_loaiBuoi, p_ngayBatDau, p_ngayKetThuc
+        );
     END LOOP;
     
     CLOSE cur;
-    
-    -- Nếu không có xung đột, tạo các thời khóa biểu
-    CALL sp_tao_lich_hoc(p_maLopHP, p_ngayBatDau, p_ngayKetThuc);
-    CALL sp_tao_tkb_lop_hoc_phan(p_maLopHP, p_ngayBatDau, p_ngayKetThuc);
-    CALL sp_tao_tkb_giang_vien(p_maGV);
-    
-    -- Tạo thời khóa biểu cho sinh viên trong lớp
-    INSERT INTO ThoiKhoaBieuSinhVien (
-        maTKB, maSV, maLopHP, ngayHoc, tietBD, tietKT, phongHoc, loaiBuoi
-    )
-    SELECT 
-        CONCAT(sv.maSV, '_', lhp.maLopHP, '_', DATE_FORMAT(tkb.ngayHoc, '%Y%m%d'), '_',
-               SUBSTRING(REPLACE(tkb.tietBD, ':', ''), 1, 2)),
-        sv.maSV,
-        lhp.maLopHP,
-        tkb.ngayHoc,
-        tkb.tietBD,
-        tkb.tietKT,
-        tkb.phongHoc,
-        tkb.loaiBuoi
-    FROM SinhVien sv
-    JOIN PhanLop pl ON sv.maSV = pl.maSV
-    JOIN LopHocPhan lhp ON pl.maLopHP = lhp.maLopHP
-    JOIN ThoiKhoaBieuLopHocPhan tkb ON lhp.maLopHP = tkb.maLopHP
-    WHERE lhp.maLopHP = p_maLopHP
-    AND pl.trangThai = 'DangHoc';
 END //
 DELIMITER ;
 
--- Procedure tạo thời khóa biểu cho toàn bộ hệ thống
+-- PROC TẠO THỜI KHÓA BIỂU CHO HỆ THỐNG
 DELIMITER //
 CREATE PROCEDURE sp_tao_tkb_toan_bo_he_thong(
     IN p_ngayBatDau DATE,
@@ -1402,109 +1244,8 @@ BEGIN
 END //
 DELIMITER ;
 
-
-CALL sp_tao_tkb_toan_bo_he_thong('2025-04-01', '2025-06-30');
-
-
-
-DELIMITER //
-
-CREATE PROCEDURE sp_phan_lop_nhanh(
-    IN p_ngayBatDau DATE,
-    IN p_ngayKetThuc DATE
-)
-BEGIN
-    DECLARE done INT DEFAULT FALSE;
-    DECLARE v_maSV VARCHAR(20);
-    DECLARE v_maCN VARCHAR(20);
-    DECLARE v_soLop INT;
-    DECLARE v_count INT;
-    
-    -- Cursor để lấy danh sách sinh viên
-    DECLARE cur_sv CURSOR FOR 
-        SELECT maSV, maCN 
-        FROM SinhVien;
-    
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    -- Xóa dữ liệu phân lớp cũ
-    DELETE FROM PhanLop;
-    
-    -- Cập nhật trạng thái các lớp học phần
-    UPDATE LopHocPhan 
-    SET trangThai = 'DangHoc',
-        ngayBatDau = p_ngayBatDau,
-        ngayKetThuc = p_ngayKetThuc;
-    
-    OPEN cur_sv;
-    
-    read_loop: LOOP
-        FETCH cur_sv INTO v_maSV, v_maCN;
-        IF done THEN
-            LEAVE read_loop;
-        END IF;
-        
-        -- Đếm số lớp học phần của chuyên ngành
-        SELECT COUNT(*) INTO v_soLop
-        FROM LopHocPhan lhp
-        JOIN MonHoc mh ON lhp.maMH = mh.maMH
-        JOIN ChuyenNganh_MonHoc cnmh ON mh.maMH = cnmh.maMH
-        WHERE cnmh.maCN = v_maCN
-        AND lhp.trangThai = 'DangHoc';
-        
-        -- Phân 4 lớp cho mỗi sinh viên
-        SET v_count = 0;
-        WHILE v_count < 4 DO
-            INSERT INTO PhanLop (maSV, maLopHP, trangThai, ngayDangKy)
-            SELECT 
-                v_maSV,
-                lhp.maLopHP,
-                'DangHoc',
-                CURDATE()
-            FROM LopHocPhan lhp
-            JOIN MonHoc mh ON lhp.maMH = mh.maMH
-            JOIN ChuyenNganh_MonHoc cnmh ON mh.maMH = cnmh.maMH
-            WHERE cnmh.maCN = v_maCN
-            AND lhp.trangThai = 'DangHoc'
-            AND NOT EXISTS (
-                SELECT 1 
-                FROM PhanLop pl 
-                WHERE pl.maSV = v_maSV 
-                AND pl.maLopHP = lhp.maLopHP
-            )
-            LIMIT 1;
-            
-            SET v_count = v_count + 1;
-        END WHILE;
-        
-    END LOOP;
-    
-    CLOSE cur_sv;
-    
-    -- Cập nhật siSoHienTai cho tất cả các lớp học phần
-    UPDATE LopHocPhan lhp
-    SET lhp.siSoHienTai = (
-        SELECT COUNT(*)
-        FROM PhanLop pl
-        WHERE pl.maLopHP = lhp.maLopHP
-        AND pl.trangThai = 'DangHoc'
-    );
-    
-    -- Tạo thời khóa biểu cho tất cả các lớp
-    CALL sp_tao_tkb_toan_bo_he_thong(p_ngayBatDau, p_ngayKetThuc);
-    
-END //
-
-DELIMITER ;
-
-CALL sp_phan_lop_nhanh('2025-04-01', '2025-06-30');
-
-
-CALL sp_xem_tkb_sinh_vien('2001215675');
-
 -- proc cập nhật tkb gv dựa trên lophocphan
 DELIMITER //
-
 CREATE PROCEDURE sp_cap_nhat_tkb_tat_ca_giang_vien()
 BEGIN
     DECLARE v_maGV VARCHAR(20);
@@ -1585,140 +1326,226 @@ BEGIN
         (SELECT COUNT(DISTINCT maGV) FROM ThoiKhoaBieuGiangVien) AS 'Số giảng viên được cập nhật',
         (SELECT COUNT(*) FROM ThoiKhoaBieuGiangVien) AS 'Tổng số buổi học';
 END //
-
-DELIMITER ;
---
--- call proc
-CALL sp_cap_nhat_tkb_tat_ca_giang_vien();
---
-DELIMITER //
-
-DELIMITER //
-
-CREATE PROCEDURE sp_xem_tkb_giang_vien(IN p_maGV VARCHAR(20))
-BEGIN
-    SELECT 
-        mh.tenMH AS 'Tên môn học',
-        tkb.maLopHP AS 'Mã học phần',
-        CONCAT(tkb.tietBD, ' - ', tkb.tietKT) AS 'Tiết học',
-        tkb.phongHoc AS 'Phòng học',
-        DATE_FORMAT(tkb.ngayHoc, '%d/%m/%Y') AS 'Ngày học',
-        CASE DAYOFWEEK(tkb.ngayHoc)
-            WHEN 1 THEN 'Chủ nhật'
-            WHEN 2 THEN 'Thứ 2'
-            WHEN 3 THEN 'Thứ 3'
-            WHEN 4 THEN 'Thứ 4'
-            WHEN 5 THEN 'Thứ 5'
-            WHEN 6 THEN 'Thứ 6'
-            WHEN 7 THEN 'Thứ 7'
-        END AS 'Thứ',
-        tkb.loaiBuoi AS 'Loại buổi',
-        lhp.siSoHienTai AS 'Sĩ số'
-    FROM thoikhoabieugiangvien tkb
-    JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
-    JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    WHERE tkb.maGV = p_maGV
-    ORDER BY tkb.ngayHoc, tkb.tietBD;
-END //
-
 DELIMITER ;
 
-CALL sp_xem_tkb_giang_vien('GV07');
-
+-- Procedure tạo thời khóa biểu cho lớp học phần
 DELIMITER //
-
--- Trigger 1: Khi thêm/sửa LopHocPhan, tự động cập nhật PhanCongGiangVien
-CREATE TRIGGER trg_auto_phan_cong_giang_vien
-AFTER INSERT ON LopHocPhan
-FOR EACH ROW
+CREATE PROCEDURE sp_tao_tkb_lop_hoc_phan(
+    IN p_maLopHP VARCHAR(20),
+    IN p_ngayBatDau DATE,
+    IN p_ngayKetThuc DATE
+)
 BEGIN
-    -- Nếu có maGV trong LopHocPhan, tự động tạo phân công
-    IF NEW.maGV IS NOT NULL THEN
-        INSERT INTO PhanCongGiangVien (maPhanCong, maGV, maLopHP, ngayPhanCong)
-        VALUES (
-            CONCAT('PC', NEW.maLopHP, '_', NEW.maGV),
-            NEW.maGV,
-            NEW.maLopHP,
-            CURDATE()
-        );
-    END IF;
-END //
-
--- Trigger 2: Khi cập nhật maGV trong LopHocPhan
-CREATE TRIGGER trg_update_phan_cong_giang_vien
-AFTER UPDATE ON LopHocPhan
-FOR EACH ROW
-BEGIN
-    IF NEW.maGV != OLD.maGV THEN
-        -- Xóa phân công cũ
-        DELETE FROM PhanCongGiangVien 
-        WHERE maLopHP = NEW.maLopHP;
-        
-        -- Thêm phân công mới
-        IF NEW.maGV IS NOT NULL THEN
-            INSERT INTO PhanCongGiangVien (maPhanCong, maGV, maLopHP, ngayPhanCong)
-            VALUES (
-                CONCAT('PC', NEW.maLopHP, '_', NEW.maGV),
-                NEW.maGV,
-                NEW.maLopHP,
-                CURDATE()
-            );
-        END IF;
-    END IF;
-END //
-
--- Trigger 3: Khi xóa LopHocPhan
-CREATE TRIGGER trg_delete_phan_cong_giang_vien
-BEFORE DELETE ON LopHocPhan
-FOR EACH ROW
-BEGIN
-    -- Xóa phân công giảng viên
-    DELETE FROM PhanCongGiangVien WHERE maLopHP = OLD.maLopHP;
-    -- Xóa thời khóa biểu giảng viên
-    DELETE FROM ThoiKhoaBieuGiangVien WHERE maLopHP = OLD.maLopHP;
-END //
-
--- Trigger 4: Khi thêm/sửa PhanCongGiangVien
-CREATE TRIGGER trg_auto_update_tkb_giang_vien
-AFTER INSERT ON PhanCongGiangVien
-FOR EACH ROW
-BEGIN
-    -- Xóa thời khóa biểu cũ của giảng viên cho lớp này
-    DELETE FROM ThoiKhoaBieuGiangVien 
-    WHERE maGV = NEW.maGV AND maLopHP = NEW.maLopHP;
+    DECLARE v_ngayHoc DATE;
+    DECLARE v_thuTrongTuan TINYINT;
+    DECLARE v_tietBD VARCHAR(5);
+    DECLARE v_tietKT VARCHAR(5);
+    DECLARE v_phongHoc VARCHAR(10);
+    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
+    DECLARE v_maTKB VARCHAR(50);
+    DECLARE done INT DEFAULT FALSE;
     
-    -- Thêm thời khóa biểu mới
-    INSERT INTO ThoiKhoaBieuGiangVien (
-        maTKB, maGV, maLopHP, ngayHoc, tietBD, tietKT, phongHoc, loaiBuoi
-    )
-    SELECT 
-        CONCAT(NEW.maGV, '_', tkb.maLopHP, '_', DATE_FORMAT(tkb.ngayHoc, '%Y%m%d'), '_',
-               SUBSTRING(REPLACE(tkb.tietBD, ':', ''), 1, 2)),
-        NEW.maGV,
-        tkb.maLopHP,
-        tkb.ngayHoc,
-        tkb.tietBD,
-        tkb.tietKT,
-        tkb.phongHoc,
-        tkb.loaiBuoi
-    FROM ThoiKhoaBieuLopHocPhan tkb
-    WHERE tkb.maLopHP = NEW.maLopHP;
+    -- Cursor để lấy thông tin từ lịch học
+    DECLARE cur CURSOR FOR 
+        SELECT thuTrongTuan, tietBD, tietKT, phongHoc, loaiBuoi 
+        FROM LichHoc 
+        WHERE maLopHP = p_maLopHP;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    -- Xóa thời khóa biểu cũ nếu có
+    DELETE FROM ThoiKhoaBieuLopHocPhan WHERE maLopHP = p_maLopHP;
+    -- Tạo thời khóa biểu cho từng ngày trong khoảng thời gian
+    SET v_ngayHoc = p_ngayBatDau;
+    
+    WHILE v_ngayHoc <= p_ngayKetThuc DO
+        OPEN cur;
+        
+        read_loop: LOOP
+            FETCH cur INTO v_thuTrongTuan, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
+            
+            IF done THEN
+                LEAVE read_loop;
+            END IF;
+            
+            -- Kiểm tra nếu ngày học trùng với thứ trong tuần
+            IF DAYOFWEEK(v_ngayHoc) = v_thuTrongTuan THEN
+                -- Tạo mã thời khóa biểu
+                SET v_maTKB = CONCAT(p_maLopHP, '_', DATE_FORMAT(v_ngayHoc, '%Y%m%d'), '_',
+                                   v_thuTrongTuan, '_', REPLACE(v_tietBD, ':', ''));
+                
+                -- Thêm thời khóa biểu mới
+                INSERT INTO ThoiKhoaBieuLopHocPhan (
+                    maTKB, maLopHP, ngayHoc, tietBD, tietKT, 
+                    phongHoc, loaiBuoi
+                ) VALUES (
+                    v_maTKB, p_maLopHP, v_ngayHoc, v_tietBD, v_tietKT,
+                    v_phongHoc, v_loaiBuoi
+                );
+            END IF;
+        END LOOP;
+        
+        CLOSE cur;
+        SET done = FALSE;
+        SET v_ngayHoc = DATE_ADD(v_ngayHoc, INTERVAL 1 DAY);
+    END WHILE;
 END //
-
--- Trigger 5: Khi xóa PhanCongGiangVien
-CREATE TRIGGER trg_delete_tkb_giang_vien
-BEFORE DELETE ON PhanCongGiangVien
-FOR EACH ROW
-BEGIN
-    -- Xóa thời khóa biểu của giảng viên cho lớp này
-    DELETE FROM ThoiKhoaBieuGiangVien 
-    WHERE maGV = OLD.maGV AND maLopHP = OLD.maLopHP;
-END //
-
 DELIMITER ;
 
+-- Procedure tạo thời khóa biểu cho sinh viên
 DELIMITER //
+CREATE PROCEDURE sp_tao_tkb_sinh_vien(
+    IN p_maSV VARCHAR(20)
+)
+BEGIN
+    DECLARE v_maLopHP VARCHAR(20);
+    DECLARE v_ngayHoc DATE;
+    DECLARE v_tietBD VARCHAR(5);
+    DECLARE v_tietKT VARCHAR(5);
+    DECLARE v_phongHoc VARCHAR(10);
+    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
+    DECLARE v_maTKB VARCHAR(50);
+    DECLARE done INT DEFAULT FALSE;
+    
+    -- Cursor để lấy thông tin từ thời khóa biểu lớp học phần
+    DECLARE cur CURSOR FOR 
+        SELECT t.maLopHP, t.ngayHoc, t.tietBD, t.tietKT, t.phongHoc, t.loaiBuoi
+        FROM ThoiKhoaBieuLopHocPhan t
+        JOIN PhanLop p ON t.maLopHP = p.maLopHP
+        WHERE p.maSV = p_maSV AND p.trangThai = 'DangHoc';
+    
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    -- Xóa thời khóa biểu cũ nếu có
+    DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = p_maSV;
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
+        
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        -- Tạo mã thời khóa biểu
+        SET v_maTKB = CONCAT(p_maSV, '_', v_maLopHP, '_', DATE_FORMAT(v_ngayHoc, '%Y%m%d'), '_',
+                           REPLACE(v_tietBD, ':', ''));
+        
+        -- Thêm thời khóa biểu mới
+        INSERT INTO ThoiKhoaBieuSinhVien (
+            maTKB, maSV, maLopHP, ngayHoc, tietBD, tietKT, 
+            phongHoc, loaiBuoi
+        ) VALUES (
+            v_maTKB, p_maSV, v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT,
+            v_phongHoc, v_loaiBuoi
+        );
+    END LOOP;
+    CLOSE cur;
+END //
+DELIMITER ;
 
+
+-- PROC TẠO TKB GV
+DELIMITER //
+CREATE PROCEDURE sp_tao_tkb_giang_vien(
+    IN p_maGV VARCHAR(20)
+)
+BEGIN
+    DECLARE v_maLopHP VARCHAR(20);
+    DECLARE v_ngayHoc DATE;
+    DECLARE v_tietBD VARCHAR(5);
+    DECLARE v_tietKT VARCHAR(5);
+    DECLARE v_phongHoc VARCHAR(10);
+    DECLARE v_loaiBuoi ENUM('LyThuyet', 'ThucHanh');
+    DECLARE v_maTKB VARCHAR(50);
+    DECLARE done INT DEFAULT FALSE;
+    
+    -- Cursor để lấy thông tin từ thời khóa biểu lớp học phần
+    DECLARE cur CURSOR FOR 
+        SELECT t.maLopHP, t.ngayHoc, t.tietBD, t.tietKT, t.phongHoc, t.loaiBuoi
+        FROM ThoiKhoaBieuLopHocPhan t
+        JOIN PhanCongGiangVien p ON t.maLopHP = p.maLopHP
+        WHERE p.maGV = p_maGV;
+    
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    -- Xóa thời khóa biểu cũ nếu có
+    DELETE FROM ThoiKhoaBieuGiangVien WHERE maGV = p_maGV;
+    
+    OPEN cur;
+    
+    read_loop: LOOP
+        FETCH cur INTO v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT, v_phongHoc, v_loaiBuoi;
+        
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        -- Tạo mã thời khóa biểu
+        SET v_maTKB = CONCAT(p_maGV, '_', v_maLopHP, '_', DATE_FORMAT(v_ngayHoc, '%Y%m%d'), '_',
+                           REPLACE(v_tietBD, ':', ''));
+        
+        -- Thêm thời khóa biểu mới
+        INSERT INTO ThoiKhoaBieuGiangVien (
+            maTKB, maGV, maLopHP, ngayHoc, tietBD, tietKT, 
+            phongHoc, loaiBuoi
+        ) VALUES (
+            v_maTKB, p_maGV, v_maLopHP, v_ngayHoc, v_tietBD, v_tietKT,
+            v_phongHoc, v_loaiBuoi
+        );
+    END LOOP;
+    
+    CLOSE cur;
+END //
+DELIMITER ;
+
+-- Procedure kiểm tra xung đột lịch học
+DELIMITER //
+CREATE PROCEDURE sp_kiem_tra_xung_dot_lich(
+    IN p_maLopHP VARCHAR(20),
+    IN p_ngayHoc DATE,
+    IN p_tietBD VARCHAR(5),
+    IN p_tietKT VARCHAR(5),
+    OUT p_coXungDot BOOLEAN
+)
+BEGIN
+    DECLARE v_count INT;
+    
+    -- Kiểm tra xung đột với giảng viên
+    SELECT COUNT(*) INTO v_count
+    FROM ThoiKhoaBieuGiangVien t
+    JOIN PhanCongGiangVien p ON t.maLopHP = p.maLopHP
+    WHERE p.maGV IN (
+        SELECT maGV FROM PhanCongGiangVien WHERE maLopHP = p_maLopHP
+    )
+    AND t.ngayHoc = p_ngayHoc
+    AND (
+        (CAST(t.tietBD AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
+        OR
+        (CAST(t.tietKT AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
+    );
+    
+    IF v_count > 0 THEN
+        SET p_coXungDot = TRUE;
+    ELSE
+        -- Kiểm tra xung đột với sinh viên
+        SELECT COUNT(*) INTO v_count
+        FROM ThoiKhoaBieuSinhVien t
+        JOIN PhanLop p ON t.maLopHP = p.maLopHP
+        WHERE p.maSV IN (
+            SELECT maSV FROM PhanLop WHERE maLopHP = p_maLopHP
+        )
+        AND t.ngayHoc = p_ngayHoc
+        AND (
+            (CAST(t.tietBD AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
+            OR
+            (CAST(t.tietKT AS UNSIGNED) BETWEEN CAST(p_tietBD AS UNSIGNED) AND CAST(p_tietKT AS UNSIGNED))
+        );
+        
+        SET p_coXungDot = (v_count > 0);
+    END IF;
+END //
+DELIMITER ;
+
+-- PROC ĐỒNG BỘ DỮ LIỆU CỦA GV
+DELIMITER //
 CREATE PROCEDURE sp_dong_bo_du_lieu_giang_vien()
 BEGIN
     -- 1. Xóa dữ liệu không hợp lệ
@@ -1773,10 +1600,98 @@ BEGIN
         (SELECT COUNT(*) FROM PhanCongGiangVien) AS 'Số phân công',
         (SELECT COUNT(*) FROM ThoiKhoaBieuGiangVien) AS 'Số buổi học';
 END //
-
 DELIMITER ;
 
+-- PROC XEM TKB SINH VIÊN
+DELIMITER //
+CREATE PROCEDURE sp_xem_tkb_sinh_vien(IN p_maSV VARCHAR(20))
+BEGIN
+    SELECT 
+        mh.tenMH AS 'Tên môn học',
+        tkb.maLopHP AS 'Mã học phần',
+        CONCAT(tkb.tietBD, ' - ', tkb.tietKT) AS 'Tiết học',
+        tkb.phongHoc AS 'Phòng học',
+        DATE_FORMAT(tkb.ngayHoc, '%d/%m/%Y') AS 'Ngày học',
+        gv.hoTen AS 'Giảng viên'
+    FROM ThoiKhoaBieuSinhVien tkb
+    JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
+    JOIN MonHoc mh ON lhp.maMH = mh.maMH
+    JOIN GiangVien gv ON lhp.maGV = gv.maGV
+    WHERE tkb.maSV = p_maSV
+    ORDER BY tkb.ngayHoc, tkb.tietBD;
+END //
+DELIMITER ;
+
+
+-- PROC XEM TKB GV
+DELIMITER //
+CREATE PROCEDURE sp_xem_tkb_giang_vien(IN p_maGV VARCHAR(20))
+BEGIN
+    SELECT 
+        mh.tenMH AS 'Tên môn học',
+        tkb.maLopHP AS 'Mã học phần',
+        CONCAT(tkb.tietBD, ' - ', tkb.tietKT) AS 'Tiết học',
+        tkb.phongHoc AS 'Phòng học',
+        DATE_FORMAT(tkb.ngayHoc, '%d/%m/%Y') AS 'Ngày học',
+        CASE DAYOFWEEK(tkb.ngayHoc)
+            WHEN 1 THEN 'Chủ nhật'
+            WHEN 2 THEN 'Thứ 2'
+            WHEN 3 THEN 'Thứ 3'
+            WHEN 4 THEN 'Thứ 4'
+            WHEN 5 THEN 'Thứ 5'
+            WHEN 6 THEN 'Thứ 6'
+            WHEN 7 THEN 'Thứ 7'
+        END AS 'Thứ',
+        tkb.loaiBuoi AS 'Loại buổi',
+        lhp.siSoHienTai AS 'Sĩ số'
+    FROM thoikhoabieugiangvien tkb
+    JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
+    JOIN MonHoc mh ON lhp.maMH = mh.maMH
+    WHERE tkb.maGV = p_maGV
+    ORDER BY tkb.ngayHoc, tkb.tietBD;
+END //
+DELIMITER ;
+
+-- CALL PROC SINH DỮ LIỆU - call đúng thứ tự
 SET SQL_SAFE_UPDATES = 0;
-CALL sp_dong_bo_du_lieu_giang_vien();
+-- 1. PHÂN LỚP + Tạo thời khóa biểu
+CALL sp_phan_lop_nhanh('2025-04-01', '2025-06-30');
+-- 2. Tự động sinh dữ liệu cho toàn bộ hệ thống
+CALL sp_tao_tkb_toan_bo_he_thong('2025-04-01', '2025-06-30');
+-- 3. ĐỒNG BỘ DỮ LIỆU GIẢNG VIÊN
+truncate table phanconggiangvien;
+CALL sp_dong_bo_du_lieu_giang_vien(); -- ra 32 / 1040 là đúng
 
 
+SELECT * FROM bangtin;
+SELECT * FROM bomon;
+SELECT * FROM chuyennganh;
+SELECT * FROM chuyennganh_monhoc;
+SELECT * FROM dangkylichday;
+SELECT * FROM giangvien;
+SELECT * FROM hockychuyennganh_monhoc;
+SELECT * FROM lichhoc;
+SELECT * FROM lichsuthaydoiyeucau;
+SELECT * FROM lop;
+SELECT * FROM lophocphan;
+SELECT * FROM mauthoikhoabieu;
+SELECT * FROM monhoc;
+SELECT * FROM nguoidung;
+SELECT * FROM phanconggiangvien;
+SELECT * FROM phanlop;
+SELECT * FROM sinhvien;
+SELECT * FROM sinhvien_monhoc;
+SELECT * FROM thoikhoabieu;
+SELECT * FROM thoikhoabieugiangvien;
+SELECT * FROM thoikhoabieulophocphan;
+SELECT * FROM thoikhoabieusinhvien;
+SELECT * FROM xulyyeucau;
+SELECT * FROM yeucaumolop;
+SELECT * FROM LopHocPhan WHERE trangThai = 'DangHoc';
+SELECT * FROM ThoiKhoaBieuGiangVien where magv = 'gv07';
+
+DELETE FROM LichSuThayDoiYeuCau
+WHERE maYeuCau IN ('YC001', 'YC002', 'YC003', 'YC004', 'YC005');
+
+DELETE FROM YeuCauMoLop
+WHERE maYeuCau IN ('YC001', 'YC002', 'YC003', 'YC004', 'YC005');
