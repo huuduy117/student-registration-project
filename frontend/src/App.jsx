@@ -1,88 +1,136 @@
-"use client"
+"use client";
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import { useSession, useSessionMonitor } from "./hook/useSession"
-import { useEffect } from "react"
-import Login from "./pages/Login"
-import Home from "./pages/Home"
-import ChatPage from "./pages/ChatPage"
-import Schedule from "./pages/Schedule"
-import StudentDashboard from "./pages/SinhVien"
-import TeacherDashboard from "./pages/GiangVien"
-import AcademicDashboard from "./pages/Giaovu"
-import DepartmentHeadDashboard from "./pages/TruongBoMon"
-import AdminDashboard from "./pages/QuanTriVien"
-import FacultyHeadDashboard from "./pages/TruongKhoa"
-import UnauthorizedPage from "./pages/404"
-import CreateClassRequest from "./pages/CreateClassRequest"
-import ApproveRequests from "./pages/ApproveRequests"
-import ForgotPassword from "./pages/ForgotPassword"
-import ResetPassword from "./pages/ResetPassword"
-import AdminHome from "./pages/admin/Home"
-import AdminUserManagement from "./pages/admin/UserManagement"
-import AdminNewsfeed from "./pages/admin/Newsfeed"
-import AdminApproveRequests from "./pages/admin/ApproveRequests"
-import AdminSettings from "./pages/admin/Settings"
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useSession, useSessionMonitor } from "./hook/useSession";
+import { useEffect } from "react";
+import Login from "./pages/Login";
+import Home from "./pages/Home";
+import ChatPage from "./pages/ChatPage";
+import Schedule from "./pages/Schedule";
+import StudentDashboard from "./pages/SinhVien";
+import TeacherDashboard from "./pages/GiangVien";
+import AcademicDashboard from "./pages/Giaovu";
+import DepartmentHeadDashboard from "./pages/TruongBoMon";
+import AdminDashboard from "./pages/QuanTriVien";
+import FacultyHeadDashboard from "./pages/TruongKhoa";
+import UnauthorizedPage from "./pages/404";
+import CreateClassRequest from "./pages/CreateClassRequest";
+import ApproveRequests from "./pages/ApproveRequests";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import AdminHome from "./pages/admin/Home";
+import AdminUserManagement from "./pages/admin/UserManagement";
+import AdminNewsfeed from "./pages/admin/Newsfeed";
+import AdminApproveRequests from "./pages/admin/ApproveRequests";
+import AdminSettings from "./pages/admin/Settings";
 
 // Create a SessionMonitorWrapper components
 const SessionMonitorWrapper = ({ children }) => {
-  const tabId = useSession()
+  const tabId = useSession();
 
   useEffect(() => {
     const checkSession = () => {
-      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+      const token = localStorage.getItem("authToken");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
 
-      if (!authData.token) return
+      // If no token in localStorage, clear session and redirect
+      if (!token) {
+        sessionStorage.removeItem(`auth_${tabId}`);
+        if (!window.location.pathname.includes("/login")) {
+          window.location.href = "/login";
+        }
+        return;
+      }
+
+      // If no session data but we have a token, clear token
+      if (!authData.token && token) {
+        localStorage.removeItem("authToken");
+        if (!window.location.pathname.includes("/login")) {
+          window.location.href = "/login";
+        }
+        return;
+      }
 
       // Check if this user is logged in elsewhere with a newer timestamp
-      const allKeys = Object.keys(sessionStorage)
-      const authKeys = allKeys.filter((key) => key.startsWith("auth_") && key !== `auth_${tabId}`)
+      const allKeys = Object.keys(sessionStorage);
+      const authKeys = allKeys.filter(
+        (key) => key.startsWith("auth_") && key !== `auth_${tabId}`
+      );
 
       for (const key of authKeys) {
-        const otherAuthData = JSON.parse(sessionStorage.getItem(key) || "{}")
+        const otherAuthData = JSON.parse(sessionStorage.getItem(key) || "{}");
 
-        if (otherAuthData.username === authData.username && otherAuthData.lastActivity > authData.lastActivity) {
+        if (
+          otherAuthData.username === authData.username &&
+          otherAuthData.lastActivity > authData.lastActivity
+        ) {
           // Found a newer session for the same user
-          sessionStorage.removeItem(`auth_${tabId}`)
-          sessionStorage.setItem("logout_reason", "duplicate_login")
-          window.location.href = "/login"
-          break
+          localStorage.removeItem("authToken");
+          sessionStorage.removeItem(`auth_${tabId}`);
+          sessionStorage.setItem("logout_reason", "duplicate_login");
+          window.location.href = "/login";
+          break;
         }
       }
-    }
+    };
 
-    const interval = setInterval(checkSession, 5000) // Check every 5 seconds
+    const interval = setInterval(checkSession, 5000); // Check every 5 seconds
 
-    return () => clearInterval(interval)
-  }, [tabId])
+    return () => clearInterval(interval);
+  }, [tabId]);
 
-  return children
-}
+  return children;
+};
 
 // Update the PrivateRoute to use the SessionMonitorWrapper
 const PrivateRoute = ({ children, allowedRoles }) => {
-  const tabId = useSession()
+  const tabId = useSession();
+  const token = localStorage.getItem("authToken");
+  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
 
-  // Lấy thông tin xác thực của tab hiện tại
-  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
-
-  if (!authData.token) {
-    return <Navigate to="/login" replace />
+  // Check both token and session data
+  if (!token || !authData.token) {
+    // Clear any stale data
+    localStorage.removeItem("authToken");
+    sessionStorage.removeItem(`auth_${tabId}`);
+    return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(authData.userRole)) {
-    return <Navigate to="/unauthorized" replace />
+    console.log(
+      "Unauthorized role:",
+      authData.userRole,
+      "Required:",
+      allowedRoles
+    );
+    return <Navigate to="/unauthorized" replace />;
   }
 
-  return <SessionMonitorWrapper>{children}</SessionMonitorWrapper>
-}
+  return <SessionMonitorWrapper>{children}</SessionMonitorWrapper>;
+};
 
 const SessionMonitor = () => {
-  useSessionMonitor()
-  return null
-}
+  useSessionMonitor();
+  return null;
+};
 
 const App = () => {
+  useEffect(() => {
+    // Check for existing auth token on app initialization
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      // Clear any stale session data if no token exists
+      sessionStorage.clear();
+    }
+  }, []);
+
   return (
     <Router basename="/">
       <Routes>
@@ -130,7 +178,9 @@ const App = () => {
         <Route
           path="/approve-requests"
           element={
-            <PrivateRoute allowedRoles={["GiaoVu", "TruongBoMon", "TruongKhoa"]}>
+            <PrivateRoute
+              allowedRoles={["GiaoVu", "TruongBoMon", "TruongKhoa"]}
+            >
               <ApproveRequests />
             </PrivateRoute>
           }
@@ -240,7 +290,7 @@ const App = () => {
         <Route path="*" element={<Navigate to="/unauthorized" replace />} />
       </Routes>
     </Router>
-  )
-}
+  );
+};
 
-export default App
+export default App;

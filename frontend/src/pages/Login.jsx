@@ -2,15 +2,30 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "../hook/useSession";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { FaUser, FaLock, FaSchool } from "react-icons/fa";
 import "./../assets/Login.css";
+import axiosInstance from "../services/axios";
 
 const API_URL = "http://localhost:5000"; // Define API URL directly in component for now
 
-const getRoleBasedRedirect = () => {
-  return "/home";
+const getRoleBasedRedirect = (role) => {
+  switch (role) {
+    case "QuanTriVien":
+      return "/admin/home";
+    case "SinhVien":
+      return "/student-dashboard";
+    case "GiangVien":
+      return "/teacher-dashboard";
+    case "GiaoVu":
+      return "/academic-dashboard";
+    case "TruongBoMon":
+      return "/department-head-dashboard";
+    case "TruongKhoa":
+      return "/faculty-head-dashboard";
+    default:
+      return "/home";
+  }
 };
 
 const Login = () => {
@@ -65,7 +80,7 @@ const Login = () => {
     setError("");
 
     try {
-      const response = await axios.post(`${API_URL}/api/users/login`, {
+      const response = await axiosInstance.post(`/api/users/login`, {
         username,
         password,
       });
@@ -94,10 +109,13 @@ const Login = () => {
         localStorage.removeItem("savedCredentials");
       }
 
-      // Lưu thông tin đăng nhập cho tab hiện tại
+      // Store auth token in localStorage for persistence
+      localStorage.setItem("authToken", token);
+
+      // Store session data
       const sessionData = {
         token,
-        userRole: user.userRole, // Sửa lại lấy đúng userRole từ backend
+        userRole: user.userRole,
         username: user.username,
         fullName: user.fullName,
         userId: user.id,
@@ -106,11 +124,8 @@ const Login = () => {
 
       sessionStorage.setItem(`auth_${tabId}`, JSON.stringify(sessionData));
 
-      // Set axios default headers cho tab hiện tại
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-      // Redirect dựa trên role
-      const redirectPath = getRoleBasedRedirect(user.role);
+      // Redirect based on role
+      const redirectPath = getRoleBasedRedirect(user.userRole);
       navigate(redirectPath, { replace: true });
     } catch (err) {
       console.error("Login error:", err);
