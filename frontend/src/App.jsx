@@ -23,6 +23,7 @@ import AdminUserManagement from "./pages/admin/UserManagement"
 import AdminNewsfeed from "./pages/admin/Newsfeed"
 import AdminApproveRequests from "./pages/admin/ApproveRequests"
 import AdminSettings from "./pages/admin/Settings"
+import TeacherSchedule from "./pages/Teacher_Schedule"
 
 // Create a SessionMonitorWrapper components
 const SessionMonitorWrapper = ({ children }) => {
@@ -123,6 +124,15 @@ const App = () => {
           element={
             <PrivateRoute allowedRoles={null}>
               <Schedule />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/teacher-schedule"
+          element={
+            <PrivateRoute allowedRoles={["GiangVien"]}>
+              <TeacherSchedule />
             </PrivateRoute>
           }
         />

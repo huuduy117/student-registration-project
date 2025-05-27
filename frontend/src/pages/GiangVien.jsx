@@ -142,7 +142,7 @@ const TeacherDashboard = () => {
             <div className="card-content">Xem lịch dạy của bạn</div>
             <div className="card-footer">
               <div className="card-stat">12</div>
-              <button className="card-action">Xem chi tiết</button>
+              <button className="card-action" onClick={() => window.location.href = '/teacher-schedule'}>Xem chi tiết</button>
             </div>
           </div>
 
