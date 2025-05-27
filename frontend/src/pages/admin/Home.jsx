@@ -1,198 +1,236 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { Tabs, Tab } from "@mui/material";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-import "../../assets/Dashboard.css";
+"use client"
 
-const COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#A020F0",
-  "#FF6384",
-];
+import { useState, useEffect } from "react"
+import axios from "axios"
+import { Tabs, Tab, Box, Paper, Typography, Grid, Card, CardContent, Alert, CircularProgress } from "@mui/material"
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts"
+import SideBar from "../../components/sideBar"
+import "../../assets/Dashboard.css"
+
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A020F0", "#FF6384"]
 
 const AdminHome = () => {
-  const [tab, setTab] = useState(0);
-  const [studentStats, setStudentStats] = useState({});
-  const [teacherStats, setTeacherStats] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  // Bộ lọc (có thể mở rộng UI sau)
-  const semester = "";
-  const major = "";
-  const department = "";
+  const [tab, setTab] = useState(0)
+  const [studentStats, setStudentStats] = useState({})
+  const [teacherStats, setTeacherStats] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    setLoading(true);
-    // TODO: Replace with real API endpoints
-    const fetchStats = async () => {
-      try {
-        // Thống kê sinh viên
-        const resStudent = await axios.get("/api/admin/stats/students", {
-          params: { semester, major },
-        });
-        setStudentStats(resStudent.data);
-        // Thống kê giảng viên
-        const resTeacher = await axios.get("/api/admin/stats/teachers", {
-          params: { semester, department },
-        });
-        setTeacherStats(resTeacher.data);
-      } catch {
-        setError("Không thể tải dữ liệu thống kê");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, [semester, major, department]);
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const [studentRes, teacherRes] = await Promise.all([
+        axios.get("/api/admin/stats/students"),
+        axios.get("/api/admin/stats/teachers"),
+      ])
+
+      setStudentStats(studentRes.data || {})
+      setTeacherStats(teacherRes.data || {})
+    } catch (err) {
+      console.error("Error fetching stats:", err)
+      setError("Không thể tải dữ liệu thống kê")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const StatCard = ({ title, value, children }) => (
+    <Card elevation={3}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          {title}
+        </Typography>
+        {value !== undefined && (
+          <Typography variant="h4" color="primary" gutterBottom>
+            {value}
+          </Typography>
+        )}
+        {children}
+      </CardContent>
+    </Card>
+  )
 
   return (
     <div className="dashboard-container">
-      <div className="dashboard-header">
-        <h1>Trang tổng quan quản trị viên</h1>
-        {/* Breadcrumbs, bộ lọc, tìm kiếm toàn cục có thể thêm ở đây */}
-      </div>
-      <div className="dashboard-tabs">
-        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-          <Tab label="Sinh viên" />
-          <Tab label="Giảng viên / Trưởng bộ môn / Trưởng khoa" />
-        </Tabs>
-      </div>
-      <div className="dashboard-content">
-        {loading ? (
-          <div>Đang tải dữ liệu...</div>
-        ) : error ? (
-          <div className="error-message">{error}</div>
-        ) : tab === 0 ? (
-          // Tab Sinh viên
-          <div className="dashboard-grid">
-            {/* Card: Tổng số sinh viên theo lớp/chuyên ngành */}
-            <div className="dashboard-card">
-              <h3>Tổng số sinh viên</h3>
-              <div className="card-stat">{studentStats.total || 0}</div>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie
-                    data={studentStats.byClass || []}
-                    dataKey="count"
-                    nameKey="class"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={60}
-                    fill="#8884d8"
-                    label
-                  >
-                    {(studentStats.byClass || []).map((entry, idx) => (
-                      <Cell
-                        key={`cell-${idx}`}
-                        fill={COLORS[idx % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Card: Tình trạng đăng ký môn học */}
-            <div className="dashboard-card">
-              <h3>Đăng ký môn học</h3>
-              <BarChart
-                width={250}
-                height={180}
-                data={studentStats.registrationStatus || []}
-              >
-                <XAxis dataKey="status" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#00C49F" />
-              </BarChart>
-            </div>
-            {/* Card: Yêu cầu mở lớp từ sinh viên */}
-            <div className="dashboard-card">
-              <h3>Yêu cầu mở lớp</h3>
-              <ul>
-                {(studentStats.classRequests || []).map((req) => (
-                  <li key={req.id}>
-                    {req.courseName} - {req.status}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Card: Lịch sử xử lý yêu cầu */}
-            <div className="dashboard-card">
-              <h3>Lịch sử xử lý</h3>
-              <ul>
-                {(studentStats.requestHistory || []).map((h, idx) => (
-                  <li key={idx}>
-                    {h.action} - {h.time}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ) : (
-          // Tab Giảng viên/Trưởng bộ môn/Trưởng khoa
-          <div className="dashboard-grid">
-            {/* Card: Số lượng lớp học phần đã mở */}
-            <div className="dashboard-card">
-              <h3>Lớp học phần đã mở</h3>
-              <BarChart
-                width={250}
-                height={180}
-                data={teacherStats.classCountBySemester || []}
-              >
-                <XAxis dataKey="semester" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#FF8042" />
-              </BarChart>
-            </div>
-            {/* Card: Số lượng giảng viên */}
-            <div className="dashboard-card">
-              <h3>Số lượng giảng viên</h3>
-              <div className="card-stat">{teacherStats.total || 0}</div>
-            </div>
-            {/* Card: Lịch giảng dạy tổng quát */}
-            <div className="dashboard-card">
-              <h3>Lịch giảng dạy</h3>
-              <ul>
-                {(teacherStats.schedule || []).map((item, idx) => (
-                  <li key={idx}>
-                    {item.teacher} - {item.time}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Card: Lịch sử phê duyệt yêu cầu mở lớp */}
-            <div className="dashboard-card">
-              <h3>Lịch sử phê duyệt</h3>
-              <ul>
-                {(teacherStats.approveHistory || []).map((h, idx) => (
-                  <li key={idx}>
-                    {h.action} - {h.time}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+      <SideBar />
+      <main className="dashboard-main">
+        <Box p={3}>
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h4" gutterBottom>
+              Trang tổng quan quản trị viên
+            </Typography>
 
-export default AdminHome;
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+              <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+                <Tab label="Thống kê sinh viên" />
+                <Tab label="Thống kê giảng viên" />
+              </Tabs>
+            </Box>
+
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={5}>
+                <CircularProgress size={60} />
+              </Box>
+            ) : (
+              <Box>
+                {tab === 0 ? (
+                  // Tab Sinh viên
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6} lg={3}>
+                      <StatCard title="Tổng số sinh viên" value={studentStats.total || 0} />
+                    </Grid>
+
+                    <Grid item xs={12} md={6} lg={9}>
+                      <StatCard title="Phân bố theo lớp">
+                        {studentStats.byClass && studentStats.byClass.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                              <Pie
+                                data={studentStats.byClass}
+                                dataKey="count"
+                                nameKey="class"
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={80}
+                                fill="#8884d8"
+                                label={({ class: className, count }) => `${className}: ${count}`}
+                              >
+                                {studentStats.byClass.map((entry, idx) => (
+                                  <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <Typography color="textSecondary">Không có dữ liệu</Typography>
+                        )}
+                      </StatCard>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                      <StatCard title="Tình trạng đăng ký môn học">
+                        {studentStats.registrationStatus && studentStats.registrationStatus.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={studentStats.registrationStatus}>
+                              <XAxis dataKey="status" />
+                              <YAxis />
+                              <Tooltip />
+                              <Bar dataKey="count" fill="#00C49F" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <Typography color="textSecondary">Không có dữ liệu</Typography>
+                        )}
+                      </StatCard>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                      <StatCard title="Yêu cầu mở lớp gần đây">
+                        {studentStats.classRequests && studentStats.classRequests.length > 0 ? (
+                          <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
+                            {studentStats.classRequests.map((req) => (
+                              <Box key={req.id} sx={{ p: 1, borderBottom: "1px solid #eee" }}>
+                                <Typography variant="body2">
+                                  <strong>{req.courseName}</strong>
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                  Trạng thái: {req.status}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Typography color="textSecondary">Không có yêu cầu nào</Typography>
+                        )}
+                      </StatCard>
+                    </Grid>
+                  </Grid>
+                ) : (
+                  // Tab Giảng viên
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6} lg={3}>
+                      <StatCard title="Tổng số giảng viên" value={teacherStats.total || 0} />
+                    </Grid>
+
+                    <Grid item xs={12} md={6} lg={9}>
+                      <StatCard title="Số lớp học phần theo học kỳ">
+                        {teacherStats.classCountBySemester && teacherStats.classCountBySemester.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={teacherStats.classCountBySemester}>
+                              <XAxis dataKey="semester" />
+                              <YAxis />
+                              <Tooltip />
+                              <Bar dataKey="count" fill="#FF8042" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <Typography color="textSecondary">Không có dữ liệu</Typography>
+                        )}
+                      </StatCard>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                      <StatCard title="Lịch giảng dạy">
+                        {teacherStats.schedule && teacherStats.schedule.length > 0 ? (
+                          <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
+                            {teacherStats.schedule.map((item, idx) => (
+                              <Box key={idx} sx={{ p: 1, borderBottom: "1px solid #eee" }}>
+                                <Typography variant="body2">
+                                  <strong>{item.teacher}</strong>
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                  {item.time}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Typography color="textSecondary">Không có lịch giảng dạy</Typography>
+                        )}
+                      </StatCard>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                      <StatCard title="Lịch sử phê duyệt gần đây">
+                        {teacherStats.approveHistory && teacherStats.approveHistory.length > 0 ? (
+                          <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
+                            {teacherStats.approveHistory.map((h, idx) => (
+                              <Box key={idx} sx={{ p: 1, borderBottom: "1px solid #eee" }}>
+                                <Typography variant="body2">{h.action}</Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                  {h.time}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Typography color="textSecondary">Không có lịch sử phê duyệt</Typography>
+                        )}
+                      </StatCard>
+                    </Grid>
+                  </Grid>
+                )}
+              </Box>
+            )}
+          </Paper>
+        </Box>
+      </main>
+    </div>
+  )
+}
+
+export default AdminHome

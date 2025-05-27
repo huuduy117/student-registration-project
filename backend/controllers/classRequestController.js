@@ -292,7 +292,7 @@ exports.joinClassRequest = (req, res) => {
                               const noiDung = `Lớp học phần ${maLopHP} đã đạt đủ 30 sinh viên đăng ký và được duyệt tự động.`;
 
                               mysqlConnection.query(
-                                "UPDATE YeuCauMoLop SET tinhTrangTongQuat = 'DaDuyet', trangThaiXuLy = '4_ChoMoLop' WHERE maLopHP = ?",
+                                "UPDATE YeuCauMoLop SET tinhTrangTongQuat = 'DaGui', trangThaiXuLy = '1_GiaoVuNhan' WHERE maLopHP = ?",
                                 [maLopHP],
                                 (err, result) => {
                                   if (err) {
