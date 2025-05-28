@@ -53,7 +53,7 @@ export default function SideBar() {
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
         { icon: "📅", text: "Lịch dạy", path: "/teacher-schedule" },
-        { icon: "📝", text: "Yêu cầu mở lớp", path: "/approve-requests" },
+        { icon: "📝", text: "Đăng ký giảng dạy", path: "/register-teaching" },
         { icon: "⚙️", text: "Cài đặt", path: "/settings" },
       ];
       break;

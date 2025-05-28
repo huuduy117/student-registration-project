@@ -3,6 +3,14 @@ import "../assets/Dashboard.css";
 import "../assets/ApproveRequests.css";
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import {
+  Users,
+  CheckCircle,
+  XCircle,
+  Clock,
+  RefreshCw,
+  Filter,
+} from "lucide-react";
 
 const ApproveRequestsPage = () => {
   const [requests, setRequests] = useState([]);
@@ -12,6 +20,7 @@ const ApproveRequestsPage = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [filterType, setFilterType] = useState("all"); // all, hasTeacher, noTeacher
   const tabId = sessionStorage.getItem("tabId");
   const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
   const userRole = authData.userRole;
@@ -20,46 +29,136 @@ const ApproveRequestsPage = () => {
     setLoading(true);
     setError("");
     try {
+      console.log("=== Debug ApproveRequests (TruongBoMon) ===");
+      console.log("User info:", {
+        userId: authData.userId,
+        userRole: authData.userRole,
+      });
+
       const res = await axios.get("/api/class-requests", {
         headers: { Authorization: `Bearer ${authData.token}` },
       });
 
-      console.log("Raw requests:", res.data); // Debug log
+      console.log("Raw requests from API:", res.data);
 
+      // Lọc các yêu cầu theo vai trò
       const filteredRequests = res.data.filter((r) => {
-        console.log("Checking request:", r); // Debug log
-
         // Chỉ hiển thị các yêu cầu chưa bị từ chối hoặc hủy
         if (r.tinhTrangTongQuat === "TuChoi" || r.tinhTrangTongQuat === "Huy") {
-          console.log(
-            "Filtered out due to tinhTrangTongQuat:",
-            r.tinhTrangTongQuat
-          );
           return false;
         }
 
-        // Kiểm tra trạng thái xử lý phù hợp với role
+        // Lọc theo vai trò
         if (userRole === "GiaoVu" && r.trangThaiXuLy === "1_GiaoVuNhan") {
-          console.log("Matched GiaoVu");
           return true;
         }
         if (userRole === "TruongBoMon" && r.trangThaiXuLy === "2_TBMNhan") {
-          console.log("Matched TruongBoMon");
           return true;
         }
         if (
           userRole === "TruongKhoa" &&
           r.trangThaiXuLy === "3_TruongKhoaNhan"
         ) {
-          console.log("Matched TruongKhoa");
           return true;
         }
-        console.log("No role match for:", userRole, r.trangThaiXuLy);
         return false;
       });
 
-      console.log("Filtered requests:", filteredRequests); // Debug log
-      setRequests(filteredRequests);
+      console.log("Requests filtered by role:", {
+        userRole,
+        filteredRequests,
+      });
+
+      // Thêm thông tin về trạng thái đăng ký giảng viên (chỉ cho Trưởng bộ môn)
+      const requestsWithTeacherStatus = await Promise.all(
+        filteredRequests.map(async (request) => {
+          // Nếu không phải Trưởng bộ môn, trả về request gốc
+          if (userRole !== "TruongBoMon") {
+            return request;
+          }
+
+          try {
+            console.log(`\nProcessing request: ${request.maYeuCau}`);
+            console.log("Request details:", {
+              maYeuCau: request.maYeuCau,
+              maLopHP: request.maLopHP,
+              trangThaiXuLy: request.trangThaiXuLy,
+              tinhTrangTongQuat: request.tinhTrangTongQuat,
+            });
+
+            // Tạo mã lớp học phần mới
+            const newClassSectionId = `${request.maLopHP}_NEW`;
+            console.log("Checking new class section:", newClassSectionId);
+
+            // Kiểm tra đăng ký giảng dạy cho lớp học phần mới
+            let teacherRegistrations = [];
+            try {
+              const teacherRes = await axios.get(
+                `/api/teaching/class-sections/${newClassSectionId}/registrations`,
+                {
+                  headers: { Authorization: `Bearer ${authData.token}` },
+                }
+              );
+              teacherRegistrations = teacherRes.data;
+              console.log(
+                "Teacher registrations for new class:",
+                teacherRegistrations
+              );
+            } catch (err) {
+              console.error(
+                `Error fetching registrations for ${newClassSectionId}:`,
+                err
+              );
+            }
+
+            // Không cần kiểm tra trạng thái vì đăng ký là được chấp nhận ngay
+            const hasTeacherRegistration = teacherRegistrations.length > 0;
+
+            console.log("Teacher registration status:", {
+              hasTeacherRegistration,
+              registrations: teacherRegistrations,
+              newClassSectionId,
+            });
+
+            const result = {
+              ...request,
+              hasTeacherRegistration,
+              teacherRegistrations,
+              newClassSectionId: newClassSectionId,
+            };
+
+            console.log("Final request object:", result);
+            return result;
+          } catch (err) {
+            console.error("Error processing request:", err);
+            return {
+              ...request,
+              hasTeacherRegistration: false,
+              teacherRegistrations: [],
+              newClassSectionId: `${request.maLopHP}_NEW`,
+            };
+          }
+        })
+      );
+
+      console.log("\n=== Final Results ===");
+      console.log("User role:", userRole);
+      console.log("Total requests:", requestsWithTeacherStatus.length);
+      if (userRole === "TruongBoMon") {
+        console.log(
+          "Requests with teacher registration:",
+          requestsWithTeacherStatus.filter((r) => r.hasTeacherRegistration)
+            .length
+        );
+        console.log(
+          "Requests without teacher registration:",
+          requestsWithTeacherStatus.filter((r) => !r.hasTeacherRegistration)
+            .length
+        );
+      }
+      console.log("Detailed requests:", requestsWithTeacherStatus);
+
+      setRequests(requestsWithTeacherStatus);
     } catch (err) {
       console.error("Error fetching requests:", err);
       setError(
@@ -68,7 +167,7 @@ const ApproveRequestsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [userRole, authData.token]); // Chỉ tạo lại hàm khi userRole hoặc token thay đổi
+  }, [userRole, authData.token]);
 
   useEffect(() => {
     fetchRequests();
@@ -77,7 +176,13 @@ const ApproveRequestsPage = () => {
   const handleApprove = async (id, currentRequest) => {
     try {
       setIsProcessing(true);
-      console.log(`Sending approve request for ID: ${id}`);
+      console.log("\n=== Debug Approve Request ===");
+      console.log("Approving request:", {
+        id,
+        currentState: currentRequest.trangThaiXuLy,
+        tinhTrangTongQuat: currentRequest.tinhTrangTongQuat,
+        hasTeacherRegistration: currentRequest.hasTeacherRegistration,
+      });
 
       // Xác định trạng thái tiếp theo và tình trạng tổng quát dựa vào vai trò
       const roleTransitions = {
@@ -187,7 +292,12 @@ const ApproveRequestsPage = () => {
 
     try {
       setIsProcessing(true);
-      console.log(`Sending reject request for ID: ${selectedRequestId}`);
+      console.log("\n=== Debug Reject Request ===");
+      console.log("Rejecting request:", {
+        id: selectedRequestId,
+        reason: rejectReason,
+        currentRequest: requests.find((r) => r.maYeuCau === selectedRequestId),
+      });
 
       const currentRequest = requests.find(
         (r) => r.maYeuCau === selectedRequestId
@@ -257,6 +367,19 @@ const ApproveRequestsPage = () => {
     }
   };
 
+  const filteredRequests = requests.filter((request) => {
+    if (filterType === "all") return true;
+    if (filterType === "hasTeacher") return request.hasTeacherRegistration;
+    if (filterType === "noTeacher") return !request.hasTeacherRegistration;
+    return true;
+  });
+
+  const stats = {
+    total: requests.length,
+    hasTeacher: requests.filter((r) => r.hasTeacherRegistration).length,
+    noTeacher: requests.filter((r) => !r.hasTeacherRegistration).length,
+  };
+
   return (
     <div className="dashboard-container">
       <SideBar />
@@ -273,76 +396,166 @@ const ApproveRequestsPage = () => {
             </div>
           </div>
         </div>
-        <div className="dashboard-content">
-          <section className="dashboard-section">
-            <h2>Danh sách yêu cầu chờ xử lý</h2>
-            {loading ? (
-              <div className="loading">Đang tải...</div>
-            ) : error ? (
-              <div className="error-message">{error}</div>
-            ) : requests.length === 0 ? (
-              <div className="empty-state">
-                <p>Không có yêu cầu nào cần duyệt</p>
-                <button onClick={fetchRequests} className="refresh-btn">
-                  Tải lại danh sách
-                </button>
+
+        {userRole === "TruongBoMon" && (
+          <>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-header">
+                  <div className="stat-title">Tổng yêu cầu</div>
+                  <div className="stat-icon">
+                    <Users size={20} />
+                  </div>
+                </div>
+                <div className="stat-value">{stats.total}</div>
               </div>
-            ) : (
-              <>
-                <div className="refresh-container">
-                  <button onClick={fetchRequests} className="refresh-btn">
-                    Tải lại danh sách
-                  </button>
+
+              <div className="stat-card">
+                <div className="stat-header">
+                  <div className="stat-title">Có giảng viên đăng ký</div>
+                  <div className="stat-icon">
+                    <CheckCircle size={20} />
+                  </div>
                 </div>
-                <div className="responsive-table-wrapper">
-                  <table className="requests-table">
-                    <thead>
-                      <tr>
-                        <th>Mã yêu cầu</th>
-                        <th>Môn học</th>
-                        <th>Sinh viên</th>
-                        <th>Mã SV</th>
-                        <th>Ngày gửi</th>
-                        <th>Số lượng SV</th>
-                        <th>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {requests.map((r) => (
-                        <tr key={r.maYeuCau}>
-                          <td>{r.maYeuCau}</td>
-                          <td>{r.tenMH}</td>
-                          <td>{r.tenSinhVien}</td>
-                          <td>{r.maSV}</td>
-                          <td>
-                            {new Date(r.ngayGui).toLocaleDateString("vi-VN")}
-                          </td>
-                          <td>{r.soLuongThamGia}/30</td>
-                          <td>
-                            <button
-                              className="approve-btn"
-                              onClick={() => handleApprove(r.maYeuCau, r)}
-                              disabled={isProcessing}
-                            >
-                              {isProcessing ? "Đang xử lý..." : "Duyệt"}
-                            </button>
-                            <button
-                              className="reject-btn"
-                              onClick={() => openRejectDialog(r.maYeuCau)}
-                              disabled={isProcessing}
-                            >
-                              {isProcessing ? "Đang xử lý..." : "Từ chối"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="stat-value" style={{ color: "#10b981" }}>
+                  {stats.hasTeacher}
                 </div>
-              </>
-            )}
-          </section>
-        </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-header">
+                  <div className="stat-title">Chưa có giảng viên</div>
+                  <div className="stat-icon">
+                    <Clock size={20} />
+                  </div>
+                </div>
+                <div className="stat-value" style={{ color: "#f59e0b" }}>
+                  {stats.noTeacher}
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-header">
+                  <div className="stat-title">Bộ lọc</div>
+                  <div className="stat-icon">
+                    <Filter size={20} />
+                  </div>
+                </div>
+                <select
+                  className="modern-select"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="hasTeacher">Có giảng viên đăng ký</option>
+                  <option value="noTeacher">Chưa có giảng viên</option>
+                </select>
+              </div>
+            </div>
+          </>
+        )}
+
+        <section className="dashboard-section">
+          <div className="section-header">
+            <h2>Danh sách yêu cầu chờ xử lý</h2>
+            <button onClick={fetchRequests} className="refresh-btn">
+              <RefreshCw size={16} />
+              Tải lại danh sách
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="loading">Đang tải...</div>
+          ) : error ? (
+            <div className="error-message">{error}</div>
+          ) : filteredRequests.length === 0 ? (
+            <div className="empty-state">
+              <p>Không có yêu cầu nào cần duyệt</p>
+              <button onClick={fetchRequests} className="refresh-btn">
+                Tải lại danh sách
+              </button>
+            </div>
+          ) : (
+            <div className="responsive-table-wrapper">
+              <table className="requests-table">
+                <thead>
+                  <tr>
+                    <th>Mã yêu cầu</th>
+                    <th>Môn học</th>
+                    <th>Sinh viên</th>
+                    <th>Mã SV</th>
+                    <th>Ngày gửi</th>
+                    <th>Số lượng SV</th>
+                    {userRole === "TruongBoMon" && <th>Trạng thái GV</th>}
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRequests.map((r) => (
+                    <tr
+                      key={r.maYeuCau}
+                      className={
+                        userRole === "TruongBoMon"
+                          ? r.hasTeacherRegistration
+                            ? "has-teacher"
+                            : "no-teacher"
+                          : ""
+                      }
+                    >
+                      <td>{r.maYeuCau}</td>
+                      <td>{r.tenMH}</td>
+                      <td>{r.tenSinhVien}</td>
+                      <td>{r.maSV}</td>
+                      <td>{new Date(r.ngayGui).toLocaleDateString("vi-VN")}</td>
+                      <td>{r.soLuongThamGia}/30</td>
+                      {userRole === "TruongBoMon" && (
+                        <td>
+                          <div
+                            className={`teacher-status ${
+                              r.hasTeacherRegistration
+                                ? "has-teacher"
+                                : "no-teacher"
+                            }`}
+                          >
+                            {r.hasTeacherRegistration ? (
+                              <>
+                                <CheckCircle size={16} />
+                                <span>Đã có giảng viên đăng ký</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock size={16} />
+                                <span>Chưa có giảng viên đăng ký</span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="approve-btn"
+                            onClick={() => handleApprove(r.maYeuCau, r)}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? "Đang xử lý..." : "Duyệt"}
+                          </button>
+                          <button
+                            className="reject-btn"
+                            onClick={() => openRejectDialog(r.maYeuCau)}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? "Đang xử lý..." : "Từ chối"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         {showRejectDialog && (
           <div className="reject-dialog-overlay">
