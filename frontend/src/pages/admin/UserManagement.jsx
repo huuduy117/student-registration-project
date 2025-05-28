@@ -31,6 +31,8 @@ const AdminUserManagement = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
     fetchUsers();
@@ -227,6 +229,24 @@ const AdminUserManagement = () => {
     user.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   return (
     <div className="admin-container">
       <SideBar />
@@ -347,14 +367,14 @@ const AdminUserManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.length === 0 ? (
+              {currentItems.length === 0 ? (
                 <tr>
                   <td colSpan={4} style={{ textAlign: "center", padding: "2rem" }}>
                     {loading ? "Đang tải..." : "Không có dữ liệu"}
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user, index) => (
+                currentItems.map((user, index) => (
                   <motion.tr
                     key={user.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -404,6 +424,49 @@ const AdminUserManagement = () => {
             </tbody>
           </table>
         </motion.div>
+
+        <div className="pagination-container">
+          <div className="pagination-info">
+            <span>Hiển thị {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredUsers.length)} của {filteredUsers.length} kết quả</span>
+            <select 
+              className="modern-select items-per-page"
+              value={itemsPerPage}
+              onChange={handleItemsPerPageChange}
+            >
+              <option value={5}>5 / trang</option>
+              <option value={15}>15 / trang</option>
+              <option value={25}>25 / trang</option>
+            </select>
+          </div>
+          
+          <div className="pagination-controls">
+            <button
+              className="modern-btn secondary"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Trước
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                className={`modern-btn ${currentPage === page ? '' : 'secondary'}`}
+                onClick={() => handlePageChange(page)}
+              >
+                {page}
+              </button>
+            ))}
+            
+            <button
+              className="modern-btn secondary"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Sau
+            </button>
+          </div>
+        </div>
 
         <AnimatePresence>
           {openDialog && (
