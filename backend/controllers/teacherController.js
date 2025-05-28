@@ -149,6 +149,9 @@ const getApprovedClassSections = (req, res) => {
     userRole: req.user.userRole,
   });
 
+  // Nếu là trang register-teaching (userRole là GiangVien), chỉ hiển thị các lớp khả dụng
+  const isRegisterTeachingPage = req.user.userRole === "GiangVien";
+
   const query = `
     WITH LatestRegistrations AS (
       SELECT 
@@ -169,29 +172,56 @@ const getApprovedClassSections = (req, res) => {
       lhp.siSoToiDa,
       lhp.siSoHienTai,
       lhp.trangThai,
+      lhp.maGV as assignedTeacher,
       ycml.maYeuCau,
       ycml.soLuongThamGia,
       ycml.description,
       ycml.trangThaiXuLy,
       ycml.tinhTrangTongQuat,
       sv.hoTen as tenSinhVien,
-      sv.maSV
+      sv.maSV,
+      lr.maGV as registeredTeacher,
+      lr.trangThai as registrationStatus,
+      lr.ngayDangKy as registrationDate,
+      CASE 
+        WHEN lr.maGV IS NOT NULL THEN true
+        ELSE false
+      END as hasTeacherRegistration
     FROM LopHocPhan lhp
     JOIN MonHoc mh ON lhp.maMH = mh.maMH
     LEFT JOIN YeuCauMoLop ycml ON lhp.maLopHP = ycml.maLopHP OR lhp.maLopHP = CONCAT(ycml.maLopHP, '_NEW')
     LEFT JOIN SinhVien sv ON ycml.maSV = sv.maSV
+    LEFT JOIN LatestRegistrations lr ON lhp.maLopHP = lr.maLopHP AND lr.rn = 1
     WHERE (ycml.trangThaiXuLy = '2_TBMNhan' OR lhp.maLopHP LIKE '%_NEW')
     AND (ycml.tinhTrangTongQuat = 'DaDuyet' OR lhp.maLopHP LIKE '%_NEW')
+    ${
+      isRegisterTeachingPage
+        ? `
     AND lhp.maGV IS NULL
     AND NOT EXISTS (
-      SELECT 1 FROM LatestRegistrations lr 
-      WHERE lr.maLopHP = lhp.maLopHP 
-      AND lr.trangThai = 'ChapNhan'
+      SELECT 1 FROM LatestRegistrations lr2 
+      WHERE lr2.maLopHP = lhp.maLopHP 
+      AND lr2.trangThai = 'ChapNhan'
     )
-    ORDER BY COALESCE(ycml.ngayGui, lhp.maLopHP) DESC
+    `
+        : ""
+    }
+    ORDER BY 
+      ${
+        isRegisterTeachingPage
+          ? "COALESCE(ycml.ngayGui, lhp.maLopHP) DESC"
+          : `
+      CASE 
+        WHEN lr.maGV IS NULL THEN 0 
+        ELSE 1 
+      END,
+      COALESCE(ycml.ngayGui, lhp.maLopHP) DESC
+      `
+      }
   `;
 
   console.log("Executing query:", query);
+  console.log("Is register teaching page:", isRegisterTeachingPage);
 
   // First, let's check the status of all class requests
   mysqlConnection.query(
@@ -223,9 +253,11 @@ const getApprovedClassSections = (req, res) => {
         tenMH: r.tenMH,
         trangThaiXuLy: r.trangThaiXuLy,
         tinhTrangTongQuat: r.tinhTrangTongQuat,
-        maGV: r.maGV,
-        trangThaiDangKy: r.trangThaiDangKy,
-        ngayDangKy: r.ngayDangKy,
+        assignedTeacher: r.assignedTeacher,
+        registeredTeacher: r.registeredTeacher,
+        registrationStatus: r.registrationStatus,
+        hasTeacherRegistration: r.hasTeacherRegistration,
+        registrationDate: r.registrationDate,
       })),
     });
 
@@ -245,14 +277,14 @@ const getApprovedClassSections = (req, res) => {
     mysqlConnection.query(
       `SELECT maLopHP, maGV, trangThai, ngayDangKy
        FROM DangKyLichDay 
-       WHERE trangThai IN ('ChoDuyet', 'ChapNhan')
+       WHERE trangThai = 'ChapNhan'
        ORDER BY ngayDangKy DESC`,
       (err, registeredClasses) => {
         if (err) {
           console.error("Error checking registered classes:", err);
         } else {
           console.log(
-            "Classes with pending/accepted registrations:",
+            "Classes with accepted registrations:",
             registeredClasses
           );
         }
