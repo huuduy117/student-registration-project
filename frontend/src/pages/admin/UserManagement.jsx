@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Users, Plus, Search, Edit, Trash2, Eye, X } from 'lucide-react';
 import axios from "axios";
 import SideBar from "../../components/sideBar";
 import "../../assets/UserManagement.css";
@@ -28,8 +30,7 @@ const AdminUserManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -51,7 +52,6 @@ const AdminUserManagement = () => {
         },
       });
 
-      // Map the response to show correct user information
       const mappedUsers = Array.isArray(res.data)
         ? res.data.map((user) => ({
             id: user.maNguoiDung || user.id,
@@ -189,6 +189,7 @@ const AdminUserManagement = () => {
       setLoading(false);
     }
   };
+
   const handleDelete = async (user) => {
     if (!window.confirm(`Bạn có chắc muốn xóa người dùng ${user.username}?`))
       return;
@@ -206,7 +207,7 @@ const AdminUserManagement = () => {
         },
       });
       setSuccess("Xóa người dùng thành công");
-      await fetchUsers(); // Wait for the fetch to complete
+      await fetchUsers();
     } catch (err) {
       console.error("Error deleting user:", err);
       if (err.response?.data?.error?.code === "ER_ROW_IS_REFERENCED_2") {
@@ -221,51 +222,122 @@ const AdminUserManagement = () => {
     }
   };
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(Number.parseInt(event.target.value, 10));
-    setPage(0);
-  };
+  const filteredUsers = users.filter(user =>
+    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="um-container">
+    <div className="admin-container">
       <SideBar />
-      <main className="dashboard-main">
-        <div className="um-title">Quản lý người dùng</div>
-        {error && <div className="um-alert um-alert-error">{error}</div>}
-        {success && <div className="um-alert um-alert-success">{success}</div>}
-        <div className="um-toolbar">
-          <select
-            className="um-form-group"
-            value={userType}
-            onChange={(e) => setUserType(e.target.value)}
+      <main className="admin-main">
+        <motion.div
+          className="admin-header"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h1 className="admin-title">Quản lý người dùng</h1>
+          <p className="admin-subtitle">Quản lý tài khoản sinh viên và giảng viên</p>
+        </motion.div>
+
+        {error && (
+          <motion.div
+            className="alert error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
           >
-            {userTypes.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-          <button
-            className="um-btn"
-            onClick={() => handleOpenDialog()}
-            disabled={loading}
+            {error}
+          </motion.div>
+        )}
+        
+        {success && (
+          <motion.div
+            className="alert success"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
           >
-            Thêm mới
-          </button>
-          <button
-            className="um-btn um-btn-secondary"
-            onClick={fetchUsers}
-            disabled={loading}
-          >
-            Làm mới
-          </button>
-        </div>
-        <div style={{ overflowX: "auto" }}>
-          <table className="um-table">
+            {success}
+          </motion.div>
+        )}
+
+        <motion.div
+          className="stats-grid"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Loại người dùng</div>
+              <div className="stat-icon">
+                <Users size={20} />
+              </div>
+            </div>
+            <select
+              className="modern-select"
+              value={userType}
+              onChange={(e) => setUserType(e.target.value)}
+            >
+              {userTypes.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Tìm kiếm</div>
+              <div className="stat-icon">
+                <Search size={20} />
+              </div>
+            </div>
+            <input
+              type="text"
+              className="modern-input"
+              placeholder="Tìm theo tên đăng nhập hoặc mã..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Tổng số</div>
+              <div className="stat-icon">
+                <Users size={20} />
+              </div>
+            </div>
+            <div className="stat-value">{filteredUsers.length}</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Thao tác</div>
+              <div className="stat-icon">
+                <Plus size={20} />
+              </div>
+            </div>
+            <button
+              className="modern-btn"
+              onClick={() => handleOpenDialog()}
+              disabled={loading}
+            >
+              <Plus size={18} />
+              Thêm mới
+            </button>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="modern-table"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <table>
             <thead>
               <tr>
                 <th>Mã người dùng</th>
@@ -275,122 +347,100 @@ const AdminUserManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: "center" }}>
-                    Không có dữ liệu
+                  <td colSpan={4} style={{ textAlign: "center", padding: "2rem" }}>
+                    {loading ? "Đang tải..." : "Không có dữ liệu"}
                   </td>
                 </tr>
               ) : (
-                users
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((user) => (
-                    <tr key={user.id}>
-                      <td>{user.id}</td>
-                      <td>{user.username}</td>
-                      <td>
-                        {userTypes.find((t) => t.value === user.userType)
-                          ?.label || user.userType}
-                      </td>
-                      <td>
-                        <div className="um-actions">
-                          <button
-                            className="um-btn um-btn-secondary"
-                            onClick={() => handleViewUser(user)}
-                            title="Xem chi tiết"
-                          >
-                            👁️
-                          </button>
-                          <button
-                            className="um-btn"
-                            onClick={() => handleOpenDialog(user)}
-                            disabled={loading}
-                            title="Sửa"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            className="um-btn um-btn-danger"
-                            onClick={() => handleDelete(user)}
-                            disabled={loading}
-                            title="Xóa"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                filteredUsers.map((user, index) => (
+                  <motion.tr
+                    key={user.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <td>{user.id}</td>
+                    <td>{user.username}</td>
+                    <td>
+                      <span className="modern-btn secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem' }}>
+                        {userTypes.find((t) => t.value === user.userType)?.label || user.userType}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button
+                          className="modern-btn secondary"
+                          onClick={() => handleViewUser(user)}
+                          title="Xem chi tiết"
+                          style={{ padding: '0.5rem' }}
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          className="modern-btn"
+                          onClick={() => handleOpenDialog(user)}
+                          disabled={loading}
+                          title="Sửa"
+                          style={{ padding: '0.5rem' }}
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          className="modern-btn danger"
+                          onClick={() => handleDelete(user)}
+                          disabled={loading}
+                          title="Xóa"
+                          style={{ padding: '0.5rem' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
               )}
             </tbody>
           </table>
-        </div>
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <span>Số dòng mỗi trang:</span>
-          <select value={rowsPerPage} onChange={handleChangeRowsPerPage}>
-            {[5, 10, 25].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-          <span>{`${page * rowsPerPage + 1}-${Math.min(
-            (page + 1) * rowsPerPage,
-            users.length
-          )} của ${users.length}`}</span>
-          <button
-            className="um-btn um-btn-secondary"
-            onClick={(e) => handleChangePage(e, Math.max(page - 1, 0))}
-            disabled={page === 0}
-          >
-            Trước
-          </button>
-          <button
-            className="um-btn um-btn-secondary"
-            onClick={(e) =>
-              handleChangePage(
-                e,
-                Math.min(page + 1, Math.ceil(users.length / rowsPerPage) - 1)
-              )
-            }
-            disabled={(page + 1) * rowsPerPage >= users.length}
-          >
-            Sau
-          </button>
-        </div>
+        </motion.div>
 
-        {/* Modal Thêm/Sửa */}
-        {openDialog && (
-          <>
-            <div
-              className="um-modal-backdrop"
-              onClick={handleCloseDialog}
-            ></div>
-            <div className="um-modal">
-              <button className="um-modal-close" onClick={handleCloseDialog}>
-                ×
-              </button>
-              <div className="um-modal-title">
-                {editUser ? "Sửa người dùng" : "Thêm người dùng"}
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSave();
-                }}
+        <AnimatePresence>
+          {openDialog && (
+            <motion.div
+              className="modern-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="modern-modal-content"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
               >
-                <div className="um-form-row">
-                  <div className="um-form-group">
-                    <label>Mã người dùng *</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ margin: 0, color: '#1e293b' }}>
+                    {editUser ? "Sửa người dùng" : "Thêm người dùng"}
+                  </h2>
+                  <button
+                    onClick={handleCloseDialog}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    <X size={24} color="#64748b" />
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSave();
+                  }}
+                >
+                  <div className="form-group">
+                    <label className="form-label">Mã người dùng *</label>
                     <input
+                      className="modern-input"
                       name="maNguoiDung"
                       value={userData.maNguoiDung}
                       onChange={handleUserDataChange}
@@ -398,24 +448,24 @@ const AdminUserManagement = () => {
                       required
                     />
                   </div>
-                  <div className="um-form-group">
-                    <label>Tên đăng nhập *</label>
+
+                  <div className="form-group">
+                    <label className="form-label">Tên đăng nhập *</label>
                     <input
+                      className="modern-input"
                       name="tenDangNhap"
                       value={userData.tenDangNhap}
                       onChange={handleUserDataChange}
                       required
                     />
                   </div>
-                </div>
-                <div className="um-form-row">
-                  <div className="um-form-group">
-                    <label>
-                      {editUser
-                        ? "Mật khẩu mới (để trống nếu không đổi)"
-                        : "Mật khẩu *"}
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      {editUser ? "Mật khẩu mới (để trống nếu không đổi)" : "Mật khẩu *"}
                     </label>
                     <input
+                      className="modern-input"
                       name="matKhau"
                       type="password"
                       value={userData.matKhau}
@@ -423,9 +473,11 @@ const AdminUserManagement = () => {
                       required={!editUser}
                     />
                   </div>
-                  <div className="um-form-group">
-                    <label>Loại người dùng</label>
+
+                  <div className="form-group">
+                    <label className="form-label">Loại người dùng</label>
                     <select
+                      className="modern-select"
                       name="loaiNguoiDung"
                       value={userData.loaiNguoiDung}
                       onChange={handleUserDataChange}
@@ -437,63 +489,77 @@ const AdminUserManagement = () => {
                       ))}
                     </select>
                   </div>
-                </div>
-                <div className="um-modal-actions">
-                  <button
-                    type="button"
-                    className="um-btn um-btn-secondary"
-                    onClick={handleCloseDialog}
-                    disabled={loading}
-                  >
-                    Hủy
-                  </button>
-                  <button type="submit" className="um-btn" disabled={loading}>
-                    {loading ? "Đang lưu..." : "Lưu"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </>
-        )}
-        {/* Modal Xem chi tiết */}
-        {viewDialog && viewUser && (
-          <>
-            <div
-              className="um-modal-backdrop"
-              onClick={handleCloseViewDialog}
-            ></div>
-            <div className="um-modal">
-              <button
-                className="um-modal-close"
-                onClick={handleCloseViewDialog}
+
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
+                    <button
+                      type="button"
+                      className="modern-btn secondary"
+                      onClick={handleCloseDialog}
+                      disabled={loading}
+                    >
+                      Hủy
+                    </button>
+                    <button type="submit" className="modern-btn" disabled={loading}>
+                      {loading ? "Đang lưu..." : "Lưu"}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {viewDialog && viewUser && (
+            <motion.div
+              className="modern-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="modern-modal-content"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
               >
-                ×
-              </button>
-              <div className="um-modal-title">
-                Thông tin chi tiết người dùng
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <b>Mã người dùng:</b> {viewUser.maNguoiDung || viewUser.id}
-                <br />
-                <b>Tên đăng nhập:</b>{" "}
-                {viewUser.tenDangNhap || viewUser.username}
-                <br />
-                <b>Loại người dùng:</b>{" "}
-                {userTypes.find((t) => t.value === viewUser.loaiNguoiDung)
-                  ?.label || viewUser.loaiNguoiDung}
-                <br />
-              </div>
-              <div className="um-modal-actions">
-                <button
-                  className="um-btn um-btn-secondary"
-                  onClick={handleCloseViewDialog}
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ margin: 0, color: '#1e293b' }}>Thông tin chi tiết</h2>
+                  <button
+                    onClick={handleCloseViewDialog}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    <X size={24} color="#64748b" />
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  <div>
+                    <strong>Mã người dùng:</strong> {viewUser.maNguoiDung || viewUser.id}
+                  </div>
+                  <div>
+                    <strong>Tên đăng nhập:</strong> {viewUser.tenDangNhap || viewUser.username}
+                  </div>
+                  <div>
+                    <strong>Loại người dùng:</strong>{" "}
+                    <span className="modern-btn secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem' }}>
+                      {userTypes.find((t) => t.value === viewUser.loaiNguoiDung)?.label || viewUser.loaiNguoiDung}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem' }}>
+                  <button
+                    className="modern-btn secondary"
+                    onClick={handleCloseViewDialog}
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

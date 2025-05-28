@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle, XCircle, Clock, Users, BookOpen, Calendar, Eye, RefreshCw, Filter, X } from 'lucide-react';
 import axios from "axios";
 import SideBar from "../../components/sideBar";
 import "../../assets/UserManagement.css";
 
-// STATUS_OPTIONS for ApproveRequests (pure CSS version, no DaMoLop)
 const STATUS_OPTIONS = [
-  { label: "Đã gửi", value: "DaGui", className: "um-chip um-chip-info" },
-  { label: "Đã duyệt", value: "DaDuyet", className: "um-chip um-chip-success" },
-  { label: "Từ chối", value: "TuChoi", className: "um-chip um-chip-danger" },
+  { label: "Đã gửi", value: "DaGui", color: "#3b82f6", icon: Clock },
+  { label: "Đã duyệt", value: "DaDuyet", color: "#10b981", icon: CheckCircle },
+  { label: "Từ chối", value: "TuChoi", color: "#ef4444", icon: XCircle },
 ];
 
 const AdminApproveRequests = () => {
@@ -21,8 +22,7 @@ const AdminApproveRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [history, setHistory] = useState([]);
   const [newStatus, setNewStatus] = useState("");
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [filterStatus, setFilterStatus] = useState("all");
 
   useEffect(() => {
     fetchRequests();
@@ -70,7 +70,6 @@ const AdminApproveRequests = () => {
     setNewStatus(request.status);
     setOpenDialog(true);
 
-    // Fetch request history
     try {
       const tabId = sessionStorage.getItem("tabId");
       const authData = JSON.parse(
@@ -139,241 +138,358 @@ const AdminApproveRequests = () => {
     }
   };
 
-  // Replace getStatusChip with a className function
-  const getStatusChip = (status) => {
+  const getStatusInfo = (status) => {
     const statusOption = STATUS_OPTIONS.find((opt) => opt.value === status);
-    return (
-      <span className={statusOption?.className || "um-chip"}>
-        {statusOption?.label || status}
-      </span>
-    );
+    return statusOption || { label: status, color: "#64748b", icon: Clock };
   };
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(Number.parseInt(event.target.value, 10));
-    setPage(0);
+  const filteredRequests = requests.filter(request => 
+    filterStatus === "all" || request.status === filterStatus
+  );
+
+  const statusCounts = {
+    all: requests.length,
+    DaGui: requests.filter(r => r.status === "DaGui").length,
+    DaDuyet: requests.filter(r => r.status === "DaDuyet").length,
+    TuChoi: requests.filter(r => r.status === "TuChoi").length,
   };
 
   return (
-    <div className="um-container">
+    <div className="admin-container">
       <SideBar />
-      <main>
-        <div className="um-title">Xét duyệt yêu cầu mở lớp</div>
-        <div className="um-toolbar">
-          <button
-            className="um-btn um-btn-secondary"
-            onClick={fetchRequests}
-            disabled={loading}
+      <main className="admin-main">
+        <motion.div
+          className="admin-header"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h1 className="admin-title">Xét duyệt yêu cầu mở lớp</h1>
+          <p className="admin-subtitle">Quản lý và phê duyệt các yêu cầu mở lớp học phần</p>
+        </motion.div>
+
+        {error && (
+          <motion.div
+            className="alert error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
           >
-            Làm mới
-          </button>
-        </div>
-        {error && <div className="um-alert um-alert-error">{error}</div>}
-        {success && <div className="um-alert um-alert-success">{success}</div>}
-        {loading && !openDialog ? (
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
-            <div className="um-loading-spinner" />
+            {error}
+          </motion.div>
+        )}
+        
+        {success && (
+          <motion.div
+            className="alert success"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {success}
+          </motion.div>
+        )}
+
+        <motion.div
+          className="stats-grid"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Tổng yêu cầu</div>
+              <div className="stat-icon">
+                <BookOpen size={20} />
+              </div>
+            </div>
+            <div className="stat-value">{statusCounts.all}</div>
           </div>
-        ) : (
-          <div className="um-table-wrapper">
-            <table className="um-table">
-              <thead>
-                <tr>
-                  <th>Mã yêu cầu</th>
-                  <th>Môn học</th>
-                  <th>Người yêu cầu</th>
-                  <th>Số lượng đăng ký</th>
-                  <th>Ngày gửi</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.length === 0 ? (
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Chờ duyệt</div>
+              <div className="stat-icon">
+                <Clock size={20} />
+              </div>
+            </div>
+            <div className="stat-value" style={{ color: '#3b82f6' }}>{statusCounts.DaGui}</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Đã duyệt</div>
+              <div className="stat-icon">
+                <CheckCircle size={20} />
+              </div>
+            </div>
+            <div className="stat-value" style={{ color: '#10b981' }}>{statusCounts.DaDuyet}</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Bộ lọc</div>
+              <div className="stat-icon">
+                <Filter size={20} />
+              </div>
+            </div>
+            <select
+              className="modern-select"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">Tất cả</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="chart-container"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 className="chart-title">Danh sách yêu cầu</h3>
+            <button
+              className="modern-btn secondary"
+              onClick={fetchRequests}
+              disabled={loading}
+            >
+              <RefreshCw size={16} />
+              Làm mới
+            </button>
+          </div>
+
+          {loading && !openDialog ? (
+            <div className="loading-spinner" />
+          ) : filteredRequests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+              <BookOpen size={64} color="#cbd5e1" />
+              <h3 style={{ marginTop: '1rem' }}>Không có yêu cầu nào</h3>
+              <p>Chưa có yêu cầu mở lớp nào cần xử lý</p>
+            </div>
+          ) : (
+            <div className="modern-table">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={7} style={{ textAlign: "center" }}>
-                      Không có yêu cầu nào
-                    </td>
+                    <th>Mã yêu cầu</th>
+                    <th>Môn học</th>
+                    <th>Người yêu cầu</th>
+                    <th>Số lượng đăng ký</th>
+                    <th>Ngày gửi</th>
+                    <th>Trạng thái</th>
+                    <th style={{ textAlign: "center" }}>Thao tác</th>
                   </tr>
-                ) : (
-                  requests
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((request) => (
-                      <tr key={request.id}>
-                        <td>{request.id}</td>
+                </thead>
+                <tbody>
+                  {filteredRequests.map((request, index) => {
+                    const statusInfo = getStatusInfo(request.status);
+                    const StatusIcon = statusInfo.icon;
+                    
+                    return (
+                      <motion.tr
+                        key={request.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                      >
                         <td>
-                          <div style={{ fontWeight: 500 }}>
-                            {request.courseName}
-                          </div>
-                          <div style={{ color: "#888", fontSize: "0.95em" }}>
-                            {request.classCode}
+                          <strong>{request.id}</strong>
+                        </td>
+                        <td>
+                          <div>
+                            <div style={{ fontWeight: 500 }}>{request.courseName}</div>
+                            <div style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                              {request.classCode}
+                            </div>
                           </div>
                         </td>
                         <td>{request.requesterName}</td>
                         <td style={{ textAlign: "center" }}>
-                          <span className="um-chip um-chip-primary">
+                          <div style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '0.5rem',
+                            background: '#f1f5f9',
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '20px',
+                            fontSize: '0.85rem',
+                            fontWeight: '500'
+                          }}>
+                            <Users size={14} />
                             {request.participantCount}
-                          </span>
+                          </div>
                         </td>
                         <td>{request.requestDate}</td>
-                        <td style={{ textAlign: "center" }}>
-                          {getStatusChip(request.status)}
+                        <td>
+                          <div style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '0.5rem',
+                            background: statusInfo.color + '20',
+                            color: statusInfo.color,
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '20px',
+                            fontSize: '0.85rem',
+                            fontWeight: '500'
+                          }}>
+                            <StatusIcon size={14} />
+                            {statusInfo.label}
+                          </div>
                         </td>
                         <td style={{ textAlign: "center" }}>
                           <button
-                            className="um-btn"
+                            className="modern-btn"
                             onClick={() => handleOpenDialog(request)}
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                           >
+                            <Eye size={16} />
                             Xem
                           </button>
                         </td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
-            <div className="um-pagination">
-              <span>
-                Số dòng mỗi trang:
-                <select
-                  className="um-input"
-                  value={rowsPerPage}
-                  onChange={handleChangeRowsPerPage}
-                  style={{ width: 60, marginLeft: 8 }}
-                >
-                  {[5, 10, 25].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </span>
-              <span style={{ marginLeft: 24 }}>
-                {page * rowsPerPage + 1}-
-                {Math.min((page + 1) * rowsPerPage, requests.length)} của{" "}
-                {requests.length}
-              </span>
-              <button
-                className="um-btn um-btn-secondary"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-                style={{ marginLeft: 16 }}
-              >
-                Trước
-              </button>
-              <button
-                className="um-btn um-btn-secondary"
-                onClick={() => setPage(page + 1)}
-                disabled={(page + 1) * rowsPerPage >= requests.length}
-                style={{ marginLeft: 8 }}
-              >
-                Sau
-              </button>
+                      </motion.tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
-        )}
-        {openDialog && (
-          <>
-            <div className="um-modal-backdrop" onClick={handleCloseDialog} />
-            <div className="um-modal" style={{ maxWidth: 600 }}>
-              <div className="um-title" style={{ fontSize: "1.2rem" }}>
-                Chi tiết yêu cầu mở lớp
-              </div>
-              {error && <div className="um-alert um-alert-error">{error}</div>}
-              {success && (
-                <div className="um-alert um-alert-success">{success}</div>
-              )}
-              {selectedRequest && (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <div className="um-label">
-                      Mã yêu cầu: <b>{selectedRequest.id}</b>
+          )}
+        </motion.div>
+
+        <AnimatePresence>
+          {openDialog && selectedRequest && (
+            <motion.div
+              className="modern-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="modern-modal-content"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                style={{ maxWidth: '700px' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ margin: 0, color: '#1e293b' }}>Chi tiết yêu cầu mở lớp</h2>
+                  <button
+                    onClick={handleCloseDialog}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    <X size={24} color="#64748b" />
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <strong>Mã yêu cầu:</strong> {selectedRequest.id}
                     </div>
-                    <div className="um-label">
-                      Môn học: <b>{selectedRequest.courseName}</b>
+                    <div>
+                      <strong>Ngày gửi:</strong> {selectedRequest.requestDate}
                     </div>
-                    <div className="um-label">
-                      Mã lớp: <b>{selectedRequest.classCode}</b>
-                    </div>
-                    <div className="um-label">
-                      Người yêu cầu: <b>{selectedRequest.requesterName}</b>
-                    </div>
-                    <div className="um-label">
-                      Số lượng đăng ký:{" "}
-                      <b>{selectedRequest.participantCount}</b>
-                    </div>
-                    <div className="um-label">
-                      Ngày gửi: <b>{selectedRequest.requestDate}</b>
-                    </div>
-                    {selectedRequest.description && (
-                      <div className="um-label">
-                        Mô tả: <b>{selectedRequest.description}</b>
-                      </div>
-                    )}
                   </div>
-                  <div style={{ marginBottom: 16 }}>
-                    <div className="um-label">Trạng thái mới</div>
-                    <select
-                      className="um-input"
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value)}
-                      disabled={loading}
-                    >
-                      <option value="">Chọn trạng thái</option>
-                      {STATUS_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                  
+                  <div>
+                    <strong>Môn học:</strong> {selectedRequest.courseName}
                   </div>
-                  <div style={{ marginBottom: 16 }}>
-                    <div className="um-label">Lịch sử xử lý</div>
-                    {history.length === 0 ? (
-                      <div style={{ color: "#888" }}>Chưa có lịch sử xử lý</div>
-                    ) : (
-                      <ul style={{ paddingLeft: 18, margin: 0 }}>
-                        {history.map((item, idx) => (
-                          <li key={idx} style={{ marginBottom: 4 }}>
+                  
+                  <div>
+                    <strong>Mã lớp:</strong> {selectedRequest.classCode}
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <strong>Người yêu cầu:</strong> {selectedRequest.requesterName}
+                    </div>
+                    <div>
+                      <strong>Số lượng đăng ký:</strong> {selectedRequest.participantCount}
+                    </div>
+                  </div>
+                  
+                  {selectedRequest.description && (
+                    <div>
+                      <strong>Mô tả:</strong> {selectedRequest.description}
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Trạng thái mới</label>
+                  <select
+                    className="modern-select"
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">Chọn trạng thái</option>
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {history.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h4 style={{ color: '#374151', marginBottom: '0.75rem' }}>Lịch sử xử lý</h4>
+                    <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '1rem' }}>
+                      {history.map((item, idx) => (
+                        <div key={idx} style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          padding: '0.5rem 0',
+                          borderBottom: idx < history.length - 1 ? '1px solid #e2e8f0' : 'none'
+                        }}>
+                          <div>
                             <span style={{ fontWeight: 500 }}>
                               {item.oldStatus} → {item.newStatus}
                             </span>
-                            <span style={{ color: "#888", marginLeft: 8 }}>
-                              {item.changedBy} •{" "}
-                              {new Date(item.changeDate).toLocaleString(
-                                "vi-VN"
-                              )}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                              {item.changedBy}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                            {new Date(item.changeDate).toLocaleString("vi-VN")}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="um-actions">
-                    <button
-                      className="um-btn um-btn-secondary"
-                      onClick={handleCloseDialog}
-                      disabled={loading}
-                    >
-                      Đóng
-                    </button>
-                    <button
-                      className="um-btn"
-                      onClick={handleUpdateStatus}
-                      disabled={
-                        loading ||
-                        !newStatus ||
-                        newStatus === selectedRequest.status
-                      }
-                    >
-                      {loading ? "Đang cập nhật..." : "Cập nhật trạng thái"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
+                )}
+
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                  <button
+                    className="modern-btn secondary"
+                    onClick={handleCloseDialog}
+                    disabled={loading}
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    className="modern-btn"
+                    onClick={handleUpdateStatus}
+                    disabled={
+                      loading ||
+                      !newStatus ||
+                      newStatus === selectedRequest.status
+                    }
+                  >
+                    {loading ? "Đang cập nhật..." : "Cập nhật trạng thái"}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

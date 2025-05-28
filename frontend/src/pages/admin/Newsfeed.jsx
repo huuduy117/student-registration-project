@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MessageSquare, Plus, Search, Edit, Trash2, X, Send, Users, GraduationCap, Globe } from 'lucide-react';
 import axios from "axios";
 import SideBar from "../../components/sideBar";
 import "../../assets/UserManagement.css";
 
 const RECIPIENTS = [
-  { label: "Tất cả", value: "all" },
-  { label: "Sinh viên", value: "SinhVien" },
-  { label: "Giảng viên", value: "GiangVien" },
+  { label: "Tất cả", value: "all", icon: Globe },
+  { label: "Sinh viên", value: "SinhVien", icon: GraduationCap },
+  { label: "Giảng viên", value: "GiangVien", icon: Users },
 ];
 
 const AdminNewsfeed = () => {
@@ -18,6 +20,7 @@ const AdminNewsfeed = () => {
   const [success, setSuccess] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [editNews, setEditNews] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState({
     title: "",
     content: "",
@@ -165,159 +168,274 @@ const AdminNewsfeed = () => {
     }
   };
 
-  const getRecipientClass = (recipient) => {
-    switch (recipient) {
-      case "all":
-        return "um-chip um-chip-primary";
-      case "SinhVien":
-        return "um-chip um-chip-success";
-      case "GiangVien":
-        return "um-chip um-chip-warning";
-      default:
-        return "um-chip";
-    }
+  const getRecipientInfo = (recipient) => {
+    const info = RECIPIENTS.find(r => r.value === recipient);
+    return info || { label: recipient, icon: Globe };
   };
 
+  const filteredNews = news.filter(item =>
+    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="um-container">
+    <div className="admin-container">
       <SideBar />
-      <main>
-        <div className="um-title">Quản lý bảng tin</div>
-        <div className="um-toolbar">
-          <button
-            className="um-btn um-btn-secondary"
-            onClick={fetchNews}
-            disabled={loading}
+      <main className="admin-main">
+        <motion.div
+          className="admin-header"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h1 className="admin-title">Quản lý bảng tin</h1>
+          <p className="admin-subtitle">Tạo và quản lý thông báo cho hệ thống</p>
+        </motion.div>
+
+        {error && (
+          <motion.div
+            className="alert error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
           >
-            Làm mới
-          </button>
-          <button
-            className="um-btn"
-            onClick={() => handleOpenDialog()}
-            disabled={loading}
-          >
-            Tạo thông báo
-          </button>
-        </div>
-        {error && <div className="um-alert um-alert-error">{error}</div>}
-        {success && <div className="um-alert um-alert-success">{success}</div>}
-        {loading && !openDialog ? (
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
-            <div className="um-loading-spinner" />
-          </div>
-        ) : news.length === 0 ? (
-          <div
-            className="um-table"
-            style={{ textAlign: "center", padding: 32 }}
-          >
-            <span style={{ color: "#888" }}>Chưa có bảng tin nào</span>
-          </div>
-        ) : (
-          <div className="um-grid">
-            {news.map((item) => (
-              <div className="um-card" key={item.id}>
-                <div className="um-card-header">
-                  <div className="um-card-title">{item.title}</div>
-                  <span className={getRecipientClass(item.recipient)}>
-                    {item.recipientLabel}
-                  </span>
-                </div>
-                <div className="um-card-content">
-                  {item.content.length > 150
-                    ? `${item.content.substring(0, 150)}...`
-                    : item.content}
-                </div>
-                <div className="um-card-meta">
-                  Đăng bởi: {item.author} • {item.time}
-                </div>
-                <div className="um-actions">
-                  <button
-                    className="um-btn"
-                    onClick={() => handleOpenDialog(item)}
-                  >
-                    Sửa
-                  </button>
-                  <button
-                    className="um-btn um-btn-danger"
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    Xóa
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+            {error}
+          </motion.div>
         )}
-        {openDialog && (
-          <>
-            <div className="um-modal-backdrop" onClick={handleCloseDialog} />
-            <div className="um-modal">
-              <div className="um-title" style={{ fontSize: "1.3rem" }}>
-                {editNews ? "Sửa thông báo" : "Tạo thông báo mới"}
-              </div>
-              {error && <div className="um-alert um-alert-error">{error}</div>}
-              {success && (
-                <div className="um-alert um-alert-success">{success}</div>
-              )}
-              <div style={{ marginBottom: 16 }}>
-                <label className="um-label">Tiêu đề *</label>
-                <input
-                  className="um-input"
-                  name="title"
-                  value={form.title}
-                  onChange={handleChange}
-                  disabled={loading}
-                  maxLength={100}
-                  required
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label className="um-label">Nội dung *</label>
-                <textarea
-                  className="um-input"
-                  name="content"
-                  value={form.content}
-                  onChange={handleChange}
-                  rows={4}
-                  disabled={loading}
-                  required
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label className="um-label">Đối tượng nhận</label>
-                <select
-                  className="um-input"
-                  name="recipient"
-                  value={form.recipient}
-                  onChange={handleChange}
-                  disabled={loading}
-                >
-                  {RECIPIENTS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="um-actions" style={{ marginTop: 16 }}>
-                <button
-                  className="um-btn um-btn-secondary"
-                  onClick={handleCloseDialog}
-                  disabled={loading}
-                >
-                  Hủy
-                </button>
-                <button
-                  className="um-btn"
-                  onClick={handleSave}
-                  disabled={loading}
-                >
-                  {loading ? "Đang lưu..." : "Lưu"}
-                </button>
+        
+        {success && (
+          <motion.div
+            className="alert success"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {success}
+          </motion.div>
+        )}
+
+        <motion.div
+          className="stats-grid"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Tìm kiếm</div>
+              <div className="stat-icon">
+                <Search size={20} />
               </div>
             </div>
-          </>
+            <input
+              type="text"
+              className="modern-input"
+              placeholder="Tìm theo tiêu đề hoặc nội dung..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Tổng bài viết</div>
+              <div className="stat-icon">
+                <MessageSquare size={20} />
+              </div>
+            </div>
+            <div className="stat-value">{filteredNews.length}</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <div className="stat-title">Thao tác</div>
+              <div className="stat-icon">
+                <Plus size={20} />
+              </div>
+            </div>
+            <button
+              className="modern-btn"
+              onClick={() => handleOpenDialog()}
+              disabled={loading}
+            >
+              <Plus size={18} />
+              Tạo thông báo
+            </button>
+          </div>
+        </motion.div>
+
+        {loading && !openDialog ? (
+          <div className="loading-spinner" />
+        ) : filteredNews.length === 0 ? (
+          <motion.div
+            className="chart-container"
+            style={{ textAlign: "center", padding: "3rem" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <MessageSquare size={64} color="#cbd5e1" />
+            <h3 style={{ color: "#64748b", marginTop: "1rem" }}>Chưa có bảng tin nào</h3>
+            <p style={{ color: "#94a3b8" }}>Tạo thông báo đầu tiên để bắt đầu</p>
+          </motion.div>
+        ) : (
+          <motion.div
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            {filteredNews.map((item, index) => {
+              const recipientInfo = getRecipientInfo(item.recipient);
+              const IconComponent = recipientInfo.icon;
+              
+              return (
+                <motion.div
+                  key={item.id}
+                  className="stat-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  style={{ height: 'fit-content' }}
+                >
+                  <div className="stat-header">
+                    <div className="stat-title" style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b' }}>
+                      {item.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <IconComponent size={16} color="#667eea" />
+                      <span style={{ fontSize: '0.8rem', color: '#667eea', fontWeight: '500' }}>
+                        {recipientInfo.label}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ margin: '1rem 0', color: '#64748b', lineHeight: '1.5' }}>
+                    {item.content.length > 120
+                      ? `${item.content.substring(0, 120)}...`
+                      : item.content}
+                  </div>
+                  
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1rem' }}>
+                    Đăng bởi: <strong>{item.author}</strong> • {item.time}
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      className="modern-btn secondary"
+                      onClick={() => handleOpenDialog(item)}
+                      style={{ flex: 1, fontSize: '0.85rem' }}
+                    >
+                      <Edit size={16} />
+                      Sửa
+                    </button>
+                    <button
+                      className="modern-btn danger"
+                      onClick={() => handleDelete(item.id)}
+                      style={{ flex: 1, fontSize: '0.85rem' }}
+                    >
+                      <Trash2 size={16} />
+                      Xóa
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
         )}
+
+        <AnimatePresence>
+          {openDialog && (
+            <motion.div
+              className="modern-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="modern-modal-content"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                style={{ maxWidth: '600px' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ margin: 0, color: '#1e293b' }}>
+                    {editNews ? "Sửa thông báo" : "Tạo thông báo mới"}
+                  </h2>
+                  <button
+                    onClick={handleCloseDialog}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    <X size={24} color="#64748b" />
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Tiêu đề *</label>
+                  <input
+                    className="modern-input"
+                    name="title"
+                    value={form.title}
+                    onChange={handleChange}
+                    disabled={loading}
+                    maxLength={100}
+                    required
+                    placeholder="Nhập tiêu đề thông báo..."
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nội dung *</label>
+                  <textarea
+                    className="modern-input"
+                    name="content"
+                    value={form.content}
+                    onChange={handleChange}
+                    rows={6}
+                    disabled={loading}
+                    required
+                    placeholder="Nhập nội dung thông báo..."
+                    style={{ resize: 'vertical', minHeight: '120px' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Đối tượng nhận</label>
+                  <select
+                    className="modern-select"
+                    name="recipient"
+                    value={form.recipient}
+                    onChange={handleChange}
+                    disabled={loading}
+                  >
+                    {RECIPIENTS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
+                  <button
+                    className="modern-btn secondary"
+                    onClick={handleCloseDialog}
+                    disabled={loading}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    className="modern-btn"
+                    onClick={handleSave}
+                    disabled={loading}
+                  >
+                    <Send size={16} />
+                    {loading ? "Đang lưu..." : "Lưu"}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
