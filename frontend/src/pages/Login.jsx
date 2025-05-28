@@ -187,9 +187,6 @@ const Login = () => {
               />
               <label htmlFor="rememberMe">Ghi nhớ đăng nhập</label>
             </div>
-            <a href="#" className="forgot-password">
-              Quên mật khẩu?
-            </a>
           </div>
 
           {error && <div className="error-message">{error}</div>}
