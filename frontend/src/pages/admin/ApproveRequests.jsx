@@ -1,77 +1,49 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import {
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Box,
-  Paper,
-  Typography,
-  Alert,
-  CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Chip,
-  IconButton,
-  Tooltip,
-  List,
-  ListItem,
-  ListItemText,
-} from "@mui/material"
-import { Visibility, Refresh, CheckCircle } from "@mui/icons-material"
-import SideBar from "../../components/sideBar"
-import "../../assets/Dashboard.css"
+import { useState, useEffect } from "react";
+import axios from "axios";
+import SideBar from "../../components/sideBar";
+import "../../assets/UserManagement.css";
 
+// STATUS_OPTIONS for ApproveRequests (pure CSS version, no DaMoLop)
 const STATUS_OPTIONS = [
-  { label: "Đã gửi", value: "DaGui", color: "info" },
-  { label: "Đã duyệt", value: "DaDuyet", color: "success" },
-  { label: "Từ chối", value: "TuChoi", color: "error" },
-  { label: "Đã mở lớp", value: "DaMoLop", color: "primary" },
-]
+  { label: "Đã gửi", value: "DaGui", className: "um-chip um-chip-info" },
+  { label: "Đã duyệt", value: "DaDuyet", className: "um-chip um-chip-success" },
+  { label: "Từ chối", value: "TuChoi", className: "um-chip um-chip-danger" },
+];
 
 const AdminApproveRequests = () => {
-  const [requests, setRequests] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const [openDialog, setOpenDialog] = useState(false)
-  const [selectedRequest, setSelectedRequest] = useState(null)
-  const [history, setHistory] = useState([])
-  const [newStatus, setNewStatus] = useState("")
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [newStatus, setNewStatus] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
-    fetchRequests()
-  }, [])
+    fetchRequests();
+  }, []);
 
   const fetchRequests = async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const tabId = sessionStorage.getItem("tabId")
-      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
 
       const res = await axios.get("/api/admin/class-requests", {
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
-      })
+      });
 
-      const arr = Array.isArray(res.data) ? res.data : []
+      const arr = Array.isArray(res.data) ? res.data : [];
       setRequests(
         arr.map((item) => ({
           id: item.id,
@@ -83,59 +55,66 @@ const AdminApproveRequests = () => {
           requestDate: new Date(item.requestDate).toLocaleDateString("vi-VN"),
           requesterName: item.requesterName,
           classCode: item.classCode,
-        })),
-      )
+        }))
+      );
     } catch (err) {
-      console.error("Error fetching requests:", err)
-      setError("Không thể tải danh sách yêu cầu")
+      console.error("Error fetching requests:", err);
+      setError("Không thể tải danh sách yêu cầu");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleOpenDialog = async (request) => {
-    setSelectedRequest(request)
-    setNewStatus(request.status)
-    setOpenDialog(true)
+    setSelectedRequest(request);
+    setNewStatus(request.status);
+    setOpenDialog(true);
 
     // Fetch request history
     try {
-      const tabId = sessionStorage.getItem("tabId")
-      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
 
-      const res = await axios.get(`/api/admin/class-requests/${request.id}/history`, {
-        headers: {
-          Authorization: `Bearer ${authData.token}`,
-        },
-      })
-      setHistory(res.data || [])
+      const res = await axios.get(
+        `/api/admin/class-requests/${request.id}/history`,
+        {
+          headers: {
+            Authorization: `Bearer ${authData.token}`,
+          },
+        }
+      );
+      setHistory(res.data || []);
     } catch (err) {
-      console.error("Error fetching history:", err)
-      setHistory([])
+      console.error("Error fetching history:", err);
+      setHistory([]);
     }
-  }
+  };
 
   const handleCloseDialog = () => {
-    setOpenDialog(false)
-    setSelectedRequest(null)
-    setHistory([])
-    setNewStatus("")
-    setError(null)
-    setSuccess(null)
-  }
+    setOpenDialog(false);
+    setSelectedRequest(null);
+    setHistory([]);
+    setNewStatus("");
+    setError(null);
+    setSuccess(null);
+  };
 
   const handleUpdateStatus = async () => {
     if (!newStatus || newStatus === selectedRequest.status) {
-      setError("Vui lòng chọn trạng thái mới")
-      return
+      setError("Vui lòng chọn trạng thái mới");
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const tabId = sessionStorage.getItem("tabId")
-      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
 
       await axios.put(
         `/api/admin/class-requests/${selectedRequest.id}/status`,
@@ -144,240 +123,260 @@ const AdminApproveRequests = () => {
           headers: {
             Authorization: `Bearer ${authData.token}`,
           },
-        },
-      )
+        }
+      );
 
-      setSuccess("Cập nhật trạng thái thành công")
-      fetchRequests()
+      setSuccess("Cập nhật trạng thái thành công");
+      fetchRequests();
       setTimeout(() => {
-        handleCloseDialog()
-      }, 1500)
+        handleCloseDialog();
+      }, 1500);
     } catch (err) {
-      console.error("Error updating status:", err)
-      setError("Lỗi khi cập nhật trạng thái")
+      console.error("Error updating status:", err);
+      setError("Lỗi khi cập nhật trạng thái");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
+  // Replace getStatusChip with a className function
   const getStatusChip = (status) => {
-    const statusOption = STATUS_OPTIONS.find((opt) => opt.value === status)
+    const statusOption = STATUS_OPTIONS.find((opt) => opt.value === status);
     return (
-      <Chip
-        label={statusOption?.label || status}
-        color={statusOption?.color || "default"}
-        size="small"
-        variant="outlined"
-      />
-    )
-  }
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage)
-  }
+      <span className={statusOption?.className || "um-chip"}>
+        {statusOption?.label || status}
+      </span>
+    );
+  };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(Number.parseInt(event.target.value, 10))
-    setPage(0)
-  }
+    setRowsPerPage(Number.parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
   return (
-    <div className="dashboard-container">
+    <div className="um-container">
       <SideBar />
-      <main className="dashboard-main">
-        <Box p={3}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h4">Xét duyệt yêu cầu mở lớp</Typography>
-              <Button variant="outlined" startIcon={<Refresh />} onClick={fetchRequests} disabled={loading}>
-                Làm mới
-              </Button>
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-                {error}
-              </Alert>
-            )}
-            {success && (
-              <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-                {success}
-              </Alert>
-            )}
-
-            {loading && !openDialog ? (
-              <Box display="flex" justifyContent="center" p={5}>
-                <CircularProgress size={60} />
-              </Box>
-            ) : (
-              <Paper elevation={1}>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Mã yêu cầu</TableCell>
-                        <TableCell>Môn học</TableCell>
-                        <TableCell>Người yêu cầu</TableCell>
-                        <TableCell align="center">Số lượng đăng ký</TableCell>
-                        <TableCell>Ngày gửi</TableCell>
-                        <TableCell align="center">Trạng thái</TableCell>
-                        <TableCell align="center">Thao tác</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {requests.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={7} align="center">
-                            Không có yêu cầu nào
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        requests.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((request) => (
-                          <TableRow key={request.id}>
-                            <TableCell>{request.id}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight="medium">
-                                {request.courseName}
-                              </Typography>
-                              <Typography variant="caption" color="textSecondary">
-                                {request.classCode}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>{request.requesterName}</TableCell>
-                            <TableCell align="center">
-                              <Chip label={request.participantCount} color="primary" size="small" />
-                            </TableCell>
-                            <TableCell>{request.requestDate}</TableCell>
-                            <TableCell align="center">{getStatusChip(request.status)}</TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="Xem chi tiết">
-                                <IconButton size="small" onClick={() => handleOpenDialog(request)}>
-                                  <Visibility />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <TablePagination
-                  rowsPerPageOptions={[5, 10, 25]}
-                  component="div"
-                  count={requests.length}
-                  rowsPerPage={rowsPerPage}
-                  page={page}
-                  onPageChange={handleChangePage}
-                  onRowsPerPageChange={handleChangeRowsPerPage}
-                  labelRowsPerPage="Số dòng mỗi trang:"
-                  labelDisplayedRows={({ from, to, count }) => `${from}-${to} của ${count}`}
-                />
-              </Paper>
-            )}
-
-            <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-              <DialogTitle>Chi tiết yêu cầu mở lớp</DialogTitle>
-              <DialogContent>
-                {error && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
-                  </Alert>
+      <main>
+        <div className="um-title">Xét duyệt yêu cầu mở lớp</div>
+        <div className="um-toolbar">
+          <button
+            className="um-btn um-btn-secondary"
+            onClick={fetchRequests}
+            disabled={loading}
+          >
+            Làm mới
+          </button>
+        </div>
+        {error && <div className="um-alert um-alert-error">{error}</div>}
+        {success && <div className="um-alert um-alert-success">{success}</div>}
+        {loading && !openDialog ? (
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <div className="um-loading-spinner" />
+          </div>
+        ) : (
+          <div className="um-table-wrapper">
+            <table className="um-table">
+              <thead>
+                <tr>
+                  <th>Mã yêu cầu</th>
+                  <th>Môn học</th>
+                  <th>Người yêu cầu</th>
+                  <th>Số lượng đăng ký</th>
+                  <th>Ngày gửi</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: "center" }}>
+                      Không có yêu cầu nào
+                    </td>
+                  </tr>
+                ) : (
+                  requests
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((request) => (
+                      <tr key={request.id}>
+                        <td>{request.id}</td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>
+                            {request.courseName}
+                          </div>
+                          <div style={{ color: "#888", fontSize: "0.95em" }}>
+                            {request.classCode}
+                          </div>
+                        </td>
+                        <td>{request.requesterName}</td>
+                        <td style={{ textAlign: "center" }}>
+                          <span className="um-chip um-chip-primary">
+                            {request.participantCount}
+                          </span>
+                        </td>
+                        <td>{request.requestDate}</td>
+                        <td style={{ textAlign: "center" }}>
+                          {getStatusChip(request.status)}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <button
+                            className="um-btn"
+                            onClick={() => handleOpenDialog(request)}
+                          >
+                            Xem
+                          </button>
+                        </td>
+                      </tr>
+                    ))
                 )}
-                {success && (
-                  <Alert severity="success" sx={{ mb: 2 }}>
-                    {success}
-                  </Alert>
-                )}
-
-                {selectedRequest && (
-                  <Box>
-                    <Typography variant="h6" gutterBottom>
-                      Thông tin yêu cầu
-                    </Typography>
-                    <Box mb={3}>
-                      <Typography variant="body2" color="textSecondary">
-                        Mã yêu cầu: <strong>{selectedRequest.id}</strong>
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Môn học: <strong>{selectedRequest.courseName}</strong>
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Mã lớp: <strong>{selectedRequest.classCode}</strong>
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Người yêu cầu: <strong>{selectedRequest.requesterName}</strong>
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Số lượng đăng ký: <strong>{selectedRequest.participantCount}</strong>
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Ngày gửi: <strong>{selectedRequest.requestDate}</strong>
-                      </Typography>
-                      {selectedRequest.description && (
-                        <Typography variant="body2" color="textSecondary">
-                          Mô tả: <strong>{selectedRequest.description}</strong>
-                        </Typography>
-                      )}
-                    </Box>
-
-                    <Typography variant="h6" gutterBottom>
-                      Cập nhật trạng thái
-                    </Typography>
-                    <Box mb={3}>
-                      <FormControl fullWidth>
-                        <InputLabel>Trạng thái mới</InputLabel>
-                        <Select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} label="Trạng thái mới">
-                          {STATUS_OPTIONS.map((option) => (
-                            <MenuItem key={option.value} value={option.value}>
-                              {option.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Box>
-
-                    <Typography variant="h6" gutterBottom>
-                      Lịch sử xử lý
-                    </Typography>
-                    <Box>
-                      {history.length === 0 ? (
-                        <Typography color="textSecondary">Chưa có lịch sử xử lý</Typography>
-                      ) : (
-                        <List dense>
-                          {history.map((item, index) => (
-                            <ListItem key={index}>
-                              <ListItemText
-                                primary={`${item.oldStatus} → ${item.newStatus}`}
-                                secondary={`${item.changedBy} • ${new Date(item.changeDate).toLocaleString("vi-VN")}`}
-                              />
-                            </ListItem>
-                          ))}
-                        </List>
-                      )}
-                    </Box>
-                  </Box>
-                )}
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleCloseDialog} disabled={loading}>
-                  Đóng
-                </Button>
-                <Button
-                  onClick={handleUpdateStatus}
-                  variant="contained"
-                  disabled={loading || !newStatus || newStatus === selectedRequest?.status}
-                  startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
+              </tbody>
+            </table>
+            <div className="um-pagination">
+              <span>
+                Số dòng mỗi trang:
+                <select
+                  className="um-input"
+                  value={rowsPerPage}
+                  onChange={handleChangeRowsPerPage}
+                  style={{ width: 60, marginLeft: 8 }}
                 >
-                  {loading ? "Đang cập nhật..." : "Cập nhật trạng thái"}
-                </Button>
-              </DialogActions>
-            </Dialog>
-          </Paper>
-        </Box>
+                  {[5, 10, 25].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </span>
+              <span style={{ marginLeft: 24 }}>
+                {page * rowsPerPage + 1}-
+                {Math.min((page + 1) * rowsPerPage, requests.length)} của{" "}
+                {requests.length}
+              </span>
+              <button
+                className="um-btn um-btn-secondary"
+                onClick={() => setPage(Math.max(0, page - 1))}
+                disabled={page === 0}
+                style={{ marginLeft: 16 }}
+              >
+                Trước
+              </button>
+              <button
+                className="um-btn um-btn-secondary"
+                onClick={() => setPage(page + 1)}
+                disabled={(page + 1) * rowsPerPage >= requests.length}
+                style={{ marginLeft: 8 }}
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
+        {openDialog && (
+          <>
+            <div className="um-modal-backdrop" onClick={handleCloseDialog} />
+            <div className="um-modal" style={{ maxWidth: 600 }}>
+              <div className="um-title" style={{ fontSize: "1.2rem" }}>
+                Chi tiết yêu cầu mở lớp
+              </div>
+              {error && <div className="um-alert um-alert-error">{error}</div>}
+              {success && (
+                <div className="um-alert um-alert-success">{success}</div>
+              )}
+              {selectedRequest && (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="um-label">
+                      Mã yêu cầu: <b>{selectedRequest.id}</b>
+                    </div>
+                    <div className="um-label">
+                      Môn học: <b>{selectedRequest.courseName}</b>
+                    </div>
+                    <div className="um-label">
+                      Mã lớp: <b>{selectedRequest.classCode}</b>
+                    </div>
+                    <div className="um-label">
+                      Người yêu cầu: <b>{selectedRequest.requesterName}</b>
+                    </div>
+                    <div className="um-label">
+                      Số lượng đăng ký:{" "}
+                      <b>{selectedRequest.participantCount}</b>
+                    </div>
+                    <div className="um-label">
+                      Ngày gửi: <b>{selectedRequest.requestDate}</b>
+                    </div>
+                    {selectedRequest.description && (
+                      <div className="um-label">
+                        Mô tả: <b>{selectedRequest.description}</b>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="um-label">Trạng thái mới</div>
+                    <select
+                      className="um-input"
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="">Chọn trạng thái</option>
+                      {STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="um-label">Lịch sử xử lý</div>
+                    {history.length === 0 ? (
+                      <div style={{ color: "#888" }}>Chưa có lịch sử xử lý</div>
+                    ) : (
+                      <ul style={{ paddingLeft: 18, margin: 0 }}>
+                        {history.map((item, idx) => (
+                          <li key={idx} style={{ marginBottom: 4 }}>
+                            <span style={{ fontWeight: 500 }}>
+                              {item.oldStatus} → {item.newStatus}
+                            </span>
+                            <span style={{ color: "#888", marginLeft: 8 }}>
+                              {item.changedBy} •{" "}
+                              {new Date(item.changeDate).toLocaleString(
+                                "vi-VN"
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="um-actions">
+                    <button
+                      className="um-btn um-btn-secondary"
+                      onClick={handleCloseDialog}
+                      disabled={loading}
+                    >
+                      Đóng
+                    </button>
+                    <button
+                      className="um-btn"
+                      onClick={handleUpdateStatus}
+                      disabled={
+                        loading ||
+                        !newStatus ||
+                        newStatus === selectedRequest.status
+                      }
+                    >
+                      {loading ? "Đang cập nhật..." : "Cập nhật trạng thái"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default AdminApproveRequests
+export default AdminApproveRequests;

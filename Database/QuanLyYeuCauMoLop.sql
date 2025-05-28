@@ -271,6 +271,7 @@ CREATE TABLE ThoiKhoaBieuSinhVien (
     maSV VARCHAR(20),
     maLopHP VARCHAR(20),
     ngayHoc DATE NOT NULL,
+    ngayHoc DATE NOT NULL,
     tietBD VARCHAR(5) NOT NULL,
     tietKT VARCHAR(5) NOT NULL,
     phongHoc VARCHAR(10) NOT NULL,

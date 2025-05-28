@@ -2,41 +2,8 @@
 
 import { useState, useEffect } from "react";
 import axiosInstance from "../../services/axios";
-import {
-  Tabs,
-  Tab,
-  Box,
-  Paper,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Alert,
-  CircularProgress,
-} from "@mui/material";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
 import SideBar from "../../components/sideBar";
-import "../../assets/Dashboard.css";
-
-const COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#A020F0",
-  "#FF6384",
-];
+import "../../assets/UserManagement.css";
 
 const AdminHome = () => {
   const [tab, setTab] = useState(0);
@@ -52,260 +19,160 @@ const AdminHome = () => {
   const fetchStats = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const [studentRes, teacherRes] = await Promise.all([
         axiosInstance.get("/api/admin/stats/students"),
         axiosInstance.get("/api/admin/stats/teachers"),
       ]);
-
       setStudentStats(studentRes.data || {});
       setTeacherStats(teacherRes.data || {});
-    } catch (err) {
-      console.error("Error fetching stats:", err);
+    } catch {
       setError("Không thể tải dữ liệu thống kê");
     } finally {
       setLoading(false);
     }
   };
 
+  // Pure CSS card
   const StatCard = ({ title, value, children }) => (
-    <Card elevation={3}>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          {title}
-        </Typography>
-        {value !== undefined && (
-          <Typography variant="h4" color="primary" gutterBottom>
-            {value}
-          </Typography>
-        )}
-        {children}
-      </CardContent>
-    </Card>
+    <div className="um-card">
+      <div className="um-card-title">{title}</div>
+      {value !== undefined && <div className="um-card-value">{value}</div>}
+      {children}
+    </div>
   );
 
   return (
-    <div className="dashboard-container">
+    <div className="um-container">
       <SideBar />
-      <main className="dashboard-main">
-        <Box p={3}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>
-              Trang tổng quan quản trị viên
-            </Typography>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
-              <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-                <Tab label="Thống kê sinh viên" />
-                <Tab label="Thống kê giảng viên" />
-              </Tabs>
-            </Box>
-
-            {loading ? (
-              <Box display="flex" justifyContent="center" p={5}>
-                <CircularProgress size={60} />
-              </Box>
+      <main>
+        <div className="um-title">Trang tổng quan quản trị viên</div>
+        {error && <div className="um-alert um-alert-error">{error}</div>}
+        <div className="um-tabs">
+          <button
+            className={tab === 0 ? "um-tab active" : "um-tab"}
+            onClick={() => setTab(0)}
+          >
+            Thống kê sinh viên
+          </button>
+          <button
+            className={tab === 1 ? "um-tab active" : "um-tab"}
+            onClick={() => setTab(1)}
+          >
+            Thống kê giảng viên
+          </button>
+        </div>
+        {loading ? (
+          <div className="um-loading-spinner" style={{ margin: "40px auto" }} />
+        ) : (
+          <div>
+            {tab === 0 ? (
+              <div className="um-grid">
+                <StatCard
+                  title="Tổng số sinh viên"
+                  value={studentStats.total || 0}
+                />
+                <StatCard title="Phân bố theo lớp">
+                  {studentStats.byClass && studentStats.byClass.length > 0 ? (
+                    <ul className="um-list">
+                      {studentStats.byClass.map((item, idx) => (
+                        <li key={idx}>
+                          {item.class}: <b>{item.count}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="um-label um-muted">Không có dữ liệu</div>
+                  )}
+                </StatCard>
+                <StatCard title="Tình trạng đăng ký môn học">
+                  {studentStats.registrationStatus &&
+                  studentStats.registrationStatus.length > 0 ? (
+                    <ul className="um-list">
+                      {studentStats.registrationStatus.map((item, idx) => (
+                        <li key={idx}>
+                          {item.status}: <b>{item.count}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="um-label um-muted">Không có dữ liệu</div>
+                  )}
+                </StatCard>
+                <StatCard title="Yêu cầu mở lớp gần đây">
+                  {studentStats.classRequests &&
+                  studentStats.classRequests.length > 0 ? (
+                    <ul className="um-list">
+                      {studentStats.classRequests.map((req) => (
+                        <li key={req.id}>
+                          <b>{req.courseName}</b>{" "}
+                          <span className="um-chip">{req.status}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="um-label um-muted">
+                      Không có yêu cầu nào
+                    </div>
+                  )}
+                </StatCard>
+              </div>
             ) : (
-              <Box>
-                {tab === 0 ? (
-                  // Tab Sinh viên
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={6} lg={3}>
-                      <StatCard
-                        title="Tổng số sinh viên"
-                        value={studentStats.total || 0}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6} lg={9}>
-                      <StatCard title="Phân bố theo lớp">
-                        {studentStats.byClass &&
-                        studentStats.byClass.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                              <Pie
-                                data={studentStats.byClass}
-                                dataKey="count"
-                                nameKey="class"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                fill="#8884d8"
-                                label={({ class: className, count }) =>
-                                  `${className}: ${count}`
-                                }
-                              >
-                                {studentStats.byClass.map((entry, idx) => (
-                                  <Cell
-                                    key={`cell-${idx}`}
-                                    fill={COLORS[idx % COLORS.length]}
-                                  />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                              <Legend />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <Typography color="textSecondary">
-                            Không có dữ liệu
-                          </Typography>
-                        )}
-                      </StatCard>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <StatCard title="Tình trạng đăng ký môn học">
-                        {studentStats.registrationStatus &&
-                        studentStats.registrationStatus.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={studentStats.registrationStatus}>
-                              <XAxis dataKey="status" />
-                              <YAxis />
-                              <Tooltip />
-                              <Bar dataKey="count" fill="#00C49F" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <Typography color="textSecondary">
-                            Không có dữ liệu
-                          </Typography>
-                        )}
-                      </StatCard>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <StatCard title="Yêu cầu mở lớp gần đây">
-                        {studentStats.classRequests &&
-                        studentStats.classRequests.length > 0 ? (
-                          <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
-                            {studentStats.classRequests.map((req) => (
-                              <Box
-                                key={req.id}
-                                sx={{ p: 1, borderBottom: "1px solid #eee" }}
-                              >
-                                <Typography variant="body2">
-                                  <strong>{req.courseName}</strong>
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="textSecondary"
-                                >
-                                  Trạng thái: {req.status}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        ) : (
-                          <Typography color="textSecondary">
-                            Không có yêu cầu nào
-                          </Typography>
-                        )}
-                      </StatCard>
-                    </Grid>
-                  </Grid>
-                ) : (
-                  // Tab Giảng viên
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={6} lg={3}>
-                      <StatCard
-                        title="Tổng số giảng viên"
-                        value={teacherStats.total || 0}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6} lg={9}>
-                      <StatCard title="Số lớp học phần theo học kỳ">
-                        {teacherStats.classCountBySemester &&
-                        teacherStats.classCountBySemester.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={teacherStats.classCountBySemester}>
-                              <XAxis dataKey="semester" />
-                              <YAxis />
-                              <Tooltip />
-                              <Bar dataKey="count" fill="#FF8042" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <Typography color="textSecondary">
-                            Không có dữ liệu
-                          </Typography>
-                        )}
-                      </StatCard>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <StatCard title="Lịch giảng dạy">
-                        {teacherStats.schedule &&
-                        teacherStats.schedule.length > 0 ? (
-                          <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
-                            {teacherStats.schedule.map((item, idx) => (
-                              <Box
-                                key={idx}
-                                sx={{ p: 1, borderBottom: "1px solid #eee" }}
-                              >
-                                <Typography variant="body2">
-                                  <strong>{item.teacher}</strong>
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="textSecondary"
-                                >
-                                  {item.time}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        ) : (
-                          <Typography color="textSecondary">
-                            Không có lịch giảng dạy
-                          </Typography>
-                        )}
-                      </StatCard>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <StatCard title="Lịch sử phê duyệt gần đây">
-                        {teacherStats.approveHistory &&
-                        teacherStats.approveHistory.length > 0 ? (
-                          <Box sx={{ maxHeight: 250, overflowY: "auto" }}>
-                            {teacherStats.approveHistory.map((h, idx) => (
-                              <Box
-                                key={idx}
-                                sx={{ p: 1, borderBottom: "1px solid #eee" }}
-                              >
-                                <Typography variant="body2">
-                                  {h.action}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="textSecondary"
-                                >
-                                  {h.time}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        ) : (
-                          <Typography color="textSecondary">
-                            Không có lịch sử phê duyệt
-                          </Typography>
-                        )}
-                      </StatCard>
-                    </Grid>
-                  </Grid>
-                )}
-              </Box>
+              <div className="um-grid">
+                <StatCard
+                  title="Tổng số giảng viên"
+                  value={teacherStats.total || 0}
+                />
+                <StatCard title="Số lớp học phần theo học kỳ">
+                  {teacherStats.classCountBySemester &&
+                  teacherStats.classCountBySemester.length > 0 ? (
+                    <ul className="um-list">
+                      {teacherStats.classCountBySemester.map((item, idx) => (
+                        <li key={idx}>
+                          {item.semester}: <b>{item.count}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="um-label um-muted">Không có dữ liệu</div>
+                  )}
+                </StatCard>
+                <StatCard title="Lịch giảng dạy">
+                  {teacherStats.schedule && teacherStats.schedule.length > 0 ? (
+                    <ul className="um-list">
+                      {teacherStats.schedule.map((item, idx) => (
+                        <li key={idx}>
+                          <b>{item.teacher}</b>{" "}
+                          <span className="um-muted">{item.time}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="um-label um-muted">
+                      Không có lịch giảng dạy
+                    </div>
+                  )}
+                </StatCard>
+                <StatCard title="Lịch sử phê duyệt gần đây">
+                  {teacherStats.approveHistory &&
+                  teacherStats.approveHistory.length > 0 ? (
+                    <ul className="um-list">
+                      {teacherStats.approveHistory.map((h, idx) => (
+                        <li key={idx}>
+                          {h.action} <span className="um-muted">{h.time}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="um-label um-muted">
+                      Không có lịch sử phê duyệt
+                    </div>
+                  )}
+                </StatCard>
+              </div>
             )}
-          </Paper>
-        </Box>
+          </div>
+        )}
       </main>
     </div>
   );
