@@ -1,66 +1,49 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import {
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Box,
-  Paper,
-  Typography,
-  Alert,
-  CircularProgress,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
-  Chip,
-} from "@mui/material"
-import { Add, Edit, Delete, Refresh } from "@mui/icons-material"
-import SideBar from "../../components/sideBar"
-import "../../assets/Dashboard.css"
+import { useState, useEffect } from "react";
+import axios from "axios";
+import SideBar from "../../components/sideBar";
+import "../../assets/UserManagement.css";
 
 const RECIPIENTS = [
   { label: "Tất cả", value: "all" },
   { label: "Sinh viên", value: "SinhVien" },
   { label: "Giảng viên", value: "GiangVien" },
-]
+];
 
 const AdminNewsfeed = () => {
-  const [news, setNews] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const [openDialog, setOpenDialog] = useState(false)
-  const [editNews, setEditNews] = useState(null)
-  const [form, setForm] = useState({ title: "", content: "", recipient: "all" })
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editNews, setEditNews] = useState(null);
+  const [form, setForm] = useState({
+    title: "",
+    content: "",
+    recipient: "all",
+  });
 
   useEffect(() => {
-    fetchNews()
-  }, [])
+    fetchNews();
+  }, []);
 
   const fetchNews = async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const tabId = sessionStorage.getItem("tabId")
-      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
 
       const res = await axios.get("/api/admin/newsfeed", {
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
-      })
+      });
 
-      const arr = Array.isArray(res.data) ? res.data : []
+      const arr = Array.isArray(res.data) ? res.data : [];
       setNews(
         arr.map((item) => ({
           id: item.id,
@@ -72,23 +55,24 @@ const AdminNewsfeed = () => {
             item.loaiNguoiDung === "TatCa"
               ? "Tất cả"
               : item.loaiNguoiDung === "SinhVien"
-                ? "Sinh viên"
-                : item.loaiNguoiDung === "GiangVien"
-                  ? "Giảng viên"
-                  : item.loaiNguoiDung,
-          recipient: item.loaiNguoiDung === "TatCa" ? "all" : item.loaiNguoiDung,
-        })),
-      )
+              ? "Sinh viên"
+              : item.loaiNguoiDung === "GiangVien"
+              ? "Giảng viên"
+              : item.loaiNguoiDung,
+          recipient:
+            item.loaiNguoiDung === "TatCa" ? "all" : item.loaiNguoiDung,
+        }))
+      );
     } catch (err) {
-      console.error("Error fetching newsfeed:", err)
-      setError("Không thể tải bảng tin")
+      console.error("Error fetching newsfeed:", err);
+      setError("Không thể tải bảng tin");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleOpenDialog = (item = null) => {
-    setEditNews(item)
+    setEditNews(item);
     setForm(
       item
         ? {
@@ -96,257 +80,247 @@ const AdminNewsfeed = () => {
             content: item.content,
             recipient: item.recipient,
           }
-        : { title: "", content: "", recipient: "all" },
-    )
-    setOpenDialog(true)
-  }
+        : { title: "", content: "", recipient: "all" }
+    );
+    setOpenDialog(true);
+  };
 
   const handleCloseDialog = () => {
-    setOpenDialog(false)
-    setEditNews(null)
-    setForm({ title: "", content: "", recipient: "all" })
-    setError(null)
-    setSuccess(null)
-  }
+    setOpenDialog(false);
+    setEditNews(null);
+    setForm({ title: "", content: "", recipient: "all" });
+    setError(null);
+    setSuccess(null);
+  };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-  }
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSave = async () => {
     if (!form.title.trim() || !form.content.trim()) {
-      setError("Vui lòng điền đầy đủ tiêu đề và nội dung")
-      return
+      setError("Vui lòng điền đầy đủ tiêu đề và nội dung");
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const tabId = sessionStorage.getItem("tabId")
-      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
 
       if (editNews) {
         await axios.put(`/api/admin/newsfeed/${editNews.id}`, form, {
           headers: {
             Authorization: `Bearer ${authData.token}`,
           },
-        })
-        setSuccess("Cập nhật bảng tin thành công")
+        });
+        setSuccess("Cập nhật bảng tin thành công");
       } else {
         await axios.post("/api/admin/newsfeed", form, {
           headers: {
             Authorization: `Bearer ${authData.token}`,
           },
-        })
-        setSuccess("Tạo bảng tin thành công")
+        });
+        setSuccess("Tạo bảng tin thành công");
       }
 
-      fetchNews()
+      fetchNews();
       setTimeout(() => {
-        handleCloseDialog()
-      }, 1500)
+        handleCloseDialog();
+      }, 1500);
     } catch (err) {
-      console.error("Error saving newsfeed:", err)
-      setError(err.response?.data?.message || "Lỗi khi lưu bảng tin")
+      console.error("Error saving newsfeed:", err);
+      setError(err.response?.data?.message || "Lỗi khi lưu bảng tin");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Xác nhận xóa thông báo?")) return
+    if (!window.confirm("Xác nhận xóa thông báo?")) return;
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const tabId = sessionStorage.getItem("tabId")
-      const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
 
       await axios.delete(`/api/admin/newsfeed/${id}`, {
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
-      })
-      setSuccess("Xóa bảng tin thành công")
-      fetchNews()
+      });
+      setSuccess("Xóa bảng tin thành công");
+      fetchNews();
     } catch (err) {
-      console.error("Error deleting newsfeed:", err)
-      setError("Lỗi khi xóa bảng tin")
+      console.error("Error deleting newsfeed:", err);
+      setError("Lỗi khi xóa bảng tin");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const getRecipientColor = (recipient) => {
+  const getRecipientClass = (recipient) => {
     switch (recipient) {
       case "all":
-        return "primary"
+        return "um-chip um-chip-primary";
       case "SinhVien":
-        return "success"
+        return "um-chip um-chip-success";
       case "GiangVien":
-        return "warning"
+        return "um-chip um-chip-warning";
       default:
-        return "default"
+        return "um-chip";
     }
-  }
+  };
 
   return (
-    <div className="dashboard-container">
+    <div className="um-container">
       <SideBar />
-      <main className="dashboard-main">
-        <Box p={3}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h4">Quản lý bảng tin</Typography>
-              <Box>
-                <Button
-                  variant="outlined"
-                  startIcon={<Refresh />}
-                  onClick={fetchNews}
-                  disabled={loading}
-                  sx={{ mr: 2 }}
-                >
-                  Làm mới
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<Add />}
-                  onClick={() => handleOpenDialog()}
-                  disabled={loading}
-                >
-                  Tạo thông báo
-                </Button>
-              </Box>
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-                {error}
-              </Alert>
-            )}
-            {success && (
-              <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-                {success}
-              </Alert>
-            )}
-
-            {loading && !openDialog ? (
-              <Box display="flex" justifyContent="center" p={5}>
-                <CircularProgress size={60} />
-              </Box>
-            ) : (
-              <Grid container spacing={3}>
-                {news.length === 0 ? (
-                  <Grid item xs={12}>
-                    <Paper elevation={1} sx={{ p: 4, textAlign: "center" }}>
-                      <Typography color="textSecondary">Chưa có bảng tin nào</Typography>
-                    </Paper>
-                  </Grid>
-                ) : (
-                  news.map((item) => (
-                    <Grid item xs={12} md={6} lg={4} key={item.id}>
-                      <Card elevation={2} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-                        <CardContent sx={{ flexGrow: 1 }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                            <Typography variant="h6" component="h3" gutterBottom>
-                              {item.title}
-                            </Typography>
-                            <Chip label={item.recipientLabel} color={getRecipientColor(item.recipient)} size="small" />
-                          </Box>
-                          <Typography variant="body2" color="textSecondary" paragraph>
-                            {item.content.length > 150 ? `${item.content.substring(0, 150)}...` : item.content}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            Đăng bởi: {item.author} • {item.time}
-                          </Typography>
-                        </CardContent>
-                        <CardActions>
-                          <Button size="small" startIcon={<Edit />} onClick={() => handleOpenDialog(item)}>
-                            Sửa
-                          </Button>
-                          <Button
-                            size="small"
-                            color="error"
-                            startIcon={<Delete />}
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            Xóa
-                          </Button>
-                        </CardActions>
-                      </Card>
-                    </Grid>
-                  ))
-                )}
-              </Grid>
-            )}
-
-            <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-              <DialogTitle>{editNews ? "Sửa thông báo" : "Tạo thông báo mới"}</DialogTitle>
-              <DialogContent>
-                {error && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
-                  </Alert>
-                )}
-                {success && (
-                  <Alert severity="success" sx={{ mb: 2 }}>
-                    {success}
-                  </Alert>
-                )}
-
-                <TextField
-                  margin="dense"
-                  label="Tiêu đề *"
+      <main>
+        <div className="um-title">Quản lý bảng tin</div>
+        <div className="um-toolbar">
+          <button
+            className="um-btn um-btn-secondary"
+            onClick={fetchNews}
+            disabled={loading}
+          >
+            Làm mới
+          </button>
+          <button
+            className="um-btn"
+            onClick={() => handleOpenDialog()}
+            disabled={loading}
+          >
+            Tạo thông báo
+          </button>
+        </div>
+        {error && <div className="um-alert um-alert-error">{error}</div>}
+        {success && <div className="um-alert um-alert-success">{success}</div>}
+        {loading && !openDialog ? (
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <div className="um-loading-spinner" />
+          </div>
+        ) : news.length === 0 ? (
+          <div
+            className="um-table"
+            style={{ textAlign: "center", padding: 32 }}
+          >
+            <span style={{ color: "#888" }}>Chưa có bảng tin nào</span>
+          </div>
+        ) : (
+          <div className="um-grid">
+            {news.map((item) => (
+              <div className="um-card" key={item.id}>
+                <div className="um-card-header">
+                  <div className="um-card-title">{item.title}</div>
+                  <span className={getRecipientClass(item.recipient)}>
+                    {item.recipientLabel}
+                  </span>
+                </div>
+                <div className="um-card-content">
+                  {item.content.length > 150
+                    ? `${item.content.substring(0, 150)}...`
+                    : item.content}
+                </div>
+                <div className="um-card-meta">
+                  Đăng bởi: {item.author} • {item.time}
+                </div>
+                <div className="um-actions">
+                  <button
+                    className="um-btn"
+                    onClick={() => handleOpenDialog(item)}
+                  >
+                    Sửa
+                  </button>
+                  <button
+                    className="um-btn um-btn-danger"
+                    onClick={() => handleDelete(item.id)}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {openDialog && (
+          <>
+            <div className="um-modal-backdrop" onClick={handleCloseDialog} />
+            <div className="um-modal">
+              <div className="um-title" style={{ fontSize: "1.3rem" }}>
+                {editNews ? "Sửa thông báo" : "Tạo thông báo mới"}
+              </div>
+              {error && <div className="um-alert um-alert-error">{error}</div>}
+              {success && (
+                <div className="um-alert um-alert-success">{success}</div>
+              )}
+              <div style={{ marginBottom: 16 }}>
+                <label className="um-label">Tiêu đề *</label>
+                <input
+                  className="um-input"
                   name="title"
                   value={form.title}
                   onChange={handleChange}
-                  fullWidth
-                  sx={{ mb: 2 }}
+                  disabled={loading}
+                  maxLength={100}
+                  required
                 />
-
-                <TextField
-                  margin="dense"
-                  label="Nội dung *"
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label className="um-label">Nội dung *</label>
+                <textarea
+                  className="um-input"
                   name="content"
                   value={form.content}
                   onChange={handleChange}
-                  fullWidth
-                  multiline
                   rows={4}
-                  sx={{ mb: 2 }}
-                />
-
-                <FormControl fullWidth>
-                  <InputLabel>Đối tượng nhận</InputLabel>
-                  <Select name="recipient" value={form.recipient} onChange={handleChange} label="Đối tượng nhận">
-                    {RECIPIENTS.map((r) => (
-                      <MenuItem key={r.value} value={r.value}>
-                        {r.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleCloseDialog} disabled={loading}>
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  variant="contained"
                   disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} /> : null}
+                  required
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label className="um-label">Đối tượng nhận</label>
+                <select
+                  className="um-input"
+                  name="recipient"
+                  value={form.recipient}
+                  onChange={handleChange}
+                  disabled={loading}
+                >
+                  {RECIPIENTS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="um-actions" style={{ marginTop: 16 }}>
+                <button
+                  className="um-btn um-btn-secondary"
+                  onClick={handleCloseDialog}
+                  disabled={loading}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="um-btn"
+                  onClick={handleSave}
+                  disabled={loading}
                 >
                   {loading ? "Đang lưu..." : "Lưu"}
-                </Button>
-              </DialogActions>
-            </Dialog>
-          </Paper>
-        </Box>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default AdminNewsfeed
+export default AdminNewsfeed;

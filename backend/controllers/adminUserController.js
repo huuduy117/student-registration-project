@@ -613,7 +613,7 @@ function getClassRequests(callback) {
 function updateClassRequestStatus(requestId, status, callback) {
   const query = `
     UPDATE YeuCauMoLop 
-    SET tinhTrangTongQuat = ?, ngayCapNhat = NOW()
+    SET tinhTrangTongQuat = ?
     WHERE maYeuCau = ?
   `;
 
