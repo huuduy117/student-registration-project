@@ -1,28 +1,9 @@
 const { mysqlConnection } = require("../config/db");
 
 /**
- * Thêm mới người dùng và bản ghi chi tiết (giảng viên hoặc sinh viên) trong transaction
+ * Thêm mới người dùng
  */
-async function createUserWithDetail(userData, detailData, type) {
-  // Chuyển đổi key 'lop' thành 'maLop' nếu là SinhVien
-  if (type === "SinhVien" && detailData && detailData.lop !== undefined) {
-    detailData = { ...detailData };
-    detailData.maLop = detailData.lop;
-    delete detailData.lop;
-  }
-  // Đảm bảo maSV = userData.maNguoiDung khi thêm sinh viên
-  if (type === "SinhVien" && userData && userData.maNguoiDung) {
-    detailData = { ...detailData, maSV: userData.maNguoiDung };
-  }
-  // Chuyển đổi ngày sinh về dạng YYYY-MM-DD nếu có
-  if (detailData && detailData.ngaySinh) {
-    let d = detailData.ngaySinh;
-    if (typeof d === "string" && d.includes("T")) {
-      // Lấy phần trước 'T'
-      detailData.ngaySinh = d.split("T")[0];
-    }
-  }
-
+function createUserWithDetail(userData) {
   return new Promise((resolve, reject) => {
     if (!userData || typeof userData !== "object") {
       return reject({
@@ -30,25 +11,14 @@ async function createUserWithDetail(userData, detailData, type) {
         message: "Thiếu hoặc sai userData trong request body",
       });
     }
-    if (!detailData || typeof detailData !== "object") {
-      return reject({
-        success: false,
-        message: "Thiếu hoặc sai detailData trong request body",
-      });
-    }
-    if (!type || (type !== "GiangVien" && type !== "SinhVien")) {
-      return reject({
-        success: false,
-        message: "Thiếu hoặc sai type trong request body",
-      });
-    }
 
     mysqlConnection.beginTransaction((err) => {
-      if (err)
+      if (err) {
         return reject({
           success: false,
           message: "Không thể bắt đầu transaction",
         });
+      }
 
       // 1. Thêm vào bảng nguoidung
       const userFields = Object.keys(userData);
@@ -77,46 +47,18 @@ async function createUserWithDetail(userData, detailData, type) {
           });
         }
 
-        // 2. Thêm vào bảng chi tiết
-        let detailSql = "";
-        const detailFields = Object.keys(detailData);
-        const detailValues = Object.values(detailData);
-
-        if (type === "GiangVien") {
-          detailSql = `INSERT INTO GiangVien (${detailFields.join(
-            ","
-          )}) VALUES (${detailFields.map(() => "?").join(",")})`;
-        } else if (type === "SinhVien") {
-          detailSql = `INSERT INTO SinhVien (${detailFields.join(
-            ","
-          )}) VALUES (${detailFields.map(() => "?").join(",")})`;
-        }
-
-        mysqlConnection.query(detailSql, detailValues, (err, result) => {
+        mysqlConnection.commit((err) => {
           if (err) {
-            console.error(`[${type}] Lỗi khi thêm chi tiết:`, err);
+            console.error("[Transaction] Lỗi khi commit:", err);
             return mysqlConnection.rollback(() => {
               reject({
                 success: false,
-                message: "Lỗi khi thêm chi tiết người dùng",
+                message: "Lỗi khi commit transaction",
                 error: err,
               });
             });
           }
-
-          mysqlConnection.commit((err) => {
-            if (err) {
-              console.error("[Transaction] Lỗi khi commit:", err);
-              return mysqlConnection.rollback(() => {
-                reject({
-                  success: false,
-                  message: "Lỗi khi commit transaction",
-                  error: err,
-                });
-              });
-            }
-            resolve({ success: true, message: "Thêm mới thành công" });
-          });
+          resolve({ success: true, message: "Thêm mới thành công" });
         });
       });
     });
@@ -128,51 +70,17 @@ async function createUserWithDetail(userData, detailData, type) {
  */
 function getUsersByType(type, callback) {
   let query = "";
-
-  if (type === "SinhVien") {
-    query = `
+  query = `
       SELECT 
         n.maNguoiDung as id,
         n.tenDangNhap as username,
-        sv.hoTen as fullName,
-        sv.email,
-        sv.soDienThoai as phone,
-        sv.diaChi as address,
-        l.tenLop as classOrDept,
-        n.loaiNguoiDung as userType,
-        sv.ngaySinh as birthDate,
-        sv.gioiTinh as gender
+        n.loaiNguoiDung as userType
       FROM NguoiDung n
-      JOIN SinhVien sv ON n.maNguoiDung = sv.maSV
-      LEFT JOIN Lop l ON sv.maLop = l.maLop
-      WHERE n.loaiNguoiDung = 'SinhVien'
-      ORDER BY sv.hoTen
+      WHERE n.loaiNguoiDung = ?
+      ORDER BY n.tenDangNhap
     `;
-  } else if (type === "GiangVien") {
-    query = `
-      SELECT 
-        n.maNguoiDung as id,
-        n.tenDangNhap as username,
-        gv.hoTen as fullName,
-        gv.email,
-        gv.soDienThoai as phone,
-        bm.tenBM as classOrDept,
-        n.loaiNguoiDung as userType,
-        gv.hocVi as degree,
-        gv.hocHam as academicTitle,
-        gv.chuyenNganh as specialization,
-        gv.chucVu as position
-      FROM NguoiDung n
-      JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
-      LEFT JOIN BoMon bm ON gv.maBM = bm.maBM
-      WHERE n.loaiNguoiDung IN ('GiangVien', 'GiaoVu', 'TruongBoMon', 'TruongKhoa')
-      ORDER BY gv.hoTen
-    `;
-  } else {
-    return callback(new Error("Invalid user type"));
-  }
 
-  mysqlConnection.query(query, callback);
+  mysqlConnection.query(query, [type], callback);
 }
 
 /**
@@ -183,32 +91,8 @@ function getUserById(userId, callback) {
     SELECT 
       n.maNguoiDung as id,
       n.tenDangNhap as username,
-      n.loaiNguoiDung as userType,
-      CASE 
-        WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.hoTen
-        ELSE gv.hoTen
-      END as fullName,
-      CASE 
-        WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.email
-        ELSE gv.email
-      END as email,
-      CASE 
-        WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.soDienThoai
-        ELSE gv.soDienThoai
-      END as phone,
-      CASE 
-        WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.diaChi
-        ELSE NULL
-      END as address,
-      CASE 
-        WHEN n.loaiNguoiDung = 'SinhVien' THEN l.tenLop
-        ELSE bm.tenBM
-      END as classOrDept
+      n.loaiNguoiDung as userType
     FROM NguoiDung n
-    LEFT JOIN SinhVien sv ON n.maNguoiDung = sv.maSV
-    LEFT JOIN Lop l ON sv.maLop = l.maLop
-    LEFT JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
-    LEFT JOIN BoMon bm ON gv.maBM = bm.maBM
     WHERE n.maNguoiDung = ?
   `;
 
@@ -218,233 +102,354 @@ function getUserById(userId, callback) {
 /**
  * Cập nhật thông tin người dùng
  */
-function updateUser(userId, userData, detailData, type, callback) {
-  // Chuyển đổi key 'lop' thành 'maLop' nếu là SinhVien
-  if (type === "SinhVien" && detailData && detailData.lop !== undefined) {
-    detailData = { ...detailData };
-    detailData.maLop = detailData.lop;
-    delete detailData.lop;
-  }
-  // Chuyển đổi ngày sinh về dạng YYYY-MM-DD nếu có
-  if (detailData && detailData.ngaySinh) {
-    let d = detailData.ngaySinh;
-    if (typeof d === "string" && d.includes("T")) {
-      // Lấy phần trước 'T'
-      detailData.ngaySinh = d.split("T")[0];
+function updateUser(userId, userData) {
+  return new Promise((resolve, reject) => {
+    if (!userData || typeof userData !== "object") {
+      return reject({
+        success: false,
+        message: "Thiếu hoặc sai userData trong request body",
+      });
     }
-  }
 
-  mysqlConnection.beginTransaction((err) => {
-    if (err) return callback(err);
+    mysqlConnection.beginTransaction((err) => {
+      if (err) {
+        return reject({
+          success: false,
+          message: "Không thể bắt đầu transaction",
+          error: err,
+        });
+      }
 
-    // Cập nhật bảng nguoidung
-    if (userData && Object.keys(userData).length > 0) {
-      const userFields = Object.keys(userData).filter(
-        (key) => userData[key] !== undefined && userData[key] !== ""
-      );
-      const userValues = userFields.map((key) => userData[key]);
-
+      // 1. Cập nhật bảng nguoidung
+      const userFields = Object.keys(userData);
+      const userValues = Object.values(userData);
       if (userFields.length > 0) {
         const userSql = `UPDATE NguoiDung SET ${userFields
           .map((field) => `${field} = ?`)
           .join(", ")} WHERE maNguoiDung = ?`;
 
-        mysqlConnection.query(userSql, [...userValues, userId], (err) => {
-          if (err) {
-            return mysqlConnection.rollback(() => callback(err));
-          }
-
-          updateDetailTable();
-        });
-      } else {
-        updateDetailTable();
-      }
-    } else {
-      updateDetailTable();
-    }
-
-    function updateDetailTable() {
-      // Cập nhật bảng chi tiết
-      if (detailData && Object.keys(detailData).length > 0) {
-        const detailFields = Object.keys(detailData).filter(
-          (key) => detailData[key] !== undefined && detailData[key] !== ""
-        );
-        const detailValues = detailFields.map((key) => detailData[key]);
-
-        if (detailFields.length > 0) {
-          let detailSql = "";
-          let detailKey = "";
-
-          if (type === "SinhVien") {
-            detailSql = `UPDATE SinhVien SET ${detailFields
-              .map((field) => `${field} = ?`)
-              .join(", ")} WHERE maSV = ?`;
-            detailKey = userId;
-          } else if (type === "GiangVien") {
-            detailSql = `UPDATE GiangVien SET ${detailFields
-              .map((field) => `${field} = ?`)
-              .join(", ")} WHERE maGV = ?`;
-            detailKey = userId;
-          }
-
-          mysqlConnection.query(
-            detailSql,
-            [...detailValues, detailKey],
-            (err) => {
-              if (err) {
-                return mysqlConnection.rollback(() => callback(err));
-              }
-
-              mysqlConnection.commit((err) => {
-                if (err) {
-                  return mysqlConnection.rollback(() => callback(err));
-                }
-                callback(null, {
-                  success: true,
-                  message: "Cập nhật thành công",
+        mysqlConnection.query(
+          userSql,
+          [...userValues, userId],
+          (err, result) => {
+            if (err) {
+              return mysqlConnection.rollback(() => {
+                reject({
+                  success: false,
+                  message: "Lỗi khi cập nhật người dùng",
+                  error: err,
                 });
               });
             }
-          );
-        } else {
-          mysqlConnection.commit((err) => {
-            if (err) {
-              return mysqlConnection.rollback(() => callback(err));
-            }
-            callback(null, { success: true, message: "Cập nhật thành công" });
-          });
-        }
+
+            mysqlConnection.commit((err) => {
+              if (err) {
+                return mysqlConnection.rollback(() => {
+                  reject({
+                    success: false,
+                    message: "Lỗi khi commit transaction",
+                    error: err,
+                  });
+                });
+              }
+              resolve({ success: true, message: "Cập nhật thành công" });
+            });
+          }
+        );
       } else {
         mysqlConnection.commit((err) => {
           if (err) {
-            return mysqlConnection.rollback(() => callback(err));
+            return mysqlConnection.rollback(() => {
+              reject({
+                success: false,
+                message: "Lỗi khi commit transaction",
+                error: err,
+              });
+            });
           }
-          callback(null, { success: true, message: "Cập nhật thành công" });
+          resolve({ success: true, message: "Cập nhật thành công" });
         });
       }
-    }
+    });
+  }).catch((err) => {
+    console.error("Unhandled rejection in updateUser:", err);
   });
 }
 
 /**
- * Xóa người dùng
+ * Xóa người dùng và các bản ghi liên quan
  */
-function deleteUser(userId, type, callback) {
-  mysqlConnection.beginTransaction((err) => {
-    if (err) return callback(err);
-
-    const deleteDetailTable = () => {
-      // Delete from detail table
-      let detailSql = "";
-      if (type === "SinhVien") {
-        detailSql = "DELETE FROM SinhVien WHERE maSV = ?";
-      } else if (type === "GiangVien") {
-        detailSql = "DELETE FROM GiangVien WHERE maGV = ?";
+function deleteUser(userId) {
+  return new Promise((resolve, reject) => {
+    mysqlConnection.beginTransaction((err) => {
+      if (err) {
+        return reject({
+          success: false,
+          message: "Không thể bắt đầu transaction",
+          error: err,
+        });
       }
 
-      mysqlConnection.query(detailSql, [userId], (err) => {
+      // Check user type first to handle role-specific deletion
+      const checkUserTypeSql =
+        "SELECT loaiNguoiDung FROM NguoiDung WHERE maNguoiDung = ?";
+      mysqlConnection.query(checkUserTypeSql, [userId], (err, results) => {
         if (err) {
-          return mysqlConnection.rollback(() => callback(err));
-        }
-
-        // Finally delete from NguoiDung
-        const userSql = "DELETE FROM NguoiDung WHERE maNguoiDung = ?";
-        mysqlConnection.query(userSql, [userId], (err) => {
-          if (err) {
-            return mysqlConnection.rollback(() => callback(err));
-          }
-
-          mysqlConnection.commit((err) => {
-            if (err) {
-              return mysqlConnection.rollback(() => callback(err));
-            }
-            callback(null, { success: true, message: "Xóa thành công" });
+          return mysqlConnection.rollback(() => {
+            reject({
+              success: false,
+              message: "Lỗi khi kiểm tra loại người dùng",
+              error: err,
+            });
           });
-        });
-      });
-    };
-
-    // Handle dependent records based on user type
-    if (type === "SinhVien") {
-      // 1. Lấy danh sách maYeuCau của sinh viên này
-      mysqlConnection.query(
-        "SELECT maYeuCau FROM YeuCauMoLop WHERE maSV = ?",
-        [userId],
-        (err, results) => {
-          if (err) {
-            return mysqlConnection.rollback(() => callback(err));
-          }
-          const maYeuCauList = results.map((row) => row.maYeuCau);
-          if (maYeuCauList.length > 0) {
-            // 2. Xóa các bản ghi liên quan trong LichSuThayDoiYeuCau
-            mysqlConnection.query(
-              `DELETE FROM LichSuThayDoiYeuCau WHERE maYeuCau IN (${maYeuCauList
-                .map(() => "?")
-                .join(",")})`,
-              maYeuCauList,
-              (err) => {
-                if (err) {
-                  return mysqlConnection.rollback(() => callback(err));
-                }
-                // Tiếp tục xóa các bảng khác như cũ
-                deleteYeuCauMoLopAndOthers();
-              }
-            );
-          } else {
-            // Không có yêu cầu nào, tiếp tục xóa các bảng khác như cũ
-            deleteYeuCauMoLopAndOthers();
-          }
         }
-      );
 
-      function deleteYeuCauMoLopAndOthers() {
-        // Xóa YeuCauMoLop
+        if (!results || results.length === 0) {
+          return mysqlConnection.rollback(() => {
+            reject({
+              success: false,
+              message: "Không tìm thấy người dùng",
+            });
+          });
+        }
+
+        const userType = results[0].loaiNguoiDung;
+
+        // Delete from BangTin
         mysqlConnection.query(
-          "DELETE FROM YeuCauMoLop WHERE maSV = ?",
+          "DELETE FROM BangTin WHERE nguoiDang = ?",
           [userId],
           (err) => {
             if (err) {
-              return mysqlConnection.rollback(() => callback(err));
+              return mysqlConnection.rollback(() => {
+                reject({
+                  success: false,
+                  message: "Lỗi khi xóa bản tin của người dùng",
+                  error: err,
+                });
+              });
             }
-            // Delete from SinhVien_MonHoc (course registrations)
+
+            // Delete from LichSuThayDoiYeuCau
             mysqlConnection.query(
-              "DELETE FROM SinhVien_MonHoc WHERE maSV = ?",
+              "DELETE FROM LichSuThayDoiYeuCau WHERE nguoiThayDoi = ?",
               [userId],
               (err) => {
                 if (err) {
-                  return mysqlConnection.rollback(() => callback(err));
+                  return mysqlConnection.rollback(() => {
+                    reject({
+                      success: false,
+                      message: "Lỗi khi xóa lịch sử thay đổi yêu cầu",
+                      error: err,
+                    });
+                  });
                 }
-                // Delete from ThoiKhoaBieuSinhVien (student schedules)
+
+                // Delete from XuLyYeuCau
                 mysqlConnection.query(
-                  "DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = ?",
+                  "DELETE FROM XuLyYeuCau WHERE nguoiXuLy = ?",
                   [userId],
                   (err) => {
                     if (err) {
-                      return mysqlConnection.rollback(() => callback(err));
+                      return mysqlConnection.rollback(() => {
+                        reject({
+                          success: false,
+                          message: "Lỗi khi xóa xử lý yêu cầu",
+                          error: err,
+                        });
+                      });
                     }
-                    // Delete from PhanLop (class assignments)
-                    mysqlConnection.query(
-                      "DELETE FROM PhanLop WHERE maSV = ?",
-                      [userId],
-                      (err) => {
-                        if (err) {
-                          return mysqlConnection.rollback(() => callback(err));
-                        }
-                        // Now safe to delete from detail tables
-                        deleteDetailTable();
-                      }
-                    );
+
+                    // Handle role-specific deletion
+                    let roleSpecificDelete = Promise.resolve();
+
+                    if (userType === "SinhVien") {
+                      roleSpecificDelete = new Promise((resolve, reject) => {
+                        // Delete from ThoiKhoaBieuSinhVien first
+                        mysqlConnection.query(
+                          "DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = ?",
+                          [userId],
+                          (err) => {
+                            if (err) {
+                              return reject(err);
+                            }
+                            // Xóa lịch sử thay đổi yêu cầu liên quan đến các yêu cầu mở lớp của sinh viên này
+                            mysqlConnection.query(
+                              "DELETE FROM LichSuThayDoiYeuCau WHERE maYeuCau IN (SELECT maYeuCau FROM YeuCauMoLop WHERE maSV = ?)",
+                              [userId],
+                              (err) => {
+                                if (err) {
+                                  return reject(err);
+                                }
+                                // Then delete from YeuCauMoLop
+                                mysqlConnection.query(
+                                  "DELETE FROM YeuCauMoLop WHERE maSV = ?",
+                                  [userId],
+                                  (err) => {
+                                    if (err) {
+                                      return reject(err);
+                                    }
+                                    // Delete from PhanLop before SinhVien
+                                    mysqlConnection.query(
+                                      "DELETE FROM PhanLop WHERE maSV = ?",
+                                      [userId],
+                                      (err) => {
+                                        if (err) {
+                                          return reject(err);
+                                        }
+                                        // Delete from sinhvien_monhoc before SinhVien
+                                        mysqlConnection.query(
+                                          "DELETE FROM sinhvien_monhoc WHERE maSV = ?",
+                                          [userId],
+                                          (err) => {
+                                            if (err) {
+                                              return reject(err);
+                                            }
+                                            // Finally delete from SinhVien
+                                            mysqlConnection.query(
+                                              "DELETE FROM SinhVien WHERE maSV = ?",
+                                              [userId],
+                                              (err) => {
+                                                if (err) {
+                                                  return reject(err);
+                                                }
+                                                resolve();
+                                              }
+                                            );
+                                          }
+                                        );
+                                      }
+                                    );
+                                  }
+                                );
+                              }
+                            );
+                          }
+                        );
+                      });
+                    } else if (userType === "GiangVien") {
+                      roleSpecificDelete = new Promise((resolve, reject) => {
+                        // Xóa từ ThoiKhoaBieuGiangVien trước
+                        mysqlConnection.query(
+                          "DELETE FROM ThoiKhoaBieuGiangVien WHERE maGV = ?",
+                          [userId],
+                          (err) => {
+                            if (err) {
+                              return reject(err);
+                            }
+                            // Cập nhật các lớp có maCVHT = userId thành NULL trước khi xóa GiangVien
+                            mysqlConnection.query(
+                              "UPDATE lop SET maCVHT = NULL WHERE maCVHT = ?",
+                              [userId],
+                              (err) => {
+                                if (err) {
+                                  return reject(err);
+                                }
+                                // Cập nhật các lớp học phần có maGV = userId thành NULL trước khi xóa GiangVien
+                                mysqlConnection.query(
+                                  "UPDATE lophocphan SET maGV = NULL WHERE maGV = ?",
+                                  [userId],
+                                  (err) => {
+                                    if (err) {
+                                      return reject(err);
+                                    }
+                                    // Xóa từ phanconggiangvien trước khi xóa GiangVien
+                                    mysqlConnection.query(
+                                      "DELETE FROM phanconggiangvien WHERE maGV = ?",
+                                      [userId],
+                                      (err) => {
+                                        if (err) {
+                                          return reject(err);
+                                        }
+                                        // Xóa từ dangkylichday trước khi xóa GiangVien
+                                        mysqlConnection.query(
+                                          "DELETE FROM dangkylichday WHERE maGV = ?",
+                                          [userId],
+                                          (err) => {
+                                            if (err) {
+                                              return reject(err);
+                                            }
+                                            // Sau đó xóa từ GiangVien
+                                            mysqlConnection.query(
+                                              "DELETE FROM GiangVien WHERE maGV = ?",
+                                              [userId],
+                                              (err) => {
+                                                if (err) {
+                                                  return reject(err);
+                                                }
+                                                resolve();
+                                              }
+                                            );
+                                          }
+                                        );
+                                      }
+                                    );
+                                  }
+                                );
+                              }
+                            );
+                          }
+                        );
+                      });
+                    }
+
+                    roleSpecificDelete
+                      .then(() => {
+                        // Finally delete from NguoiDung
+                        mysqlConnection.query(
+                          "DELETE FROM NguoiDung WHERE maNguoiDung = ?",
+                          [userId],
+                          (err) => {
+                            if (err) {
+                              return mysqlConnection.rollback(() => {
+                                reject({
+                                  success: false,
+                                  message: "Lỗi khi xóa người dùng",
+                                  error: err,
+                                });
+                              });
+                            }
+
+                            mysqlConnection.commit((err) => {
+                              if (err) {
+                                return mysqlConnection.rollback(() => {
+                                  reject({
+                                    success: false,
+                                    message: "Lỗi khi commit transaction",
+                                    error: err,
+                                  });
+                                });
+                              }
+                              resolve({
+                                success: true,
+                                message:
+                                  "Xóa người dùng và dữ liệu liên quan thành công",
+                              });
+                            });
+                          }
+                        );
+                      })
+                      .catch((err) => {
+                        mysqlConnection.rollback(() => {
+                          reject({
+                            success: false,
+                            message: `Lỗi khi xóa ${
+                              userType === "SinhVien"
+                                ? "sinh viên"
+                                : "giảng viên"
+                            }`,
+                            error: err,
+                          });
+                        });
+                      });
                   }
                 );
               }
             );
           }
         );
-      }
-    } else {
-      // For other user types, directly delete detail
-      deleteDetailTable();
-    }
+      });
+    });
   });
 }
 
@@ -468,7 +473,10 @@ function getStudentStats(callback) {
       SELECT 
         ycml.maYeuCau as id,
         mh.tenMH as courseName,
+        ycml.soLuongThamGia as participantCount,
+        ycml.description,
         ycml.tinhTrangTongQuat as status,
+        ycml.trangThaiXuLy as processStatus,
         ycml.ngayGui as requestDate
       FROM YeuCauMoLop ycml
       JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP

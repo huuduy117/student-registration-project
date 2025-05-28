@@ -17,15 +17,6 @@ const defaultUserData = {
   loaiNguoiDung: "SinhVien",
 };
 
-const defaultDetailData = {
-  hoTen: "",
-  email: "",
-  soDienThoai: "",
-  diaChi: "",
-  ngaySinh: "",
-  gioiTinh: "Nam",
-};
-
 const AdminUserManagement = () => {
   const [users, setUsers] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
@@ -34,7 +25,6 @@ const AdminUserManagement = () => {
   const [viewUser, setViewUser] = useState(null);
   const [userType, setUserType] = useState(userTypes[0].value);
   const [userData, setUserData] = useState(defaultUserData);
-  const [detailData, setDetailData] = useState(defaultDetailData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -67,15 +57,6 @@ const AdminUserManagement = () => {
             id: user.maNguoiDung || user.id,
             username: user.tenDangNhap || user.username,
             userType: user.loaiNguoiDung || user.userType,
-            fullName: user.hoTen || user.fullName,
-            email: user.email,
-            phone: user.soDienThoai || user.phone,
-            address: user.diaChi || user.address,
-            birthDate: user.ngaySinh || user.birthDate,
-            gender: user.gioiTinh || user.gender,
-            classOrDept: user.maLop || user.maBM || user.classOrDept,
-            degree: user.hocVi || user.degree,
-            specialization: user.chuyenNganh || user.specialization,
           }))
         : [];
 
@@ -98,33 +79,8 @@ const AdminUserManagement = () => {
         matKhau: "",
         loaiNguoiDung: user.userType || userType,
       });
-      setDetailData({
-        hoTen: user.fullName || "",
-        email: user.email || "",
-        soDienThoai: user.phone || "",
-        diaChi: user.address || "",
-        ngaySinh: user.birthDate || "",
-        gioiTinh: user.gender || "Nam",
-        ...(userType === "SinhVien"
-          ? {
-              lop: user.classOrDept || "",
-              maSV: user.id,
-            }
-          : {
-              boMon: user.classOrDept || "",
-              maGV: user.id,
-              hocVi: user.degree || "",
-              chuyenMon: user.specialization || "",
-            }),
-      });
     } else {
       setUserData({ ...defaultUserData, loaiNguoiDung: userType });
-      setDetailData({
-        ...defaultDetailData,
-        ...(userType === "SinhVien"
-          ? { lop: "", maSV: "" }
-          : { boMon: "", maGV: "", hocVi: "", chuyenMon: "" }),
-      });
     }
     setOpenDialog(true);
   };
@@ -153,7 +109,6 @@ const AdminUserManagement = () => {
     setOpenDialog(false);
     setEditUser(null);
     setUserData(defaultUserData);
-    setDetailData(defaultDetailData);
     setError(null);
     setSuccess(null);
   };
@@ -167,10 +122,6 @@ const AdminUserManagement = () => {
     setUserData({ ...userData, [e.target.name]: e.target.value });
   };
 
-  const handleDetailDataChange = (e) => {
-    setDetailData({ ...detailData, [e.target.name]: e.target.value });
-  };
-
   const handleSave = async () => {
     setLoading(true);
     setError(null);
@@ -181,7 +132,7 @@ const AdminUserManagement = () => {
         sessionStorage.getItem(`auth_${tabId}`) || "{}"
       );
 
-      if (!userData.maNguoiDung || !userData.tenDangNhap || !detailData.hoTen) {
+      if (!userData.maNguoiDung || !userData.tenDangNhap) {
         setError("Vui lòng điền đầy đủ thông tin bắt buộc");
         setLoading(false);
         return;
@@ -194,7 +145,6 @@ const AdminUserManagement = () => {
             userData: userData.matKhau
               ? userData
               : { ...userData, matKhau: undefined },
-            detailData,
             type: userType,
           },
           {
@@ -215,7 +165,6 @@ const AdminUserManagement = () => {
           `/api/admin/add-user`,
           {
             userData,
-            detailData,
             type: userType,
           },
           {
@@ -240,9 +189,9 @@ const AdminUserManagement = () => {
       setLoading(false);
     }
   };
-
   const handleDelete = async (user) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa ${user.fullName}?`)) return;
+    if (!window.confirm(`Bạn có chắc muốn xóa người dùng ${user.username}?`))
+      return;
 
     setLoading(true);
     try {
@@ -252,16 +201,21 @@ const AdminUserManagement = () => {
       );
 
       await axios.delete(`/api/admin/users/${user.id}`, {
-        params: { type: userType },
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
       });
       setSuccess("Xóa người dùng thành công");
-      fetchUsers();
+      await fetchUsers(); // Wait for the fetch to complete
     } catch (err) {
       console.error("Error deleting user:", err);
-      setError("Lỗi khi xóa người dùng");
+      if (err.response?.data?.error?.code === "ER_ROW_IS_REFERENCED_2") {
+        setError(
+          "Không thể xóa người dùng này vì có dữ liệu liên quan. Vui lòng xóa các dữ liệu liên quan trước."
+        );
+      } else {
+        setError(err.response?.data?.message || "Lỗi khi xóa người dùng");
+      }
     } finally {
       setLoading(false);
     }
@@ -317,16 +271,13 @@ const AdminUserManagement = () => {
                 <th>Mã người dùng</th>
                 <th>Tên đăng nhập</th>
                 <th>Loại người dùng</th>
-                <th>Họ tên</th>
-                <th>Email</th>
-                <th>{userType === "SinhVien" ? "Lớp" : "Bộ môn"}</th>
                 <th style={{ textAlign: "center" }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center" }}>
+                  <td colSpan={4} style={{ textAlign: "center" }}>
                     Không có dữ liệu
                   </td>
                 </tr>
@@ -341,9 +292,6 @@ const AdminUserManagement = () => {
                         {userTypes.find((t) => t.value === user.userType)
                           ?.label || user.userType}
                       </td>
-                      <td>{user.fullName}</td>
-                      <td>{user.email}</td>
-                      <td>{user.classOrDept}</td>
                       <td>
                         <div className="um-actions">
                           <button
@@ -490,100 +438,6 @@ const AdminUserManagement = () => {
                     </select>
                   </div>
                 </div>
-                <div className="um-form-row">
-                  <div className="um-form-group">
-                    <label>Họ tên *</label>
-                    <input
-                      name="hoTen"
-                      value={detailData.hoTen}
-                      onChange={handleDetailDataChange}
-                      required
-                    />
-                  </div>
-                  <div className="um-form-group">
-                    <label>Email</label>
-                    <input
-                      name="email"
-                      type="email"
-                      value={detailData.email}
-                      onChange={handleDetailDataChange}
-                    />
-                  </div>
-                </div>
-                <div className="um-form-row">
-                  <div className="um-form-group">
-                    <label>Số điện thoại</label>
-                    <input
-                      name="soDienThoai"
-                      value={detailData.soDienThoai}
-                      onChange={handleDetailDataChange}
-                    />
-                  </div>
-                  <div className="um-form-group">
-                    <label>Ngày sinh</label>
-                    <input
-                      name="ngaySinh"
-                      type="date"
-                      value={detailData.ngaySinh}
-                      onChange={handleDetailDataChange}
-                    />
-                  </div>
-                </div>
-                <div className="um-form-row">
-                  <div className="um-form-group">
-                    <label>Giới tính</label>
-                    <select
-                      name="gioiTinh"
-                      value={detailData.gioiTinh}
-                      onChange={handleDetailDataChange}
-                    >
-                      <option value="Nam">Nam</option>
-                      <option value="Nu">Nữ</option>
-                    </select>
-                  </div>
-                  <div className="um-form-group">
-                    <label>{userType === "SinhVien" ? "Lớp" : "Bộ môn"}</label>
-                    <input
-                      name={userType === "SinhVien" ? "lop" : "boMon"}
-                      value={
-                        userType === "SinhVien"
-                          ? detailData.lop
-                          : detailData.boMon
-                      }
-                      onChange={handleDetailDataChange}
-                    />
-                  </div>
-                </div>
-                <div className="um-form-row">
-                  <div className="um-form-group">
-                    <label>Địa chỉ</label>
-                    <input
-                      name="diaChi"
-                      value={detailData.diaChi}
-                      onChange={handleDetailDataChange}
-                    />
-                  </div>
-                  {userType === "GiangVien" && (
-                    <>
-                      <div className="um-form-group">
-                        <label>Học vị</label>
-                        <input
-                          name="hocVi"
-                          value={detailData.hocVi || ""}
-                          onChange={handleDetailDataChange}
-                        />
-                      </div>
-                      <div className="um-form-group">
-                        <label>Chuyên môn</label>
-                        <input
-                          name="chuyenMon"
-                          value={detailData.chuyenMon || ""}
-                          onChange={handleDetailDataChange}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
                 <div className="um-modal-actions">
                   <button
                     type="button"
@@ -628,16 +482,6 @@ const AdminUserManagement = () => {
                 {userTypes.find((t) => t.value === viewUser.loaiNguoiDung)
                   ?.label || viewUser.loaiNguoiDung}
                 <br />
-                <b>Họ tên:</b> {viewUser.hoTen || viewUser.fullName}
-                <br />
-                <b>Email:</b> {viewUser.email}
-                <br />
-                <b>Số điện thoại:</b> {viewUser.soDienThoai || viewUser.phone}
-                <br />
-                <b>{userType === "SinhVien" ? "Lớp" : "Bộ môn"}:</b>{" "}
-                {viewUser.maLop || viewUser.maBM || viewUser.classOrDept}
-                <br />
-                <b>Địa chỉ:</b> {viewUser.diaChi || viewUser.address}
               </div>
               <div className="um-modal-actions">
                 <button
