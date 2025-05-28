@@ -120,7 +120,7 @@ export default function SideBar() {
         <div className="side-bar-header">
           <img
             alt="avatar"
-            src="https://placehold.co/52x52/png"
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-wWNP1GTEvZoUNtVnncA42SikCWs7AE.png"
             className="side-bar-avatar"
           />
           <div className="side-bar-user-name">

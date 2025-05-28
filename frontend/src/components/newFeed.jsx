@@ -54,7 +54,7 @@ export default function NewFeed() {
       setOpenRequests(JSON.parse(savedOpenRequests));
     }
 
-    // Fetch open class requests
+    // Fetch open requests
     fetchOpenRequests();
 
     // Fetch news
@@ -249,7 +249,7 @@ export default function NewFeed() {
         <div className="new-feed-header">
           <img
             alt="avatar"
-            src="https://placehold.co/52x52/png"
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-wWNP1GTEvZoUNtVnncA42SikCWs7AE.png"
             className="new-feed-avatar"
           />
           <div className="new-feed-user-name">{username}</div>
