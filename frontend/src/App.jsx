@@ -1,29 +1,35 @@
 "use client";
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import { useSession, useSessionMonitor } from "./hook/useSession"
-import { useEffect } from "react"
-import Login from "./pages/Login"
-import Home from "./pages/Home"
-import ChatPage from "./pages/ChatPage"
-import Schedule from "./pages/Schedule"
-import StudentDashboard from "./pages/SinhVien"
-import TeacherDashboard from "./pages/GiangVien"
-import AcademicDashboard from "./pages/Giaovu"
-import DepartmentHeadDashboard from "./pages/TruongBoMon"
-import AdminDashboard from "./pages/QuanTriVien"
-import FacultyHeadDashboard from "./pages/TruongKhoa"
-import UnauthorizedPage from "./pages/404"
-import CreateClassRequest from "./pages/CreateClassRequest"
-import ApproveRequests from "./pages/ApproveRequests"
-import ForgotPassword from "./pages/ForgotPassword"
-import ResetPassword from "./pages/ResetPassword"
-import AdminHome from "./pages/admin/Home"
-import AdminUserManagement from "./pages/admin/UserManagement"
-import AdminNewsfeed from "./pages/admin/Newsfeed"
-import AdminApproveRequests from "./pages/admin/ApproveRequests"
-import AdminSettings from "./pages/admin/Settings"
-import TeacherSchedule from "./pages/Teacher_Schedule"
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useSession, useSessionMonitor } from "./hook/useSession";
+import { useEffect } from "react";
+import Login from "./pages/Login";
+import Home from "./pages/Home";
+import ChatPage from "./pages/ChatPage";
+import Schedule from "./pages/Schedule";
+import StudentDashboard from "./pages/SinhVien";
+import TeacherDashboard from "./pages/GiangVien";
+import AcademicDashboard from "./pages/Giaovu";
+import DepartmentHeadDashboard from "./pages/TruongBoMon";
+import AdminDashboard from "./pages/QuanTriVien";
+import FacultyHeadDashboard from "./pages/TruongKhoa";
+import UnauthorizedPage from "./pages/404";
+import CreateClassRequest from "./pages/CreateClassRequest";
+import ApproveRequests from "./pages/ApproveRequests";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import AdminHome from "./pages/admin/Home";
+import AdminUserManagement from "./pages/admin/UserManagement";
+import AdminNewsfeed from "./pages/admin/Newsfeed";
+import AdminApproveRequests from "./pages/admin/ApproveRequests";
+import AdminSettings from "./pages/admin/Settings";
+import TeacherSchedule from "./pages/Teacher_Schedule";
+import RegisterTeaching from "./pages/RegisterTeaching";
 
 // Create a SessionMonitorWrapper components
 const SessionMonitorWrapper = ({ children }) => {
@@ -197,6 +203,15 @@ const App = () => {
           element={
             <PrivateRoute allowedRoles={["SinhVien"]}>
               <StudentDashboard />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/register-teaching"
+          element={
+            <PrivateRoute allowedRoles={["GiangVien"]}>
+              <RegisterTeaching />
             </PrivateRoute>
           }
         />

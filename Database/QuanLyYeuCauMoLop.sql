@@ -102,11 +102,13 @@ CREATE TABLE YeuCauMoLop (
     maSV VARCHAR(20),
     maLopHP VARCHAR(20), 
     maMH VARCHAR(20),
+    maGV VARCHAR(20),
     soLuongThamGia INT,
     description TEXT,
     FOREIGN KEY (maSV) REFERENCES SinhVien(maSV),
     FOREIGN KEY (maLopHP) REFERENCES LopHocPhan(maLopHP),
-    FOREIGN KEY (maMH) REFERENCES MonHoc(maMH)
+    FOREIGN KEY (maMH) REFERENCES MonHoc(maMH),
+    FOREIGN KEY (maGV) REFERENCES GiangVien(maGV)
 );
 
 -- 10. Bảng LichSuThayDoiYeuCau
@@ -270,7 +272,6 @@ CREATE TABLE ThoiKhoaBieuSinhVien (
     maTKB VARCHAR(50) PRIMARY KEY,
     maSV VARCHAR(20),
     maLopHP VARCHAR(20),
-    ngayHoc DATE NOT NULL,
     ngayHoc DATE NOT NULL,
     tietBD VARCHAR(5) NOT NULL,
     tietKT VARCHAR(5) NOT NULL,
@@ -856,23 +857,23 @@ INSERT INTO SinhVien VALUES ('2001215701','Lê Thị Mai','2001215701@huit.edu.v
 
 
 
-INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrangTongQuat, trangThaiXuLy, maSV, maLopHP, maMH, soLuongThamGia, description) VALUES
+INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrangTongQuat, trangThaiXuLy, maSV, maLopHP, maMH, maGV, soLuongThamGia, description) VALUES
 -- CNPM
-('YC_CNPM_01', '2025-01-05', 'DaGui', '1_GiaoVuNhan', '2001215601', 'LHP_CNPM_01', 'MH_CNPM_01', 35, 'Yêu cầu mở lớp CNPM 01'),
-('YC_CNPM_02', '2025-01-06', 'DaGui', '1_GiaoVuNhan', '2001215602', 'LHP_CNPM_02', 'MH_CNPM_02', 40, 'Yêu cầu mở lớp CNPM 02'),
-('YC_CNPM_03', '2025-01-07', 'DaGui', '1_GiaoVuNhan', '2001215603', 'LHP_CNPM_03', 'MH_CNPM_03', 32, 'Yêu cầu mở lớp CNPM 03'),
+('YC_CNPM_01', '2025-01-05', 'DaGui', '1_GiaoVuNhan', '2001215601', 'LHP_CNPM_01', 'MH_CNPM_01', 'GV07', 35, 'Yêu cầu mở lớp CNPM 01'),
+('YC_CNPM_02', '2025-01-06', 'DaGui', '1_GiaoVuNhan', '2001215602', 'LHP_CNPM_02', 'MH_CNPM_02', 'GV08', 40, 'Yêu cầu mở lớp CNPM 02'),
+('YC_CNPM_03', '2025-01-07', 'DaGui', '1_GiaoVuNhan', '2001215603', 'LHP_CNPM_03', 'MH_CNPM_03', 'GV09', 32, 'Yêu cầu mở lớp CNPM 03'),
 
 -- HTTT
-('YC_HTTT_01', '2025-01-08', 'DaGui', '1_GiaoVuNhan', '2001215604', 'LHP_HTTT_01', 'MH_HTTT_01', 38, 'Yêu cầu mở lớp HTTT 01'),
-('YC_HTTT_02', '2025-01-09', 'DaGui', '1_GiaoVuNhan', '2001215605', 'LHP_HTTT_02', 'MH_HTTT_02', 30, 'Yêu cầu mở lớp HTTT 02'),
+('YC_HTTT_01', '2025-01-08', 'DaGui', '1_GiaoVuNhan', '2001215604', 'LHP_HTTT_01', 'MH_HTTT_01', 'GV15', 38, 'Yêu cầu mở lớp HTTT 01'),
+('YC_HTTT_02', '2025-01-09', 'DaGui', '1_GiaoVuNhan', '2001215605', 'LHP_HTTT_02', 'MH_HTTT_02', 'GV16', 30, 'Yêu cầu mở lớp HTTT 02'),
 
 -- KHDL
-('YC_KHDL_01', '2025-01-10', 'DaGui', '1_GiaoVuNhan', '2001215606', 'LHP_KHDL_01', 'MH_KHDL_01', 33, 'Yêu cầu mở lớp KHDL 01'),
-('YC_KHDL_02', '2025-01-11', 'DaGui', '1_GiaoVuNhan', '2001215607', 'LHP_KHDL_02', 'MH_KHDL_02', 29, 'Yêu cầu mở lớp KHDL 02'),
+('YC_KHDL_01', '2025-01-10', 'DaGui', '1_GiaoVuNhan', '2001215606', 'LHP_KHDL_01', 'MH_KHDL_01', 'GV23', 33, 'Yêu cầu mở lớp KHDL 01'),
+('YC_KHDL_02', '2025-01-11', 'DaGui', '1_GiaoVuNhan', '2001215607', 'LHP_KHDL_02', 'MH_KHDL_02', 'GV24', 29, 'Yêu cầu mở lớp KHDL 02'),
 
 -- MMT
-('YC_MMT_01', '2025-01-12', 'DaGui', '1_GiaoVuNhan', '2001215608', 'LHP_MMT_01', 'MH_MMT_01', 36, 'Yêu cầu mở lớp MMT 01'),
-('YC_MMT_02', '2025-01-13', 'DaGui', '1_GiaoVuNhan', '2001215609', 'LHP_MMT_02', 'MH_MMT_02', 41, 'Yêu cầu mở lớp MMT 02');
+('YC_MMT_01', '2025-01-12', 'DaGui', '1_GiaoVuNhan', '2001215608', 'LHP_MMT_01', 'MH_MMT_01', 'GV28', 36, 'Yêu cầu mở lớp MMT 01'),
+('YC_MMT_02', '2025-01-13', 'DaGui', '1_GiaoVuNhan', '2001215609', 'LHP_MMT_02', 'MH_MMT_02', 'GV29', 41, 'Yêu cầu mở lớp MMT 02');
 
 -- Insert into BangTin
 INSERT INTO BangTin VALUES('TB01', 'Lịch Thi Giữa Kỳ', 'Lịch thi giữa kỳ được công bố ngày 15/03', '2025-02-20', 'GV06', 'TatCa');
