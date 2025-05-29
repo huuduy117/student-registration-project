@@ -134,6 +134,14 @@ const ApproveRequestsPage = () => {
   }, [fetchRequests]);
 
   const handleApprove = async (id, currentRequest) => {
+    // Kiểm tra điều kiện trưởng bộ môn phải có giảng viên đăng ký mới được duyệt
+    if (
+      userRole === "TruongBoMon" &&
+      !currentRequest.hasTeacherRegistration
+    ) {
+      alert("Bạn không thể duyệt khi chưa có giảng viên đăng ký giảng dạy cho lớp này!");
+      return;
+    }
     try {
       setIsProcessing(true);
       console.log("\n=== Debug Approve Request ===");

@@ -1,5 +1,5 @@
-CREATE DATABASE TESTDB;
-USE TESTDB;
+CREATE DATABASE final;
+USE final;
 -- BÔI ĐEN TỪ ĐẦU ĐẾN DÒNG 1664 ĐỂ CHẠY NHANH
 -- TẠO BẢNG
 -- 1. Bảng NguoiDung
