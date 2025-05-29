@@ -44,44 +44,33 @@ export default function SideBar() {
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
         { icon: "📅", text: "Lịch học", path: "/schedule" },
-        { icon: "📚", text: "Khóa học", path: "/student-dashboard" },
+        { icon: "📚", text: "Đăng ký học phần", path: "/class-registration" },
         { icon: "⚙️", text: "Cài đặt", path: "/settings" },
       ];
       break;
     case "GiangVien":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
-        { icon: "💬", text: "Chat", path: "/chat-page" },
         { icon: "📅", text: "Lịch dạy", path: "/teacher-schedule" },
-        { icon: "📝", text: "Yêu cầu mở lớp", path: "/approve-requests" },
-        { icon: "⚙️", text: "Cài đặt", path: "/settings" },
+        { icon: "📝", text: "Đăng ký giảng dạy", path: "/register-teaching" },
       ];
       break;
     case "GiaoVu":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
-        { icon: "💬", text: "Chat", path: "/chat-page" },
-        { icon: "📅", text: "Lịch học", path: "/schedule" },
         { icon: "📝", text: "Phê duyệt mở lớp", path: "/approve-requests" },
-        { icon: "⚙️", text: "Cài đặt", path: "/settings" },
       ];
       break;
     case "TruongBoMon":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
-        { icon: "💬", text: "Chat", path: "/chat-page" },
-        { icon: "📅", text: "Lịch học", path: "/schedule" },
         { icon: "📝", text: "Phê duyệt mở lớp", path: "/approve-requests" },
-        { icon: "⚙️", text: "Cài đặt", path: "/settings" },
       ];
       break;
     case "TruongKhoa":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
-        { icon: "💬", text: "Chat", path: "/chat-page" },
-        { icon: "📅", text: "Lịch học", path: "/schedule" },
         { icon: "📝", text: "Phê duyệt mở lớp", path: "/approve-requests" },
-        { icon: "⚙️", text: "Cài đặt", path: "/settings" },
       ];
       break;
     case "QuanTriVien":

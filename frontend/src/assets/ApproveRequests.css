@@ -129,3 +129,170 @@
   color: #6c757d;
   margin-bottom: 1rem;
 }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.stat-title {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.stat-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  color: #64748b;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.modern-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #1e293b;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.modern-select:hover {
+  border-color: #cbd5e1;
+}
+
+.modern-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.teacher-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.teacher-status.has-teacher {
+  background: #dcfce7;
+  color: #10b981;
+}
+
+.teacher-status.no-teacher {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+tr.has-teacher {
+  background: #f0fdf4;
+}
+
+tr.no-teacher {
+  background: #fffbeb;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.approve-btn,
+.reject-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.approve-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+}
+
+.approve-btn:hover {
+  background: #059669;
+}
+
+.reject-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+}
+
+.reject-btn:hover {
+  background: #dc2626;
+}
+
+.approve-btn:disabled,
+.reject-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
