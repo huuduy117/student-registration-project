@@ -69,94 +69,54 @@ const ApproveRequestsPage = () => {
         filteredRequests,
       });
 
-      // Thêm thông tin về trạng thái đăng ký giảng viên (chỉ cho Trưởng bộ môn)
-      const requestsWithTeacherStatus = await Promise.all(
-        filteredRequests.map(async (request) => {
-          // Nếu không phải Trưởng bộ môn, trả về request gốc
-          if (userRole !== "TruongBoMon") {
-            return request;
-          }
+      // Sử dụng trạng thái hasTeacherRegistration trực tiếp từ backend
+      const requestsWithTeacherStatus = filteredRequests.map((request) => ({
+        ...request,
+        hasTeacherRegistration: request.hasTeacherRegistration || false,
+        newClassSectionId: `${request.maLopHP}_NEW`,
+      }));
 
-          try {
-            console.log(`\nProcessing request: ${request.maYeuCau}`);
-            console.log("Request details:", {
-              maYeuCau: request.maYeuCau,
-              maLopHP: request.maLopHP,
-              trangThaiXuLy: request.trangThaiXuLy,
-              tinhTrangTongQuat: request.tinhTrangTongQuat,
-            });
+      // Log chi tiết trạng thái giảng viên cho từng yêu cầu
+      console.log("\n=== Teacher Registration Status Details ===");
+      requestsWithTeacherStatus.forEach((request) => {
+        console.log(`\nRequest ${request.maYeuCau}:`, {
+          maLopHP: request.maLopHP,
+          newClassSectionId: request.newClassSectionId,
+          maGV: request.maGV,
+          tenGV: request.tenGV,
+          hasTeacherRegistration: request.hasTeacherRegistration,
+          trangThaiXuLy: request.trangThaiXuLy,
+          tinhTrangTongQuat: request.tinhTrangTongQuat,
+        });
+      });
 
-            // Tạo mã lớp học phần mới
-            const newClassSectionId = `${request.maLopHP}_NEW`;
-            console.log("Checking new class section:", newClassSectionId);
-
-            // Kiểm tra đăng ký giảng dạy cho lớp học phần mới
-            let teacherRegistrations = [];
-            try {
-              const teacherRes = await axios.get(
-                `/api/teaching/class-sections/${newClassSectionId}/registrations`,
-                {
-                  headers: { Authorization: `Bearer ${authData.token}` },
-                }
-              );
-              teacherRegistrations = teacherRes.data;
-              console.log(
-                "Teacher registrations for new class:",
-                teacherRegistrations
-              );
-            } catch (err) {
-              console.error(
-                `Error fetching registrations for ${newClassSectionId}:`,
-                err
-              );
-            }
-
-            // Không cần kiểm tra trạng thái vì đăng ký là được chấp nhận ngay
-            const hasTeacherRegistration = teacherRegistrations.length > 0;
-
-            console.log("Teacher registration status:", {
-              hasTeacherRegistration,
-              registrations: teacherRegistrations,
-              newClassSectionId,
-            });
-
-            const result = {
-              ...request,
-              hasTeacherRegistration,
-              teacherRegistrations,
-              newClassSectionId: newClassSectionId,
-            };
-
-            console.log("Final request object:", result);
-            return result;
-          } catch (err) {
-            console.error("Error processing request:", err);
-            return {
-              ...request,
-              hasTeacherRegistration: false,
-              teacherRegistrations: [],
-              newClassSectionId: `${request.maLopHP}_NEW`,
-            };
-          }
-        })
-      );
-
-      console.log("\n=== Final Results ===");
-      console.log("User role:", userRole);
+      // Log thống kê
+      console.log("\n=== Teacher Registration Statistics ===");
       console.log("Total requests:", requestsWithTeacherStatus.length);
-      if (userRole === "TruongBoMon") {
-        console.log(
-          "Requests with teacher registration:",
-          requestsWithTeacherStatus.filter((r) => r.hasTeacherRegistration)
-            .length
-        );
-        console.log(
-          "Requests without teacher registration:",
-          requestsWithTeacherStatus.filter((r) => !r.hasTeacherRegistration)
-            .length
-        );
+      const withTeacher = requestsWithTeacherStatus.filter(
+        (r) => r.hasTeacherRegistration
+      );
+      const withoutTeacher = requestsWithTeacherStatus.filter(
+        (r) => !r.hasTeacherRegistration
+      );
+      console.log("Requests with teacher:", withTeacher.length);
+      console.log("Requests without teacher:", withoutTeacher.length);
+
+      // Log chi tiết các lớp có giảng viên
+      if (withTeacher.length > 0) {
+        console.log("\nClasses with teachers:");
+        withTeacher.forEach((r) => {
+          console.log(`- ${r.newClassSectionId}: ${r.tenGV} (${r.maGV})`);
+        });
       }
-      console.log("Detailed requests:", requestsWithTeacherStatus);
+
+      // Log chi tiết các lớp chưa có giảng viên
+      if (withoutTeacher.length > 0) {
+        console.log("\nClasses without teachers:");
+        withoutTeacher.forEach((r) => {
+          console.log(`- ${r.newClassSectionId}`);
+        });
+      }
 
       setRequests(requestsWithTeacherStatus);
     } catch (err) {
