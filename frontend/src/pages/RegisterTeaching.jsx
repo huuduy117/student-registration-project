@@ -10,6 +10,7 @@ import {
   Search,
   Filter,
   PlusCircle,
+  X,
 } from "lucide-react";
 import SideBar from "../components/sideBar";
 import "../assets/RegisterTeaching.css";
@@ -26,6 +27,12 @@ const RegisterTeaching = () => {
     year: "",
   });
   const [creatingNewClasses, setCreatingNewClasses] = useState(false);
+  const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
+  const [showTeacherScheduleOnly, setShowTeacherScheduleOnly] = useState(false);
 
   useEffect(() => {
     const tabId = sessionStorage.getItem("tabId");
@@ -131,6 +138,83 @@ const RegisterTeaching = () => {
     }
   };
 
+  const handleRegisterClick = async (classItem) => {
+    setSelectedClass(classItem);
+    setLoadingTimeSlots(true);
+    setShowTimeSlotModal(true);
+
+    try {
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
+
+      const response = await axios.get(
+        `/api/teaching/class-sections/${classItem.maLopHP}/time-slots`,
+        {
+          params: { maGV: teacherId },
+          headers: {
+            Authorization: `Bearer ${authData.token}`,
+          },
+        }
+      );
+
+      setAvailableTimeSlots(response.data.availableSlots);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Không thể lấy danh sách khung giờ trống. Vui lòng thử lại."
+      );
+      setShowTimeSlotModal(false);
+    } finally {
+      setLoadingTimeSlots(false);
+    }
+  };
+
+  const handleTimeSlotSelect = (slot) => {
+    setSelectedTimeSlot(slot);
+  };
+
+  const handleConfirmRegistration = async () => {
+    if (!selectedTimeSlot) {
+      setError("Vui lòng chọn một khung giờ");
+      return;
+    }
+
+    try {
+      const tabId = sessionStorage.getItem("tabId");
+      const authData = JSON.parse(
+        sessionStorage.getItem(`auth_${tabId}`) || "{}"
+      );
+
+      await axios.post(
+        "/api/teaching/register-teaching",
+        {
+          maGV: teacherId,
+          maLopHP: selectedClass.maLopHP,
+          ngayDangKy: new Date().toISOString().split("T")[0],
+          thu: selectedTimeSlot.thu,
+          tietHoc: selectedTimeSlot.tietHoc,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authData.token}`,
+          },
+        }
+      );
+
+      setSuccess("Đăng ký giảng dạy thành công!");
+      setShowTimeSlotModal(false);
+      setSelectedTimeSlot(null);
+      fetchApprovedClasses(authData.token);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Đăng ký không thành công. Vui lòng thử lại."
+      );
+    }
+  };
+
   const filteredClasses = approvedClasses.filter((classItem) => {
     const matchesSubject =
       !filter.subject ||
@@ -142,6 +226,16 @@ const RegisterTeaching = () => {
   });
 
   const uniqueYears = [...new Set(approvedClasses.map((c) => c.namHoc))];
+
+  const filteredTimeSlots = showTeacherScheduleOnly
+    ? availableTimeSlots.filter(slot => 
+        !availableTimeSlots.occupiedSlots?.teacherSlots?.some(
+          teacherSlot => 
+            teacherSlot.thu === slot.thu && 
+            teacherSlot.tietHoc === slot.tietHoc
+        )
+      )
+    : availableTimeSlots;
 
   return (
     <div className="dashboard-container">
@@ -287,7 +381,7 @@ const RegisterTeaching = () => {
 
                   <button
                     className="register-button"
-                    onClick={() => handleRegister(classItem.maLopHP)}
+                    onClick={() => handleRegisterClick(classItem)}
                   >
                     Đăng ký giảng dạy
                   </button>
@@ -296,6 +390,87 @@ const RegisterTeaching = () => {
             </div>
           )}
         </div>
+
+        {showTimeSlotModal && (
+          <div className="modal-overlay">
+            <div className="time-slot-modal">
+              <div className="modal-header">
+                <h2>Chọn khung giờ giảng dạy</h2>
+                <button
+                  className="close-modal"
+                  onClick={() => {
+                    setShowTimeSlotModal(false);
+                    setSelectedTimeSlot(null);
+                  }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="modal-content">
+                <div className="time-slot-filters">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={showTeacherScheduleOnly}
+                      onChange={(e) => setShowTeacherScheduleOnly(e.target.checked)}
+                    />
+                    Chỉ hiển thị khung giờ không trùng với lịch giảng dạy của tôi
+                  </label>
+                </div>
+
+                {loadingTimeSlots ? (
+                  <div className="loading-spinner">Đang tải khung giờ...</div>
+                ) : (
+                  <div className="time-slots-container">
+                    {filteredTimeSlots.map((dayGroup) => (
+                      <div key={dayGroup.thu} className="day-group">
+                        <h3 className="day-header">{dayGroup.thu}</h3>
+                        <div className="time-slots-grid">
+                          {dayGroup.slots.map((period) => {
+                            const slot = { thu: dayGroup.thu, tietHoc: period };
+                            const isSelected = 
+                              selectedTimeSlot?.thu === slot.thu && 
+                              selectedTimeSlot?.tietHoc === slot.tietHoc;
+                            
+                            return (
+                              <div
+                                key={`${slot.thu}-${slot.tietHoc}`}
+                                className={`time-slot-card ${isSelected ? "selected" : ""}`}
+                                onClick={() => handleTimeSlotSelect(slot)}
+                              >
+                                <div className="time-slot-period">Tiết {slot.tietHoc}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  className="cancel-button"
+                  onClick={() => {
+                    setShowTimeSlotModal(false);
+                    setSelectedTimeSlot(null);
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="confirm-button"
+                  onClick={handleConfirmRegistration}
+                  disabled={!selectedTimeSlot}
+                >
+                  Xác nhận đăng ký
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -73,13 +73,20 @@ const getAvailableClassSections = (req, res) => {
 };
 
 const registerTeaching = (req, res) => {
-  const { maGV, maLopHP, ngayDangKy } = req.body;
+  const { maGV, maLopHP, ngayDangKy, thu, tietHoc } = req.body;
   console.log("\n=== Debug Teacher Registration ===");
   console.log("Registration request:", {
     maGV,
     maLopHP,
     ngayDangKy,
+    thu,
+    tietHoc,
   });
+
+  // Helper to map T2-T7 to MySQL DAYOFWEEK number
+  const thuMap = { T2: 2, T3: 3, T4: 4, T5: 5, T6: 6, T7: 7 };
+  const thuNumber = thuMap[thu];
+  const tietBD = tietHoc.toString();
 
   // Tạo mã đăng ký ngắn gọn hơn: DKLD + timestamp 8 ký tự + GV
   const timestamp = Date.now().toString().slice(-8);
@@ -126,100 +133,106 @@ const registerTeaching = (req, res) => {
     }
 
     const classInfo = results[0];
-    console.log("\nClass Request Information:");
-    console.log({
-      maLopHP: classInfo.maLopHP,
-      maMH: classInfo.maMH,
-      tenMH: classInfo.tenMH,
-      maYeuCau: classInfo.maYeuCau,
-      soLuongThamGia: classInfo.soLuongThamGia,
-      description: classInfo.description,
-      trangThaiXuLy: classInfo.trangThaiXuLy,
-      tinhTrangTongQuat: classInfo.tinhTrangTongQuat,
-      sinhVien: {
-        maSV: classInfo.maSV,
-        tenSinhVien: classInfo.tenSinhVien,
-      },
-    });
+    console.log("\nClass Request Information:", classInfo);
 
-    // If available, create the registration with ChapNhan status
-    const insertQuery = `
-      INSERT INTO DangKyLichDay (maDangKy, maGV, maLopHP, ngayDangKy, trangThai)
-      VALUES (?, ?, ?, ?, 'ChapNhan')
+    // Check if the selected time slot is available
+    const checkTimeSlotQuery = `
+      SELECT 1
+      FROM ThoiKhoaBieuGiangVien tkb
+      WHERE tkb.maGV = ?
+        AND DAYOFWEEK(tkb.ngayHoc) = ?
+        AND tkb.tietBD = ?
     `;
 
     mysqlConnection.query(
-      insertQuery,
-      [maDangKy, maGV, maLopHP, ngayDangKy],
-      (err) => {
+      checkTimeSlotQuery,
+      [maGV, thuNumber, tietBD],
+      (err, timeSlotResults) => {
         if (err) {
-          console.error("Error registering for class:", err);
-          return res.status(500).json({ message: "Lỗi khi đăng ký giảng dạy" });
+          console.error("Error checking time slot availability:", err);
+          return res
+            .status(500)
+            .json({ message: "Lỗi khi kiểm tra khung giờ" });
         }
 
-        console.log("\nSuccessfully created registration record:", {
-          maDangKy,
-          maGV,
-          maLopHP,
-          ngayDangKy,
-          trangThai: "ChapNhan",
-        });
+        if (timeSlotResults.length > 0) {
+          return res
+            .status(400)
+            .json({ message: "Khung giờ này đã được sử dụng" });
+        }
 
-        // Update the class section to assign the teacher
-        const updateQuery = `
-          UPDATE LopHocPhan 
-          SET maGV = ? 
-          WHERE maLopHP = ?
+        // If available, create the registration with ChapNhan status
+        const insertQuery = `
+          INSERT INTO DangKyLichDay (maDangKy, maGV, maLopHP, ngayDangKy, trangThai)
+          VALUES (?, ?, ?, ?, 'ChapNhan')
         `;
 
-        mysqlConnection.query(updateQuery, [maGV, maLopHP], (err) => {
-          if (err) {
-            console.error("Error updating class section:", err);
-            return res
-              .status(500)
-              .json({ message: "Lỗi khi cập nhật lớp học phần" });
+        mysqlConnection.query(
+          insertQuery,
+          [maDangKy, maGV, maLopHP, ngayDangKy],
+          (err) => {
+            if (err) {
+              console.error("Error registering for class:", err);
+              return res
+                .status(500)
+                .json({ message: "Lỗi khi đăng ký giảng dạy" });
+            }
+
+            // Insert the time slot into ThoiKhoaBieuGiangVien
+            // (You may want to insert a real date for ngayHoc, but for now, just skip this or use a placeholder)
+            // You can extend this logic as needed.
+
+            // Update the class section to assign the teacher
+            const updateQuery = `
+              UPDATE LopHocPhan 
+              SET maGV = ? 
+              WHERE maLopHP = ?
+            `;
+
+            mysqlConnection.query(updateQuery, [maGV, maLopHP], (err) => {
+              if (err) {
+                console.error("Error updating class section:", err);
+                return res
+                  .status(500)
+                  .json({ message: "Lỗi khi cập nhật lớp học phần" });
+              }
+
+              console.log("\n=== Registration Summary ===");
+              console.log("1. Class Request Details:");
+              console.log(`   - Mã yêu cầu: ${classInfo.maYeuCau}`);
+              console.log(`   - Môn học: ${classInfo.tenMH} (${classInfo.maMH})`);
+              console.log(`   - Lớp học phần: ${classInfo.maLopHP}`);
+              console.log(`   - Số lượng tham gia: ${classInfo.soLuongThamGia}`);
+              console.log(`   - Mô tả: ${classInfo.description}`);
+              console.log(`   - Trạng thái xử lý: ${classInfo.trangThaiXuLy}`);
+              console.log(
+                `   - Tình trạng tổng quát: ${classInfo.tinhTrangTongQuat}`
+              );
+              console.log(
+                `   - Sinh viên yêu cầu: ${classInfo.tenSinhVien} (${classInfo.maSV})`
+              );
+
+              console.log("\n2. Teacher Registration Details:");
+              console.log(`   - Mã đăng ký: ${maDangKy}`);
+              console.log(`   - Giảng viên: ${maGV}`);
+              console.log(`   - Ngày đăng ký: ${ngayDangKy}`);
+              console.log(`   - Khung giờ: ${thu} - Tiết ${tietHoc}`);
+              console.log(`   - Trạng thái: ChapNhan`);
+
+              console.log("\n=== End of Registration Log ===\n");
+
+              res.status(201).json({
+                message: "Đăng ký giảng dạy thành công",
+                maDangKy,
+                classInfo: {
+                  maYeuCau: classInfo.maYeuCau,
+                  tenMH: classInfo.tenMH,
+                  maLopHP: classInfo.maLopHP,
+                },
+              });
+            });
           }
-
-          console.log("\nSuccessfully assigned teacher to class:", {
-            maLopHP,
-            maGV,
-            maYeuCau: classInfo.maYeuCau,
-            tenMH: classInfo.tenMH,
-          });
-
-          console.log("\n=== Registration Summary ===");
-          console.log("1. Class Request Details:");
-          console.log(`   - Mã yêu cầu: ${classInfo.maYeuCau}`);
-          console.log(`   - Môn học: ${classInfo.tenMH} (${classInfo.maMH})`);
-          console.log(`   - Lớp học phần: ${classInfo.maLopHP}`);
-          console.log(`   - Số lượng tham gia: ${classInfo.soLuongThamGia}`);
-          console.log(`   - Mô tả: ${classInfo.description}`);
-          console.log(`   - Trạng thái xử lý: ${classInfo.trangThaiXuLy}`);
-          console.log(
-            `   - Tình trạng tổng quát: ${classInfo.tinhTrangTongQuat}`
-          );
-          console.log(
-            `   - Sinh viên yêu cầu: ${classInfo.tenSinhVien} (${classInfo.maSV})`
-          );
-
-          console.log("\n2. Teacher Registration Details:");
-          console.log(`   - Mã đăng ký: ${maDangKy}`);
-          console.log(`   - Giảng viên: ${maGV}`);
-          console.log(`   - Ngày đăng ký: ${ngayDangKy}`);
-          console.log(`   - Trạng thái: ChapNhan`);
-
-          console.log("\n=== End of Registration Log ===\n");
-
-          res.status(201).json({
-            message: "Đăng ký giảng dạy thành công",
-            maDangKy,
-            classInfo: {
-              maYeuCau: classInfo.maYeuCau,
-              tenMH: classInfo.tenMH,
-              maLopHP: classInfo.maLopHP,
-            },
-          });
-        });
+        );
       }
     );
   });
@@ -509,6 +522,107 @@ const createNewClassSections = (req, res) => {
   });
 };
 
+const getAvailableTimeSlots = async (req, res) => {
+  const { maLopHP } = req.params;
+  const { maGV } = req.query;
+
+  // Helper to map MySQL DAYOFWEEK to T2-T7
+  const dayMap = {
+    2: 'T2',
+    3: 'T3',
+    4: 'T4',
+    5: 'T5',
+    6: 'T6',
+    7: 'T7',
+  };
+
+  try {
+    // Get teacher's current schedule
+    const teacherScheduleQuery = `
+      SELECT DISTINCT DAYOFWEEK(tkb.ngayHoc) AS thu, tkb.tietBD
+      FROM ThoiKhoaBieuGiangVien tkb
+      WHERE tkb.maGV = ?
+    `;
+    const [teacherScheduleRaw] = await mysqlConnection.promise().query(
+      teacherScheduleQuery,
+      [maGV]
+    );
+    // Map to {thu: T2, tietHoc: 1/2/3...}
+    const teacherSchedule = teacherScheduleRaw
+      .map(row => ({
+        thu: dayMap[row.thu],
+        tietHoc: parseInt(row.tietBD, 10)
+      }))
+      .filter(row => row.thu && !isNaN(row.tietHoc));
+
+    // Get all students in the class section
+    const studentsQuery = `
+      SELECT DISTINCT sv.maSV
+      FROM SinhVien_MonHoc svmh
+      JOIN SinhVien sv ON svmh.maSV = sv.maSV
+      WHERE svmh.maLopHP = ?
+    `;
+    const [students] = await mysqlConnection.promise().query(studentsQuery, [maLopHP]);
+
+    let studentSchedules = [];
+    if (students.length > 0) {
+      const studentSchedulesQuery = `
+        SELECT DISTINCT DAYOFWEEK(tkb.ngayHoc) AS thu, tkb.tietBD
+        FROM ThoiKhoaBieuSinhVien tkb
+        WHERE tkb.maSV IN (?)
+      `;
+      const [studentSchedulesRaw] = await mysqlConnection.promise().query(
+        studentSchedulesQuery,
+        [students.map(s => s.maSV)]
+      );
+      studentSchedules = studentSchedulesRaw
+        .map(row => ({
+          thu: dayMap[row.thu],
+          tietHoc: parseInt(row.tietBD, 10)
+        }))
+        .filter(row => row.thu && !isNaN(row.tietHoc));
+    }
+
+    // Generate all possible time slots (Mon-Fri, periods 1-6)
+    const allTimeSlots = [];
+    const days = ['T2', 'T3', 'T4', 'T5', 'T6'];
+    const periods = [1, 2, 3, 4, 5, 6];
+    for (const day of days) {
+      for (const period of periods) {
+        allTimeSlots.push({ thu: day, tietHoc: period });
+      }
+    }
+
+    // Filter out occupied slots
+    const occupiedSlots = [...studentSchedules, ...teacherSchedule];
+    const availableSlots = allTimeSlots.filter(slot =>
+      !occupiedSlots.some(occupied =>
+        occupied.thu === slot.thu && occupied.tietHoc === slot.tietHoc
+      )
+    );
+
+    // Group available slots by day for better display
+    const groupedSlots = days.map(day => ({
+      thu: day,
+      slots: availableSlots
+        .filter(slot => slot.thu === day)
+        .map(slot => slot.tietHoc)
+        .sort((a, b) => a - b)
+    }));
+
+    res.json({
+      availableSlots: groupedSlots,
+      occupiedSlots: {
+        studentSlots: studentSchedules,
+        teacherSlots: teacherSchedule
+      }
+    });
+  } catch (error) {
+    console.error('Error getting available time slots:', error);
+    res.status(500).json({ message: 'Lỗi khi lấy danh sách khung giờ trống' });
+  }
+};
+
 module.exports = {
   someMethod,
   getClassCount,
@@ -516,4 +630,5 @@ module.exports = {
   registerTeaching,
   getApprovedClassSections,
   createNewClassSections,
+  getAvailableTimeSlots,
 };

@@ -27,4 +27,11 @@ router.post(
 // Register to teach a class
 router.post("/register-teaching", auth, teacherController.registerTeaching);
 
+// Get available time slots for a class section
+router.get(
+  "/class-sections/:maLopHP/time-slots",
+  auth,
+  teacherController.getAvailableTimeSlots
+);
+
 module.exports = router;
