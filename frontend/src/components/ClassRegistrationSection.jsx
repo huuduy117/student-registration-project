@@ -65,7 +65,7 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
     }
   };
 
-  const handleJoinClassRequest = async (joinData) => {
+  const handleJoinRequest = async (requestId) => {
     try {
       if (!userId) {
         setErrorMessage("Không tìm thấy thông tin sinh viên");
@@ -77,7 +77,7 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
         "/api/class-requests/join",
         {
           maSV: userId,
-          maLopHP: joinData.maLopHP,
+          maLopHP: requestId,
         },
         {
           headers: {
@@ -94,7 +94,6 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
 
       // Refresh the class requests
       fetchClassRequests();
-      setShowJoinForm(false);
       setErrorMessage("");
 
       // Show success message
@@ -189,14 +188,49 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
     }
   };
 
-  const handleJoinRequest = (requestId) => {
-    const request = classRequests.find((req) => req.maLopHP === requestId);
-    if (request) {
-      setSelectedRequest({
-        ...request,
-        maLopHP: request.maLopHP,
-      });
-      setShowJoinForm(true);
+  const handleJoinClassRequest = async (joinData) => {
+    try {
+      if (!userId) {
+        setErrorMessage("Không tìm thấy thông tin sinh viên");
+        console.error("Missing userId when attempting to join class");
+        return;
+      }
+
+      const response = await axios.post(
+        "/api/class-requests/join",
+        {
+          maSV: userId,
+          maLopHP: joinData.maLopHP,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${
+              JSON.parse(
+                sessionStorage.getItem(
+                  `auth_${sessionStorage.getItem("tabId")}`
+                )
+              ).token
+            }`,
+          },
+        }
+      );
+
+      // Refresh the class requests
+      fetchClassRequests();
+      setShowJoinForm(false);
+      setErrorMessage("");
+
+      // Show success message
+      if (response.data.approved) {
+        alert("Tham gia lớp học thành công. Lớp học đã đủ điều kiện mở!");
+      } else {
+        alert("Tham gia lớp học thành công!");
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || "Lỗi khi tham gia lớp học";
+      setErrorMessage(msg);
+      console.error("Error joining class request:", error);
+      alert(msg);
     }
   };
 

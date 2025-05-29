@@ -336,7 +336,23 @@ const App = () => {
         />
 
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/"
+          element={
+            <PrivateRoute allowedRoles={null}>
+              {() => {
+                const tabId = sessionStorage.getItem("tabId");
+                const authData = JSON.parse(
+                  sessionStorage.getItem(`auth_${tabId}`) || "{}"
+                );
+                if (authData.userRole === "SinhVien") {
+                  return <Navigate to="/home" replace />;
+                }
+                return <Navigate to="/login" replace />;
+              }}
+            </PrivateRoute>
+          }
+        />
 
         {/* Catch all unknown routes */}
         <Route path="*" element={<Navigate to="/unauthorized" replace />} />
