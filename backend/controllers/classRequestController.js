@@ -19,7 +19,31 @@ exports.getAllClassRequests = (req, res) => {
       lhp.hocKy,
       lhp.siSoToiDa,
       lhp.siSoHienTai,
-      (SELECT COUNT(*) FROM SinhVien_MonHoc WHERE maLopHP = lhp.maLopHP) AS soLuongDangKy
+      (SELECT COUNT(*) FROM SinhVien_MonHoc WHERE maLopHP = lhp.maLopHP) AS soLuongDangKy,
+      CASE 
+        WHEN EXISTS (
+          SELECT 1 FROM LopHocPhan lhp2 
+          LEFT JOIN DangKyLichDay dkld ON lhp2.maLopHP = dkld.maLopHP 
+          WHERE lhp2.maLopHP = CONCAT(lhp.maLopHP, '_NEW')
+          AND (lhp2.maGV IS NOT NULL OR dkld.trangThai = 'ChapNhan')
+        ) THEN true
+        ELSE false
+      END as hasTeacherRegistration,
+      (
+        SELECT gv.hoTen 
+        FROM LopHocPhan lhp2 
+        LEFT JOIN GiangVien gv ON lhp2.maGV = gv.maGV
+        WHERE lhp2.maLopHP = CONCAT(lhp.maLopHP, '_NEW')
+        AND lhp2.maGV IS NOT NULL
+        LIMIT 1
+      ) as tenGV,
+      (
+        SELECT lhp2.maGV 
+        FROM LopHocPhan lhp2 
+        WHERE lhp2.maLopHP = CONCAT(lhp.maLopHP, '_NEW')
+        AND lhp2.maGV IS NOT NULL
+        LIMIT 1
+      ) as maGV
     FROM YeuCauMoLop ycml
     JOIN SinhVien sv ON ycml.maSV = sv.maSV
     LEFT JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
