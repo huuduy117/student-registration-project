@@ -14,15 +14,15 @@ const getRoleBasedRedirect = (role) => {
     case "QuanTriVien":
       return "/admin/home";
     case "SinhVien":
-      return "/student-dashboard";
+      return "/home";
     case "GiangVien":
-      return "/teacher-dashboard";
+      return "/home";
     case "GiaoVu":
-      return "/academic-dashboard";
+      return "/home";
     case "TruongBoMon":
-      return "/department-head-dashboard";
+      return "/home";
     case "TruongKhoa":
-      return "/faculty-head-dashboard";
+      return "/home";
     default:
       return "/home";
   }
