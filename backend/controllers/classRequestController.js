@@ -496,15 +496,62 @@ exports.approveClassRequest = (req, res) => {
   let nextTrangThai, nextTinhTrang;
   let currentTrangThai;
 
-  // Xác định trạng thái tiếp theo dựa trên vai trò
   if (userRole === "GiaoVu") {
     nextTrangThai = "2_TBMNhan";
-    nextTinhTrang = "DaDuyet";
+    nextTinhTrang = "DaGui";
     currentTrangThai = "1_GiaoVuNhan";
+
+    // Get class details and create new section
+    const classQuery = `
+      SELECT 
+        ycml.maLopHP,
+        lhp.maMH,
+        lhp.namHoc,
+        lhp.hocKy,
+        lhp.siSoToiDa
+      FROM YeuCauMoLop ycml
+      JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
+      WHERE ycml.maYeuCau = ?
+    `;
+
+    mysqlConnection.query(classQuery, [maYeuCau], (err, results) => {
+      if (err) {
+        console.error("Error getting class details:", err);
+        return;
+      }
+
+      if (results.length > 0) {
+        const classDetails = results[0];
+        const newClassId = `${classDetails.maLopHP}_NEW`;
+
+        // Create a new class section
+        const createClassQuery = `
+          INSERT INTO LopHocPhan (maLopHP, maMH, namHoc, hocKy, siSoToiDa, siSoHienTai, trangThai)
+          VALUES (?, ?, ?, ?, ?, 0, 'ChuaMo')
+        `;
+
+        mysqlConnection.query(
+          createClassQuery,
+          [
+            newClassId,
+            classDetails.maMH,
+            classDetails.namHoc,
+            classDetails.hocKy,
+            classDetails.siSoToiDa
+          ],
+          (err) => {
+            if (err && err.code !== 'ER_DUP_ENTRY') {
+              console.error("Error creating new class section:", err);
+            }
+          }
+        );
+      }
+    });
   } else if (userRole === "TruongBoMon") {
     nextTrangThai = "3_TruongKhoaNhan";
-    nextTinhTrang = "DaDuyet";
-    currentTrangThai = "2_TBMNhan";  } else if (userRole === "TruongKhoa") {
+    nextTinhTrang = "DaGui";
+    currentTrangThai = "2_TBMNhan";
+  } else if (userRole === "TruongKhoa") {
     nextTrangThai = "4_ChoMoLop";
     nextTinhTrang = "DaDuyet";
     currentTrangThai = "3_TruongKhoaNhan";
@@ -540,17 +587,18 @@ exports.approveClassRequest = (req, res) => {
         mysqlConnection.query(
           "INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung) VALUES (?, ?, ?, NOW(), ?, 'TatCa')",
           [maThongBao, tieuDe, noiDung, userId]
-        );        // Clear approved class to prevent further registrations
+        );
+
+        // Clear approved class to prevent further registrations
         mysqlConnection.query(
           "UPDATE LopHocPhan SET trangThai = 'ChuaMo' WHERE maLopHP = ?",
           [maLopHP]
         );
       }
-    });} else {
+    });
+  } else {
     console.error("Invalid user role for approval:", userRole);
-    return res
-      .status(403)
-      .json({ message: "Bạn không có quyền duyệt yêu cầu này" });
+    return res.status(403).json({ message: "Bạn không có quyền duyệt yêu cầu này" });
   }
 
   console.log("State transition:", {

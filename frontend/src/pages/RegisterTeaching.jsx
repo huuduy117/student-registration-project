@@ -5,11 +5,9 @@ import axios from "axios";
 import {
   Calendar,
   Book,
-  Clock,
   Users,
   Search,
   Filter,
-  PlusCircle,
   X,
 } from "lucide-react";
 import SideBar from "../components/sideBar";
@@ -26,7 +24,6 @@ const RegisterTeaching = () => {
     semester: "",
     year: "",
   });
-  const [creatingNewClasses, setCreatingNewClasses] = useState(false);
   const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
@@ -95,46 +92,6 @@ const RegisterTeaching = () => {
           "Đăng ký không thành công. Vui lòng thử lại."
       );
       console.error("Error registering:", err);
-    }
-  };
-
-  const handleCreateNewClasses = async () => {
-    try {
-      setCreatingNewClasses(true);
-      const tabId = sessionStorage.getItem("tabId");
-      const authData = JSON.parse(
-        sessionStorage.getItem(`auth_${tabId}`) || "{}"
-      );
-
-      if (!authData.token) {
-        setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        return;
-      }
-
-      const response = await axios.post(
-        "/api/teaching/class-sections/create-new",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${authData.token}`,
-          },
-        }
-      );
-
-      if (response.data.createdClasses?.length > 0) {
-        setSuccess(
-          `Đã tạo ${response.data.createdClasses.length} lớp học phần mới`
-        );
-        // Refresh the list after creating new classes
-        fetchApprovedClasses(authData.token);
-      } else {
-        setSuccess("Không có yêu cầu nào cần tạo lớp học phần mới");
-      }
-    } catch (error) {
-      console.error("Error creating new classes:", error);
-      setError(error.response?.data?.message || "Lỗi khi tạo lớp học phần mới");
-    } finally {
-      setCreatingNewClasses(false);
     }
   };
 
@@ -247,20 +204,7 @@ const RegisterTeaching = () => {
             <p>
               Đăng ký phân công giảng dạy cho các lớp học phần đã được duyệt
             </p>
-          </div>
-
-          <div className="register-teaching-actions">
-            <button
-              className="create-new-classes-btn"
-              onClick={handleCreateNewClasses}
-              disabled={creatingNewClasses}
-            >
-              <PlusCircle size={20} />
-              {creatingNewClasses ? "Đang tạo..." : "Tạo lớp học phần mới"}
-            </button>
-          </div>
-
-          {error && (
+          </div>          {error && (
             <div className="alert error-alert">
               <span className="alert-icon">⚠️</span>
               {error}
