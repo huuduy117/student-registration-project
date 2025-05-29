@@ -290,7 +290,11 @@ const getApprovedClassSections = (req, res) => {
       sv.hoTen as tenSinhVien,
       sv.maSV,
       CASE 
-        WHEN lhp.maGV IS NOT NULL THEN true
+        WHEN EXISTS (
+          SELECT 1 FROM DangKyLichDay dkld 
+          WHERE dkld.maLopHP = lhp.maLopHP 
+            AND dkld.trangThai = 'ChapNhan'
+        ) THEN true
         ELSE false
       END as hasTeacherRegistration
     FROM LopHocPhan lhp
