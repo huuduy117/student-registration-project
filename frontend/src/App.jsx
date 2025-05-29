@@ -1,29 +1,37 @@
 "use client";
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import { useSession, useSessionMonitor } from "./hook/useSession"
-import { useEffect } from "react"
-import Login from "./pages/Login"
-import Home from "./pages/Home"
-import ChatPage from "./pages/ChatPage"
-import Schedule from "./pages/Schedule"
-import StudentDashboard from "./pages/SinhVien"
-import TeacherDashboard from "./pages/GiangVien"
-import AcademicDashboard from "./pages/Giaovu"
-import DepartmentHeadDashboard from "./pages/TruongBoMon"
-import AdminDashboard from "./pages/QuanTriVien"
-import FacultyHeadDashboard from "./pages/TruongKhoa"
-import UnauthorizedPage from "./pages/404"
-import CreateClassRequest from "./pages/CreateClassRequest"
-import ApproveRequests from "./pages/ApproveRequests"
-import ForgotPassword from "./pages/ForgotPassword"
-import ResetPassword from "./pages/ResetPassword"
-import AdminHome from "./pages/admin/Home"
-import AdminUserManagement from "./pages/admin/UserManagement"
-import AdminNewsfeed from "./pages/admin/Newsfeed"
-import AdminApproveRequests from "./pages/admin/ApproveRequests"
-import AdminSettings from "./pages/admin/Settings"
-import TeacherSchedule from "./pages/Teacher_Schedule"
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useSession, useSessionMonitor } from "./hook/useSession";
+import { useEffect } from "react";
+import Login from "./pages/Login";
+import Home from "./pages/Home";
+import ChatPage from "./pages/ChatPage";
+import Schedule from "./pages/Schedule";
+import StudentDashboard from "./pages/SinhVien";
+import TeacherDashboard from "./pages/GiangVien";
+import AcademicDashboard from "./pages/Giaovu";
+import DepartmentHeadDashboard from "./pages/TruongBoMon";
+import AdminDashboard from "./pages/QuanTriVien";
+import FacultyHeadDashboard from "./pages/TruongKhoa";
+import UnauthorizedPage from "./pages/404";
+import CreateClassRequest from "./pages/CreateClassRequest";
+import ApproveRequests from "./pages/ApproveRequests";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import AdminHome from "./pages/admin/Home";
+import AdminUserManagement from "./pages/admin/UserManagement";
+import AdminNewsfeed from "./pages/admin/Newsfeed";
+import AdminApproveRequests from "./pages/admin/ApproveRequests";
+import AdminSettings from "./pages/admin/Settings";
+import TeacherSchedule from "./pages/Teacher_Schedule";
+import RegisterTeaching from "./pages/RegisterTeaching";
+import ClassRegistrationSection from "./components/ClassRegistrationSection";
+import SideBar from "./components/sideBar";
 
 // Create a SessionMonitorWrapper components
 const SessionMonitorWrapper = ({ children }) => {
@@ -117,6 +125,27 @@ const SessionMonitor = () => {
   return null;
 };
 
+// Create a wrapper component for the class registration page to access session data
+const ClassRegistrationPage = () => {
+  const tabId = useSession();
+  const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
+
+  return (
+    <div className="dashboard-container">
+      <SideBar />
+      <main className="dashboard-main">
+        <h1>Đăng ký học phần</h1>
+        <div className="dashboard-content">
+          <ClassRegistrationSection
+            userId={authData.userId}
+            userRole={authData.userRole}
+          />
+        </div>
+      </main>
+    </div>
+  );
+};
+
 const App = () => {
   useEffect(() => {
     // Check for existing auth token on app initialization
@@ -149,6 +178,15 @@ const App = () => {
           element={
             <PrivateRoute allowedRoles={null}>
               <ChatPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/class-registration"
+          element={
+            <PrivateRoute allowedRoles={["SinhVien"]}>
+              <ClassRegistrationPage />
             </PrivateRoute>
           }
         />
@@ -197,6 +235,15 @@ const App = () => {
           element={
             <PrivateRoute allowedRoles={["SinhVien"]}>
               <StudentDashboard />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/register-teaching"
+          element={
+            <PrivateRoute allowedRoles={["GiangVien"]}>
+              <RegisterTeaching />
             </PrivateRoute>
           }
         />
@@ -289,7 +336,23 @@ const App = () => {
         />
 
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/"
+          element={
+            <PrivateRoute allowedRoles={null}>
+              {() => {
+                const tabId = sessionStorage.getItem("tabId");
+                const authData = JSON.parse(
+                  sessionStorage.getItem(`auth_${tabId}`) || "{}"
+                );
+                if (authData.userRole === "SinhVien") {
+                  return <Navigate to="/home" replace />;
+                }
+                return <Navigate to="/login" replace />;
+              }}
+            </PrivateRoute>
+          }
+        />
 
         {/* Catch all unknown routes */}
         <Route path="*" element={<Navigate to="/unauthorized" replace />} />
