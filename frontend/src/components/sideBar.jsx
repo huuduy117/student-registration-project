@@ -44,7 +44,7 @@ export default function SideBar() {
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
         { icon: "📅", text: "Lịch học", path: "/schedule" },
-        { icon: "📚", text: "Khóa học", path: "/student-dashboard" },
+        { icon: "📚", text: "Đăng ký học phần", path: "/class-registration" },
         { icon: "⚙️", text: "Cài đặt", path: "/settings" },
       ];
       break;

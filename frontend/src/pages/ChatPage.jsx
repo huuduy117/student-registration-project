@@ -1,16 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import SideBar from "../components/sideBar";
 import useChatSocket from "../hook/useChatSocket";
-import ClassRequestTicket from "../components/Chat/ClassRequestTicket";
-import JoinClassForm from "../components/Chat/JoinClassForm";
-import ParticipantsList from "../components/Chat/ParticipantsList";
-import RequestDetails from "../components/Chat/RequestDetails";
+import ClassRegistrationSection from "../components/ClassRegistrationSection";
 import "../assets/ChatPage.css";
 import { useSessionMonitor } from "../hook/useSession";
-import axios from "axios";
 
 const ChatPage = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -18,22 +13,12 @@ const ChatPage = () => {
   const [username, setUsername] = useState("Anonymous User");
   const [userId, setUserId] = useState(null);
   const [userRole, setUserRole] = useState(null);
-  const [classRequests, setClassRequests] = useState([]);
-  const [availableCourses, setAvailableCourses] = useState([]);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [showParticipantsList, setShowParticipantsList] = useState(false);
-  const [showRequestDetails, setShowRequestDetails] = useState(false);
-  const [showJoinForm, setShowJoinForm] = useState(false);
-  const [pinnedRequests, setPinnedRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
   const {
     messages,
     sendMessage,
     loading: chatLoading,
     error: chatError,
   } = useChatSocket(selectedRoom?.id);
-  const navigate = useNavigate();
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -58,16 +43,6 @@ const ChatPage = () => {
     if (authData.userRole) {
       setUserRole(authData.userRole);
     }
-
-    // Load pinned requests from localStorage
-    const savedPinnedRequests = localStorage.getItem("pinnedRequests");
-    if (savedPinnedRequests) {
-      setPinnedRequests(JSON.parse(savedPinnedRequests));
-    }
-
-    // Fetch class requests and available courses
-    fetchClassRequests();
-    fetchAvailableCourses();
   }, []);
 
   // Scroll to bottom when messages change or when room is selected
@@ -78,48 +53,6 @@ const ChatPage = () => {
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
-  const fetchClassRequests = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/class-requests", {
-        headers: {
-          Authorization: `Bearer ${
-            JSON.parse(
-              sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)
-            ).token
-          }`,
-        },
-      });
-      setClassRequests(response.data);
-    } catch (error) {
-      console.error("Error fetching class requests:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAvailableCourses = async () => {
-    try {
-      const response = await axios.get(
-        "/api/class-requests/available-courses",
-        {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(
-                sessionStorage.getItem(
-                  `auth_${sessionStorage.getItem("tabId")}`
-                )
-              ).token
-            }`,
-          },
-        }
-      );
-      setAvailableCourses(response.data);
-    } catch (error) {
-      console.error("Error fetching available courses:", error);
     }
   };
 
@@ -139,170 +72,12 @@ const ChatPage = () => {
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
   };
-  const handleJoinClassRequest = async (joinData) => {
-    try {
-      if (!userId) {
-        setErrorMessage("Không tìm thấy thông tin sinh viên");
-        console.error("Missing userId when attempting to join class");
-        return;
-      }
-
-      const response = await axios.post(
-        "/api/class-requests/join",
-        {
-          maSV: userId,
-          maLopHP: joinData.maLopHP,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(
-                sessionStorage.getItem(
-                  `auth_${sessionStorage.getItem("tabId")}`
-                )
-              ).token
-            }`,
-          },
-        }
-      );
-
-      // Refresh the class requests
-      fetchClassRequests();
-      setShowJoinForm(false);
-      setErrorMessage("");
-
-      // Show success message
-      if (response.data.approved) {
-        alert("Tham gia lớp học thành công. Lớp học đã đủ điều kiện mở!");
-      } else {
-        alert("Tham gia lớp học thành công!");
-      }
-    } catch (error) {
-      const msg = error.response?.data?.message || "Lỗi khi tham gia lớp học";
-      setErrorMessage(msg);
-      console.error("Error joining class request:", error);
-      alert(msg);
-    }
-  };
-  const handleViewParticipants = async (requestId) => {
-    try {
-      const response = await axios.get(
-        `/api/class-requests/${requestId}/participants`,
-        {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(
-                sessionStorage.getItem(
-                  `auth_${sessionStorage.getItem("tabId")}`
-                )
-              ).token
-            }`,
-          },
-        }
-      );
-
-      const request = classRequests.find((req) => req.maLopHP === requestId);
-      if (request) {
-        setSelectedRequest({
-          id: request.maLopHP,
-          courseName: request.tenMH,
-          participantCount: request.soLuongThamGia,
-          participants: response.data.map((p) => ({
-            studentId: p.maSV,
-            fullName: p.hoTen,
-            class: p.lop,
-            joinDate: p.ngayDangKy,
-          })),
-        });
-        setShowParticipantsList(true);
-      }
-    } catch (error) {
-      console.error("Error fetching participants:", error);
-      alert("Lỗi khi lấy danh sách sinh viên tham gia");
-    }
-  };
-  const handleViewDetails = async (requestId) => {
-    try {
-      // Get participants data
-      const participantsResponse = await axios.get(
-        `/api/class-requests/${requestId}/participants`,
-        {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(
-                sessionStorage.getItem(
-                  `auth_${sessionStorage.getItem("tabId")}`
-                )
-              ).token
-            }`,
-          },
-        }
-      );
-
-      const request = classRequests.find((req) => req.maLopHP === requestId);
-      if (request) {
-        setSelectedRequest({
-          id: request.maLopHP,
-          courseName: request.tenMH,
-          creatorName: request.tenSinhVien,
-          creatorStudentId: request.maSV,
-          creatorClass: request.tenLop,
-          semester: request.hocKy ? request.hocKy.replace("HK", "") : "",
-          batch: request.namHoc,
-          participantCount: request.soLuongThamGia,
-          description: request.description,
-          createdAt: request.ngayGui,
-          participants: participantsResponse.data,
-        });
-        setShowRequestDetails(true);
-      }
-    } catch (error) {
-      console.error("Error fetching request details:", error);
-      alert("Lỗi khi lấy thông tin chi tiết yêu cầu");
-    }
-  };
-  const handleJoinRequest = (requestId) => {
-    const request = classRequests.find((req) => req.maLopHP === requestId);
-    if (request) {
-      setSelectedRequest({
-        ...request,
-        maLopHP: request.maLopHP, // Make sure maLopHP is included
-      });
-      setShowJoinForm(true);
-    }
-  };
-
-  const handleTogglePin = (requestId) => {
-    const isPinned = pinnedRequests.includes(requestId);
-    let newPinnedRequests;
-
-    if (isPinned) {
-      newPinnedRequests = pinnedRequests.filter((id) => id !== requestId);
-    } else {
-      newPinnedRequests = [...pinnedRequests, requestId];
-    }
-
-    setPinnedRequests(newPinnedRequests);
-    localStorage.setItem("pinnedRequests", JSON.stringify(newPinnedRequests));
-  };
-
-  const handleCreateRequest = () => {
-    navigate("/create-class-request");
-  };
 
   if (!selectedRoom) {
     return (
       <div className="dashboard-container">
         <SideBar />
         <main className="dashboard-main">
-          {errorMessage && (
-            <div
-              className="error-message"
-              style={{ color: "red", marginBottom: 8 }}
-            >
-              {errorMessage}
-            </div>
-          )}
           <h1>Chat & Yêu cầu mở lớp</h1>
 
           <div className="dashboard-content">
@@ -333,119 +108,8 @@ const ChatPage = () => {
               </div>
             </div>
 
-            <div className="dashboard-section">
-              <div className="section-header-with-link">
-                <h2>Yêu cầu mở lớp học phần</h2>
-                {userRole === "SinhVien" && (
-                  <button
-                    className="view-all-link"
-                    onClick={handleCreateRequest}
-                  >
-                    ➕ Tạo yêu cầu mới
-                  </button>
-                )}
-              </div>
-
-              {loading ? (
-                <div className="loading-message">Đang tải dữ liệu...</div>
-              ) : (
-                <>
-                  {pinnedRequests.length > 0 && (
-                    <div className="pinned-requests-list">
-                      <h3>Yêu cầu đã ghim</h3>
-                      {classRequests
-                        .filter((req) => pinnedRequests.includes(req.maLopHP))
-                        .map((request) => (
-                          <ClassRequestTicket
-                            key={`pinned-${request.maYeuCau}`}
-                            request={{
-                              id: request.maLopHP,
-                              courseName: request.tenMH,
-                              creatorName: request.tenSinhVien,
-                              creatorStudentId: request.maSV,
-                              semester: request.hocKy
-                                ? request.hocKy.replace("HK", "")
-                                : "",
-                              batch: request.namHoc,
-                              participantCount: request.soLuongThamGia,
-                              createdAt: request.ngayGui,
-                            }}
-                            onJoin={handleJoinRequest}
-                            onViewParticipants={handleViewParticipants}
-                            onViewDetails={handleViewDetails}
-                            currentUser={userId}
-                            isPinned={true}
-                            onTogglePin={handleTogglePin}
-                          />
-                        ))}
-                    </div>
-                  )}
-
-                  <div className="class-requests-list">
-                    {classRequests.length > 0 ? (
-                      classRequests.map((request) => (
-                        <ClassRequestTicket
-                          key={request.maYeuCau}
-                          request={{
-                            id: request.maLopHP,
-                            courseName: request.tenMH,
-                            creatorName: request.tenSinhVien,
-                            creatorStudentId: request.maSV,
-                            semester: request.hocKy
-                              ? request.hocKy.replace("HK", "")
-                              : "",
-                            batch: request.namHoc,
-                            participantCount: request.soLuongThamGia,
-                            createdAt: request.ngayGui,
-                          }}
-                          onJoin={handleJoinRequest}
-                          onViewParticipants={handleViewParticipants}
-                          onViewDetails={handleViewDetails}
-                          currentUser={userId}
-                          isPinned={pinnedRequests.includes(request.maLopHP)}
-                          onTogglePin={handleTogglePin}
-                        />
-                      ))
-                    ) : (
-                      <div className="empty-message">
-                        Không có yêu cầu mở lớp nào
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+            <ClassRegistrationSection userId={userId} userRole={userRole} />
           </div>
-
-          {showParticipantsList && (
-            <div className="modal-overlay">
-              <ParticipantsList
-                request={selectedRequest}
-                onClose={() => setShowParticipantsList(false)}
-              />
-            </div>
-          )}
-
-          {showRequestDetails && (
-            <div className="modal-overlay">
-              <RequestDetails
-                request={selectedRequest}
-                onClose={() => setShowRequestDetails(false)}
-                onJoin={handleJoinRequest}
-                currentUser={userId}
-              />
-            </div>
-          )}
-
-          {showJoinForm && (
-            <div className="modal-overlay">
-              <JoinClassForm
-                request={selectedRequest}
-                onSubmit={handleJoinClassRequest}
-                onCancel={() => setShowJoinForm(false)}
-              />
-            </div>
-          )}
         </main>
       </div>
     );
