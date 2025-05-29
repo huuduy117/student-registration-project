@@ -504,12 +504,49 @@ exports.approveClassRequest = (req, res) => {
   } else if (userRole === "TruongBoMon") {
     nextTrangThai = "3_TruongKhoaNhan";
     nextTinhTrang = "DaDuyet";
-    currentTrangThai = "2_TBMNhan";
-  } else if (userRole === "TruongKhoa") {
+    currentTrangThai = "2_TBMNhan";  } else if (userRole === "TruongKhoa") {
     nextTrangThai = "4_ChoMoLop";
     nextTinhTrang = "DaDuyet";
     currentTrangThai = "3_TruongKhoaNhan";
-  } else {
+
+    // Get class and teacher info for notification
+    const query = `
+      SELECT 
+        ycml.maLopHP,
+        lhp.maGV,
+        gv.hoTen as tenGV,
+        mh.tenMH
+      FROM YeuCauMoLop ycml
+      JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP 
+      JOIN MonHoc mh ON lhp.maMH = mh.maMH
+      LEFT JOIN GiangVien gv ON lhp.maGV = gv.maGV
+      WHERE ycml.maYeuCau = ?
+    `;
+
+    mysqlConnection.query(query, [maYeuCau], async (err, results) => {
+      if (err) {
+        console.error("Error getting class info:", err);
+        return res.status(500).json({ message: "Lỗi khi lấy thông tin lớp học" });
+      }
+
+      if (results.length > 0) {
+        const { maLopHP, tenGV, tenMH } = results[0];
+        
+        // Create notification
+        const maThongBao = `TB${Date.now().toString().slice(-6)}`;
+        const tieuDe = `Lớp học phần ${tenMH} đã được duyệt`;
+        const noiDung = `Lớp học phần ${tenMH} đã được duyệt - giảng viên: ${tenGV || 'Chưa có'} - Lớp học phần đang được chờ mở lớp và sẽ được thông báo sau khi mở`;
+        
+        mysqlConnection.query(
+          "INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung) VALUES (?, ?, ?, NOW(), ?, 'TatCa')",
+          [maThongBao, tieuDe, noiDung, userId]
+        );        // Clear approved class to prevent further registrations
+        mysqlConnection.query(
+          "UPDATE LopHocPhan SET trangThai = 'ChuaMo' WHERE maLopHP = ?",
+          [maLopHP]
+        );
+      }
+    });} else {
     console.error("Invalid user role for approval:", userRole);
     return res
       .status(403)

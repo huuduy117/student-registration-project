@@ -4,21 +4,36 @@ const mysql = require("mysql2");
 const { MongoClient } = require("mongodb");
 
 // MySQL connection setup
-const mysqlConnection = mysql.createConnection({
+const dbConfig = {
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-});
+};
 
-mysqlConnection.connect((err) => {
-  if (err) {
-    console.error("Error connecting to MySQL database:", err);
-  } else {
-    console.log("Connected to MySQL database");
-  }
-});
+const mysqlConnection = mysql.createConnection(dbConfig);
+
+// Handle disconnects
+function handleDisconnect() {
+  mysqlConnection.connect((err) => {
+    if (err) {
+      console.log("Error connecting to database:", err);
+      setTimeout(handleDisconnect, 2000);
+    }
+  });
+
+  mysqlConnection.on("error", (err) => {
+    console.log("Database error:", err);
+    if (err.code === "PROTOCOL_CONNECTION_LOST" || err.code === "ECONNRESET") {
+      handleDisconnect();
+    } else {
+      throw err;
+    }
+  });
+}
+
+handleDisconnect();
 
 // MongoDB connection setup
 const connectMongoDB = async () => {
