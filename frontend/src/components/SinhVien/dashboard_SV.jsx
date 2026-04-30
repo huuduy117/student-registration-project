@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axiosInstance from "../../services/axios";
 import "../../assets/Dashboard.css";
 import {
   PieChart,
@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { normalizeRole } from "../../utils/roleUtils";
 
 const DashboardSV = () => {
   const [student, setStudent] = useState(null);
@@ -21,15 +22,15 @@ const DashboardSV = () => {
     const authData = JSON.parse(
       sessionStorage.getItem(`auth_${tabId}`) || "{}"
     );
-    if (!authData.userId || authData.userRole !== "SinhVien") return;
+    if (!authData.userId || normalizeRole(authData.userRole) !== "Student") return;
 
     // Lấy thông tin sinh viên
     const fetchStudent = async () => {
       try {
-        const res = await axios.get(`/api/students/${authData.userId}`, {
+        const res = await axiosInstance.get(`/api/students/${authData.userId}`, {
           headers: { Authorization: `Bearer ${authData.token}` },
         });
-        setStudent(res.data);
+        setStudent(res.data?.data || null);
       } catch {
         setError("Không thể lấy thông tin sinh viên");
       }
@@ -38,13 +39,13 @@ const DashboardSV = () => {
     // Lấy tổng quan tín chỉ và học kỳ
     const fetchOverview = async () => {
       try {
-        const res = await axios.get(
+        const res = await axiosInstance.get(
           `/api/students/${authData.userId}/overview`,
           {
             headers: { Authorization: `Bearer ${authData.token}` },
           }
         );
-        setOverview(res.data);
+        setOverview(res.data?.data || null);
       } catch {
         setError("Không thể lấy thông tin tổng quan");
       }
@@ -59,13 +60,13 @@ const DashboardSV = () => {
   const pieData = [
     {
       name: "Đã hoàn thành",
-      value: Number(overview?.soTinChiHoanThanh) || 0,
+      value: Number(overview?.completedCredits) || 0,
     },
     {
       name: "Chưa hoàn thành",
       value:
-        (Number(overview?.soTinChiDangKy) || 0) -
-        (Number(overview?.soTinChiHoanThanh) || 0),
+        (Number(overview?.registeredCredits) || 0) -
+        (Number(overview?.completedCredits) || 0),
     },
   ];
   const COLORS = ["#00C49F", "#FF8042"];
@@ -78,27 +79,27 @@ const DashboardSV = () => {
       <h2>Thông tin tổng quan</h2>
       <div className="dashboard-grid">
         <div>
-          <strong>Họ tên:</strong> {student?.hoTen || "-"}
+          <strong>Họ tên:</strong> {student?.fullName || "-"}
         </div>
         <div>
-          <strong>Mã sinh viên:</strong> {student?.maSV || "-"}
+          <strong>Mã sinh viên:</strong> {student?.id || "-"}
         </div>
         <div>
-          <strong>Lớp:</strong> {student?.tenLop || "-"}
+          <strong>Lớp:</strong> {student?.className || "-"}
         </div>
         <div>
-          <strong>Ngành học:</strong> {student?.tenCN || "-"}
+          <strong>Ngành học:</strong> {student?.majorName || "-"}
         </div>
         <div>
           <strong>Tổng số tín chỉ đã đăng ký:</strong>{" "}
-          {overview?.soTinChiDangKy || "0"}
+          {overview?.registeredCredits || "0"}
         </div>
         <div>
           <strong>Tín chỉ đã hoàn thành:</strong>{" "}
-          {overview?.soTinChiHoanThanh || "0"}
+          {overview?.completedCredits || "0"}
         </div>
         <div>
-          <strong>Học kỳ hiện tại:</strong> {overview?.hocKyHienTai || "-"}
+          <strong>Học kỳ hiện tại:</strong> {overview?.currentSemester || "-"}
         </div>
         {/* Biểu đồ tròn thể hiện số tín chỉ đã hoàn thành */}
         <div style={{ gridColumn: "1 / span 3", marginTop: 24 }}>

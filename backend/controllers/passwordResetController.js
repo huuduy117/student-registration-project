@@ -1,187 +1,170 @@
-const { mysqlConnection } = require("../config/db");
+const { supabase } = require("../config/db");
 const passwordResetModel = require("../models/passwordResetModel");
 const nodemailer = require("nodemailer");
+const bcrypt = require("bcrypt");
+const { sendSuccess, sendError } = require("../utils/response");
 
-// Configure nodemailer with Gmail
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER || "chungluong4423@gmail.com", // Use environment variable or default
-    pass: process.env.EMAIL_PASSWORD || "suxi pwla envq wybv", // Use environment variable or default
+    user: process.env.EMAIL_USER || "chungluong4423@gmail.com",
+    pass: process.env.EMAIL_PASSWORD || "suxi pwla envq wybv",
   },
 });
 
-// Request password reset
+// ─── Request Reset ────────────────────────────────────────────────────────────
+
 exports.requestReset = async (req, res) => {
   try {
     const { username } = req.body;
-
     if (!username) {
-      return res.status(400).json({ message: "Vui lòng nhập tên đăng nhập" });
+      return sendError(res, 400, "INVALID_INPUT", "Please enter your username");
     }
 
     // Find user by username
-    const findUserQuery = `
-      SELECT 
-        n.maNguoiDung,
-        n.tenDangNhap,
-        CASE 
-          WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.email
-          WHEN n.loaiNguoiDung IN ('GiangVien', 'GiaoVu', 'TruongBoMon', 'TruongKhoa') THEN gv.email
-          ELSE NULL
-        END as email
-      FROM NguoiDung n
-      LEFT JOIN SinhVien sv ON n.maNguoiDung = sv.maSV 
-      LEFT JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
-      WHERE n.tenDangNhap = ?
-    `;
+    const { data: users, error } = await supabase
+      .from("users")
+      .select("id, username, role")
+      .eq("username", username);
 
-    mysqlConnection.query(findUserQuery, [username], async (err, results) => {
+    if (error) throw error;
+
+    if (!users || users.length === 0) {
+      return sendError(res, 404, "NOT_FOUND", "User not found with this username");
+    }
+
+    const user = users[0];
+    let email = null;
+
+    if (user.role === "Student") {
+      const { data: student } = await supabase
+        .from("students")
+        .select("email")
+        .eq("id", user.id)
+        .single();
+      email = student?.email;
+    } else if (["Teacher", "AcademicAffairs", "DepartmentHead", "FacultyHead"].includes(user.role)) {
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("email")
+        .eq("id", user.id)
+        .single();
+      email = teacher?.email;
+    }
+
+    if (!email) {
+      return sendError(res, 400, "INVALID_INPUT", "User has no email address for password reset");
+    }
+
+    const { token } = await passwordResetModel.createResetToken(user.id);
+    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5000"}/reset-password?token=${token}`;
+    const expirationMinutes = 60;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || "your-email@gmail.com",
+      to: email,
+      subject: "Password Reset",
+      html: `
+        <h1>Password Reset Request</h1>
+        <p>Hello,</p>
+        <p>We received a request to reset your account password.</p>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetLink}" style="display:inline-block;padding:10px 20px;background:#4CAF50;color:white;text-decoration:none;border-radius:5px;">Reset Password</a>
+        <p>This link expires in ${expirationMinutes} minutes.</p>
+        <p>If you did not request a password reset, please ignore this email.</p>
+      `,
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
-        console.error("Error finding user:", err);
-        return res.status(500).json({ message: "Lỗi hệ thống" });
+        console.error("Error sending email:", err);
+        return sendError(res, 500, "INTERNAL_ERROR", "Error sending email");
       }
-
-      if (results.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "Không tìm thấy người dùng với tên đăng nhập này" });
-      }
-
-      const user = results[0];
-
-      if (!user.email) {
-        return res.status(400).json({
-          message: "Người dùng không có email để gửi mã đặt lại mật khẩu",
-        });
-      }
-
-      // Create reset token
-      const { token, expiresAt } = await passwordResetModel.createResetToken(
-        user.maNguoiDung
-      );
-
-      // Calculate expiration time in minutes
-      const expirationMinutes = 30;
-
-      // Send email with reset link
-      const resetLink = `http://localhost:5000/reset-password?token=${token}`;
-
-      const mailOptions = {
-        from: process.env.EMAIL_USER || "your-email@gmail.com",
-        to: user.email,
-        subject: "Đặt lại mật khẩu",
-        html: `
-          <h1>Yêu cầu đặt lại mật khẩu</h1>
-          <p>Xin chào,</p>
-          <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
-          <p>Vui lòng nhấp vào liên kết dưới đây để đặt lại mật khẩu:</p>
-          <a href="${resetLink}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Đặt lại mật khẩu</a>
-          <p>Liên kết này sẽ hết hạn sau ${expirationMinutes} phút.</p>
-          <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
-          <p>Trân trọng,</p>
-          <p>Đội ngũ hỗ trợ</p>
-        `,
-      };
-
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error("Error sending email:", error);
-          return res.status(500).json({ message: "Lỗi khi gửi email" });
-        }
-
-        console.log("Email sent:", info.response);
-        res.status(200).json({
-          message:
-            "Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.",
-          email: user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3"), // Mask email for privacy
-        });
-      });
+      return sendSuccess(res, "request_reset", {
+        email: email.replace(/(.{2})(.*)(@.*)/, "$1***$3")
+      }, ["password_reset_tokens"], "Password reset email sent. Please check your inbox.");
     });
   } catch (error) {
     console.error("Password reset request error:", error);
-    res.status(500).json({ message: "Lỗi hệ thống" });
+    return sendError(res, 500, "INTERNAL_ERROR", "System error");
   }
 };
 
-// Verify reset token
+// ─── Verify Token ─────────────────────────────────────────────────────────────
+
 exports.verifyToken = async (req, res) => {
   try {
     const { token } = req.params;
-
     if (!token) {
-      return res.status(400).json({ message: "Token không hợp lệ" });
+      return sendError(res, 400, "INVALID_INPUT", "Invalid token");
     }
 
     const tokenData = await passwordResetModel.verifyResetToken(token);
-
     if (!tokenData) {
-      return res
-        .status(400)
-        .json({ message: "Token không hợp lệ hoặc đã hết hạn" });
+      return sendError(res, 400, "TOKEN_EXPIRED", "Token is invalid or has expired");
     }
 
-    // Calculate remaining time in minutes
-    const expiresAt = new Date(tokenData.expiresAt);
+    const expiresAt = new Date(tokenData.expires_at);
     const now = new Date();
     const remainingMinutes = Math.floor((expiresAt - now) / (1000 * 60));
 
-    res.status(200).json({
-      valid: true,
-      maNguoiDung: tokenData.maNguoiDung,
-      remainingMinutes,
-    });
+    return sendSuccess(res, "verify_token", { valid: true, userId: tokenData.user_id, remainingMinutes });
   } catch (error) {
     console.error("Token verification error:", error);
-    res.status(500).json({ message: "Lỗi hệ thống" });
+    return sendError(res, 500, "INTERNAL_ERROR", "System error");
   }
 };
 
-// Reset password
+// ─── Reset Password ───────────────────────────────────────────────────────────
+
 exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      return res.status(400).json({ message: "Thiếu thông tin cần thiết" });
+    const errors = [];
+    if (!token) {
+      errors.push({
+        field: "token",
+        expected: "non-empty token",
+        actual: token ?? null,
+      });
+    }
+    if (!newPassword || String(newPassword).trim().length < 6) {
+      errors.push({
+        field: "newPassword",
+        expected: "at least 6 characters",
+        actual: newPassword ? "too_short" : null,
+      });
+    }
+    if (errors.length > 0) {
+      return sendError(res, 400, "INVALID_INPUT", "Missing or invalid required information", { errors });
     }
 
-    // Verify token
     const tokenData = await passwordResetModel.verifyResetToken(token);
-
     if (!tokenData) {
-      return res
-        .status(400)
-        .json({ message: "Token không hợp lệ hoặc đã hết hạn" });
+      return sendError(res, 400, "TOKEN_EXPIRED", "Token is invalid or has expired");
     }
 
-    // Update password
-    const updateQuery =
-      "UPDATE NguoiDung SET matKhau = ? WHERE maNguoiDung = ?";
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    mysqlConnection.query(
-      updateQuery,
-      [newPassword, tokenData.maNguoiDung],
-      async (err, result) => {
-        if (err) {
-          console.error("Error updating password:", err);
-          return res.status(500).json({ message: "Lỗi khi cập nhật mật khẩu" });
-        }
+    const { data, error } = await supabase
+      .from("users")
+      .update({ password: hashedPassword })
+      .eq("id", tokenData.user_id)
+      .select();
 
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "Không tìm thấy người dùng" });
-        }
+    if (error) {
+      console.error("Error updating password:", error);
+      return sendError(res, 500, "INTERNAL_ERROR", "Error updating password");
+    }
 
-        // Delete the used token
-        await passwordResetModel.deleteResetToken(token);
+    if (!data || data.length === 0) {
+      return sendError(res, 404, "NOT_FOUND", "User not found");
+    }
 
-        res
-          .status(200)
-          .json({ message: "Mật khẩu đã được cập nhật thành công" });
-      }
-    );
+    await passwordResetModel.deleteResetToken(token);
+    return sendSuccess(res, "reset_password", null, ["users", "password_reset_tokens"], "Password updated successfully");
   } catch (error) {
     console.error("Password reset error:", error);
-    res.status(500).json({ message: "Lỗi hệ thống" });
+    return sendError(res, 500, "INTERNAL_ERROR", "System error");
   }
 };

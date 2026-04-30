@@ -1,13 +1,18 @@
-const db = require("../config/db");
+const { supabase } = require("../config/db");
 
 const TeacherModel = {
-  getTeachingClassCount: (teacherId, callback) => {
-    const query = `
-      SELECT COUNT(*) AS classCount 
-      FROM Lop 
-      WHERE maCVHT = (SELECT maGV FROM GiangVien WHERE maGV = ?)
-    `;
-    db.mysqlConnection.query(query, [teacherId], callback);
+  getTeachingClassCount: async (teacherId) => {
+    try {
+      const { count, error } = await supabase
+        .from("classes")
+        .select("*", { count: "exact", head: true })
+        .eq("advisor_id", teacherId);
+      if (error) throw error;
+      return { classCount: count || 0 };
+    } catch (error) {
+      console.error("Error fetching teaching class count:", error);
+      throw error;
+    }
   },
 };
 

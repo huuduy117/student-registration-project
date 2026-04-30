@@ -3,20 +3,13 @@ const router = express.Router();
 const { auth, authorize } = require("../middleware/auth");
 const teacherController = require("../controllers/teacherController");
 
-// Chỉ giáo viên mới được truy xuất API này
-router.get(
-  "/class-count",
-  auth,
-  authorize("GiangVien"),
-  teacherController.getClassCount
-);
+// Only teachers can access class count
+router.get("/class-count", auth, authorize("Teacher"), teacherController.getClassCount);
 
-// Make sure controller methods are properly exported and defined
-router.get(
-  "/some-route",
-  auth,
-  authorize("teacher"),
-  teacherController.someMethod
-);
+// Workflow 2 Step 2: Decide Teaching Registration
+router.post("/teaching-registrations/:registrationId/decide", auth, authorize("AcademicAffairs"), teacherController.decideTeachingRegistration);
+
+// Workflow 4: Grade Entry
+router.post("/enter-grade", auth, authorize("Teacher"), teacherController.enterGrade);
 
 module.exports = router;

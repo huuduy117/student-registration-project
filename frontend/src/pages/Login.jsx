@@ -6,22 +6,24 @@ import { useNavigate, Link } from "react-router-dom";
 import { FaUser, FaLock, FaSchool } from "react-icons/fa";
 import "./../assets/Login.css";
 import axiosInstance from "../services/axios";
+import { normalizeRole } from "../utils/roleUtils";
 
 const API_URL = "http://localhost:5000"; // Define API URL directly in component for now
 
 const getRoleBasedRedirect = (role) => {
-  switch (role) {
-    case "QuanTriVien":
+  const normalized = normalizeRole(role);
+  switch (normalized) {
+    case "Admin":
       return "/admin/home";
-    case "SinhVien":
+    case "Student":
       return "/home";
-    case "GiangVien":
+    case "Teacher":
       return "/home";
-    case "GiaoVu":
+    case "AcademicAffairs":
       return "/home";
-    case "TruongBoMon":
+    case "DepartmentHead":
       return "/home";
-    case "TruongKhoa":
+    case "FacultyHead":
       return "/home";
     default:
       return "/home";
@@ -113,9 +115,10 @@ const Login = () => {
       localStorage.setItem("authToken", token);
 
       // Store session data
+      const normalizedRole = normalizeRole(user.userRole);
       const sessionData = {
         token,
-        userRole: user.userRole,
+        userRole: normalizedRole,
         username: user.username,
         fullName: user.fullName,
         userId: user.id,

@@ -12,6 +12,7 @@ import UserManagement from "../pages/admin/UserManagement.jsx";
 import Newsfeed from "../pages/admin/Newsfeed.jsx";
 import ApproveRequests from "../pages/admin/ApproveRequests.jsx";
 import Settings from "../pages/admin/Settings.jsx";
+import { normalizeRole, roleDisplayName } from "../utils/roleUtils";
 
 export default function MainContainer() {
   const [username, setUsername] = useState("Anonymous User");
@@ -26,7 +27,7 @@ export default function MainContainer() {
       setUsername(authData.username);
     }
     if (authData.userRole) {
-      setUserRole(authData.userRole);
+      setUserRole(normalizeRole(authData.userRole));
     }
   }, [tabId]);
 
@@ -75,7 +76,7 @@ export default function MainContainer() {
   let dashboardContent;
 
   switch (userRole) {
-    case "SinhVien":
+    case "Student":
       dashboardContent = (
         <motion.div
           initial={{ opacity: 0 }}
@@ -170,7 +171,7 @@ export default function MainContainer() {
       );
       break;
 
-    case "GiangVien":
+    case "Teacher":
       dashboardContent = (
         <motion.div
           initial={{ opacity: 0 }}
@@ -258,15 +259,9 @@ export default function MainContainer() {
       );
       break;
 
-    case "GiaoVu":
-    case "TruongBoMon":
-    case "TruongKhoa":
-      const roleNames = {
-        GiaoVu: "Giáo vụ",
-        TruongBoMon: "Trưởng bộ môn", 
-        TruongKhoa: "Trưởng khoa"
-      };
-
+    case "AcademicAffairs":
+    case "DepartmentHead":
+    case "FacultyHead":
       dashboardContent = (
         <motion.div
           initial={{ opacity: 0 }}
@@ -279,7 +274,7 @@ export default function MainContainer() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              Chào mừng, {roleNames[userRole]} {username}! 👨‍💼
+              Chào mừng, {roleDisplayName(userRole)} {username}! 👨‍💼
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: -10 }}
@@ -347,7 +342,7 @@ export default function MainContainer() {
                 icon={Users}
                 title="Quản lý"
                 description="Quản lý sinh viên và giảng viên"
-                link={`/${userRole.toLowerCase()}-dashboard`}
+                link="/approve-requests"
                 color="#8b5cf6"
               />
             </div>
@@ -356,7 +351,7 @@ export default function MainContainer() {
       );
       break;
 
-    case "QuanTriVien":
+    case "Admin":
       dashboardContent = (
         <div className="content-section">
           <Routes>

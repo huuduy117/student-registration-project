@@ -3,53 +3,33 @@ const router = express.Router();
 const { auth, authorize } = require("../middleware/auth");
 const classRequestController = require("../controllers/classRequestController");
 
+const APPROVERS = ["AcademicAffairs", "DepartmentHead", "FacultyHead"];
+
 // Get all class requests
 router.get("/", auth, classRequestController.getAllClassRequests);
 
-// Create a new class request
-router.post(
-  "/",
-  auth,
-  authorize("SinhVien"),
-  classRequestController.createClassRequest
-);
-
-// Join a class request
-router.post(
-  "/join",
-  auth,
-  authorize("SinhVien"),
-  classRequestController.joinClassRequest
-);
-
-// Get participants for a class request
-router.get(
-  "/:maLopHP/participants",
-  auth,
-  classRequestController.getParticipants
-);
-
 // Get available courses for class requests
-router.get(
-  "/available-courses",
-  auth,
-  classRequestController.getAvailableCourses
-);
+router.get("/available-courses", auth, classRequestController.getAvailableCourses);
 
-// Approve a class request (GiaoVu, TruongBoMon, TruongKhoa)
-router.patch(
-  "/:maYeuCau/approve",
-  auth,
-  authorize("GiaoVu", "TruongBoMon", "TruongKhoa"),
-  classRequestController.approveClassRequest
-);
+// Get participants for a class section
+router.get("/:sectionId/participants", auth, classRequestController.getParticipants);
 
-// Reject a class request (GiaoVu, TruongBoMon, TruongKhoa)
-router.patch(
-  "/:maYeuCau/reject",
-  auth,
-  authorize("GiaoVu", "TruongBoMon", "TruongKhoa"),
-  classRequestController.rejectClassRequest
-);
+// Workflow 1: Step 0 - Student submits request
+router.post("/submit", auth, authorize("Student"), classRequestController.submitClassRequest);
+
+// Workflow 1: Step 1 - Academic Affairs receives request
+router.post("/:requestId/receive", auth, authorize("AcademicAffairs"), classRequestController.receiveClassRequest);
+
+// Workflow 1: Step 2 - Dept Head reviews request
+router.post("/:requestId/review", auth, authorize("DepartmentHead"), classRequestController.reviewClassRequest);
+
+// Workflow 1: Step 3 - Faculty Head final approval
+router.post("/:requestId/approve", auth, authorize("FacultyHead"), classRequestController.approveClassRequest);
+
+// Workflow 1: Step 4 - Open course section
+router.post("/:requestId/open-section", auth, authorize("AcademicAffairs"), classRequestController.openCourseSection);
+
+// Join a class request (Legacy Frontend Compatibility)
+router.post("/join", auth, authorize("Student"), classRequestController.joinClassRequest);
 
 module.exports = router;

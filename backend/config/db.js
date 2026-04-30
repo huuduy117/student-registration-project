@@ -1,41 +1,21 @@
 // config/db.js
 require("dotenv").config();
-const mysql = require("mysql2");
+const { createClient } = require("@supabase/supabase-js");
 const { MongoClient } = require("mongodb");
 
-// MySQL connection setup
-const dbConfig = {
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-};
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
-const mysqlConnection = mysql.createConnection(dbConfig);
-
-// Handle disconnects
-function handleDisconnect() {
-  mysqlConnection.connect((err) => {
-    if (err) {
-      console.log("Error connecting to database:", err);
-      setTimeout(handleDisconnect, 2000);
-    }
-  });
-
-  mysqlConnection.on("error", (err) => {
-    console.log("Database error:", err);
-    if (err.code === "PROTOCOL_CONNECTION_LOST" || err.code === "ECONNRESET") {
-      handleDisconnect();
-    } else {
-      throw err;
-    }
-  });
+if (!supabaseUrl || !supabaseKey) {
+  console.error(
+    "Missing SUPABASE_URL or SUPABASE_KEY / SUPABASE_SERVICE_ROLE_KEY in environment",
+  );
+  process.exit(1);
 }
 
-handleDisconnect();
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// MongoDB connection setup
 const connectMongoDB = async () => {
   try {
     const client = new MongoClient(process.env.MONGODB_URI);
@@ -51,4 +31,4 @@ const connectMongoDB = async () => {
   }
 };
 
-module.exports = { mysqlConnection, connectMongoDB };
+module.exports = { supabase, connectMongoDB };

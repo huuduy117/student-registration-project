@@ -73,11 +73,15 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
         return;
       }
 
+      const request = classRequests.find((req) => req.id === requestId);
+      const sectionId = request?.course_sections?.id;
+      if (!sectionId) return alert("Lớp học phần chưa được khởi tạo");
+
       const response = await axios.post(
         "/api/class-requests/join",
         {
-          maSV: userId,
-          maLopHP: requestId,
+          studentId: userId,
+          sectionId: sectionId,
         },
         {
           headers: {
@@ -112,8 +116,12 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
 
   const handleViewParticipants = async (requestId) => {
     try {
+      const request = classRequests.find((req) => req.id === requestId);
+      const sectionId = request?.course_sections?.id;
+      if (!sectionId) return alert("Lớp học phần chưa được khởi tạo");
+
       const response = await axios.get(
-        `/api/class-requests/${requestId}/participants`,
+        `/api/class-requests/${sectionId}/participants`,
         {
           headers: {
             Authorization: `Bearer ${
@@ -127,17 +135,16 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
         }
       );
 
-      const request = classRequests.find((req) => req.maLopHP === requestId);
       if (request) {
         setSelectedRequest({
-          id: request.maLopHP,
-          courseName: request.tenMH,
-          participantCount: request.soLuongThamGia,
+          id: request.id,
+          courseName: request.courses?.name || request.course_id,
+          participantCount: request.participant_count,
           participants: response.data.map((p) => ({
-            studentId: p.maSV,
-            fullName: p.hoTen,
-            class: p.lop,
-            joinDate: p.ngayDangKy,
+            studentId: p.studentId,
+            fullName: p.fullName,
+            class: p.className,
+            joinDate: p.registeredAt,
           })),
         });
         setShowParticipantsList(true);
@@ -150,8 +157,12 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
 
   const handleViewDetails = async (requestId) => {
     try {
+      const request = classRequests.find((req) => req.id === requestId);
+      const sectionId = request?.course_sections?.id;
+      if (!sectionId) return alert("Lớp học phần chưa được khởi tạo");
+
       const participantsResponse = await axios.get(
-        `/api/class-requests/${requestId}/participants`,
+        `/api/class-requests/${sectionId}/participants`,
         {
           headers: {
             Authorization: `Bearer ${
@@ -165,20 +176,25 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
         }
       );
 
-      const request = classRequests.find((req) => req.maLopHP === requestId);
       if (request) {
         setSelectedRequest({
-          id: request.maLopHP,
-          courseName: request.tenMH,
-          creatorName: request.tenSinhVien,
-          creatorStudentId: request.maSV,
-          creatorClass: request.tenLop,
-          semester: request.hocKy ? request.hocKy.replace("HK", "") : "",
-          batch: request.namHoc,
-          participantCount: request.soLuongThamGia,
+          id: request.id,
+          sectionId: sectionId,
+          courseName: request.courses?.name || request.course_id,
+          creatorName: request.students?.full_name || request.student_id,
+          creatorStudentId: request.student_id,
+          creatorClass: request.students?.classes?.name,
+          semester: request.course_sections?.semester || "",
+          batch: request.course_sections?.academic_year || "",
+          participantCount: request.participant_count,
           description: request.description,
-          createdAt: request.ngayGui,
-          participants: participantsResponse.data,
+          createdAt: request.submitted_at,
+          participants: participantsResponse.data.map((p) => ({
+            studentId: p.studentId,
+            fullName: p.fullName,
+            class: p.className,
+            joinDate: p.registeredAt,
+          })),
         });
         setShowRequestDetails(true);
       }
@@ -199,8 +215,8 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
       const response = await axios.post(
         "/api/class-requests/join",
         {
-          maSV: userId,
-          maLopHP: joinData.maLopHP,
+          studentId: userId,
+          sectionId: selectedRequest?.sectionId || joinData.id || joinData.maLopHP,
         },
         {
           headers: {
@@ -279,21 +295,19 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
             <div className="pinned-requests-list">
               <h3>Yêu cầu đã ghim</h3>
               {classRequests
-                .filter((req) => pinnedRequests.includes(req.maLopHP))
+                .filter((req) => pinnedRequests.includes(req.id))
                 .map((request) => (
                   <ClassRequestTicket
-                    key={`pinned-${request.maYeuCau}`}
+                    key={`pinned-${request.id}`}
                     request={{
-                      id: request.maLopHP,
-                      courseName: request.tenMH,
-                      creatorName: request.tenSinhVien,
-                      creatorStudentId: request.maSV,
-                      semester: request.hocKy
-                        ? request.hocKy.replace("HK", "")
-                        : "",
-                      batch: request.namHoc,
-                      participantCount: request.soLuongThamGia,
-                      createdAt: request.ngayGui,
+                      id: request.id,
+                      courseName: request.courses?.name || request.course_id,
+                      creatorName: request.students?.full_name || request.student_id,
+                      creatorStudentId: request.student_id,
+                      semester: request.course_sections?.semester || "",
+                      batch: request.course_sections?.academic_year || "",
+                      participantCount: request.participant_count,
+                      createdAt: request.submitted_at,
                     }}
                     onJoin={handleJoinRequest}
                     onViewParticipants={handleViewParticipants}
@@ -310,24 +324,22 @@ const ClassRegistrationSection = ({ userId, userRole }) => {
             {classRequests.length > 0 ? (
               classRequests.map((request) => (
                 <ClassRequestTicket
-                  key={request.maYeuCau}
+                  key={request.id}
                   request={{
-                    id: request.maLopHP,
-                    courseName: request.tenMH,
-                    creatorName: request.tenSinhVien,
-                    creatorStudentId: request.maSV,
-                    semester: request.hocKy
-                      ? request.hocKy.replace("HK", "")
-                      : "",
-                    batch: request.namHoc,
-                    participantCount: request.soLuongThamGia,
-                    createdAt: request.ngayGui,
+                    id: request.id,
+                    courseName: request.courses?.name || request.course_id,
+                    creatorName: request.students?.full_name || request.student_id,
+                    creatorStudentId: request.student_id,
+                    semester: request.course_sections?.semester || "",
+                    batch: request.course_sections?.academic_year || "",
+                    participantCount: request.participant_count,
+                    createdAt: request.submitted_at,
                   }}
                   onJoin={handleJoinRequest}
                   onViewParticipants={handleViewParticipants}
                   onViewDetails={handleViewDetails}
                   currentUser={userId}
-                  isPinned={pinnedRequests.includes(request.maLopHP)}
+                  isPinned={pinnedRequests.includes(request.id)}
                   onTogglePin={handleTogglePin}
                 />
               ))

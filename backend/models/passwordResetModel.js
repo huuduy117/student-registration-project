@@ -1,106 +1,63 @@
-const { mysqlConnection } = require("../config/db")
+const { supabase } = require("../config/db");
+const crypto = require("crypto");
 
-// Create password reset tokens table if it doesn't exist
-const createPasswordResetTable = () => {
-  const query = `
-    CREATE TABLE IF NOT EXISTS PasswordResetTokens (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      maNguoiDung VARCHAR(20) NOT NULL,
-      token VARCHAR(100) NOT NULL,
-      expiresAt DATETIME NOT NULL,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (maNguoiDung) REFERENCES NguoiDung(maNguoiDung) ON DELETE CASCADE
-    )
-  `
-
-  mysqlConnection.query(query, (err) => {
-    if (err) {
-      console.error("Error creating password reset tokens table:", err)
-    } else {
-      console.log("Password reset tokens table created or already exists")
-    }
-  })
-}
-
-// Initialize the table
-createPasswordResetTable()
-
-// Generate a random token
 const generateToken = () => {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-  let token = ""
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length))
+  // 64-char hex token as required by the workflow contract
+  return crypto.randomBytes(32).toString("hex");
+};
+
+const createResetToken = async (userId) => {
+  try {
+    // Delete existing tokens for this user
+    await supabase.from("password_reset_tokens").delete().eq("user_id", userId);
+
+    const token = generateToken();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    const { data, error } = await supabase
+      .from("password_reset_tokens")
+      .insert({ user_id: userId, token, expires_at: expiresAt.toISOString() })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { token, expiresAt };
+  } catch (error) {
+    console.error("Error creating reset token:", error);
+    throw error;
   }
-  return token
-}
+};
 
-// Create a password reset token
-const createResetToken = (maNguoiDung) => {
-  return new Promise((resolve, reject) => {
-    // Delete any existing tokens for this user
-    const deleteQuery = "DELETE FROM PasswordResetTokens WHERE maNguoiDung = ?"
-    mysqlConnection.query(deleteQuery, [maNguoiDung], (err) => {
-      if (err) {
-        return reject(err)
-      }
+const verifyResetToken = async (token) => {
+  try {
+    const { data, error } = await supabase
+      .from("password_reset_tokens")
+      .select("user_id, expires_at")
+      .eq("token", token)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
 
-      const token = generateToken()
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error verifying reset token:", error);
+    throw error;
+  }
+};
 
-      // Set expiration time to 30 minutes from now
-      const expiresAt = new Date()
-      expiresAt.setMinutes(expiresAt.getMinutes() + 30)
+const deleteResetToken = async (token) => {
+  try {
+    const { error } = await supabase
+      .from("password_reset_tokens")
+      .delete()
+      .eq("token", token);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error deleting reset token:", error);
+    throw error;
+  }
+};
 
-      const insertQuery = "INSERT INTO PasswordResetTokens (maNguoiDung, token, expiresAt) VALUES (?, ?, ?)"
-      mysqlConnection.query(insertQuery, [maNguoiDung, token, expiresAt], (err, result) => {
-        if (err) {
-          return reject(err)
-        }
-        resolve({ token, expiresAt })
-      })
-    })
-  })
-}
-
-// Verify a password reset token
-const verifyResetToken = (token) => {
-  return new Promise((resolve, reject) => {
-    const query = `
-      SELECT maNguoiDung, expiresAt 
-      FROM PasswordResetTokens 
-      WHERE token = ? AND expiresAt > NOW()
-    `
-
-    mysqlConnection.query(query, [token], (err, results) => {
-      if (err) {
-        return reject(err)
-      }
-
-      if (results.length === 0) {
-        return resolve(null)
-      }
-
-      resolve(results[0])
-    })
-  })
-}
-
-// Delete a password reset token
-const deleteResetToken = (token) => {
-  return new Promise((resolve, reject) => {
-    const query = "DELETE FROM PasswordResetTokens WHERE token = ?"
-
-    mysqlConnection.query(query, [token], (err, result) => {
-      if (err) {
-        return reject(err)
-      }
-      resolve(result.affectedRows > 0)
-    })
-  })
-}
-
-module.exports = {
-  createResetToken,
-  verifyResetToken,
-  deleteResetToken,
-}
+module.exports = { createResetToken, verifyResetToken, deleteResetToken };

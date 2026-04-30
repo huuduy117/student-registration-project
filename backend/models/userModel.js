@@ -1,25 +1,49 @@
-const { mysqlConnection } = require("../config/db")
+const { supabase } = require("../config/db");
 
-const findUserByUsername = (username, callback) => {
-  const query = `
-    SELECT 
-      n.maNguoiDung,
-      n.tenDangNhap,
-      n.matKhau,
-      n.loaiNguoiDung,
-      CASE 
-        WHEN n.loaiNguoiDung = 'SinhVien' THEN sv.hoTen
-        WHEN n.loaiNguoiDung IN ('GiangVien', 'GiaoVu', 'TruongBoMon', 'TruongKhoa') THEN gv.hoTen
-        ELSE n.tenDangNhap
-      END as hoTen
-    FROM NguoiDung n
-    LEFT JOIN SinhVien sv ON n.maNguoiDung = sv.maSV 
-    LEFT JOIN GiangVien gv ON n.maNguoiDung = gv.maGV
-    WHERE n.tenDangNhap = ?`
+const findUserByUsername = async (username) => {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, password, role")
+      .eq("username", username)
+      .single();
 
-  mysqlConnection.query(query, [username], callback)
-}
+    if (error) {
+      if (error.code === "PGRST116") return null; // Not found
+      throw error;
+    }
 
-module.exports = {
-  findUserByUsername,
-}
+    if (!data) return null;
+
+    // Fetch display name from students or teachers table depending on role
+    let fullName = data.username;
+    if (data.role === "Student") {
+      const { data: student } = await supabase
+        .from("students")
+        .select("full_name")
+        .eq("id", data.id)
+        .single();
+      if (student) fullName = student.full_name;
+    } else if (["Teacher", "AcademicAffairs", "DepartmentHead", "FacultyHead"].includes(data.role)) {
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("full_name")
+        .eq("id", data.id)
+        .single();
+      if (teacher) fullName = teacher.full_name;
+    }
+
+    return {
+      id: data.id,
+      username: data.username,
+      password: data.password,
+      role: data.role,
+      fullName,
+    };
+  } catch (error) {
+    console.error("Error finding user by username:", error);
+    throw error;
+  }
+};
+
+module.exports = { findUserByUsername };

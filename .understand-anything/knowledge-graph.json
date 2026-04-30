@@ -1,0 +1,595 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "Student Registration System",
+    "description": "A comprehensive web-based system for managing student course registration, scheduling, and academic administration",
+    "languages": ["JavaScript", "JSX", "CSS", "SQL", "YAML"],
+    "frameworks": [
+      "React",
+      "Express.js",
+      "MongoDB",
+      "MySQL",
+      "Socket.io",
+      "Vite",
+      "Docker"
+    ],
+    "analyzedAt": "2026-04-28T00:00:00Z",
+    "gitCommitHash": "main"
+  },
+  "nodes": [
+    {
+      "id": "frontend_root",
+      "type": "folder",
+      "label": "Frontend",
+      "layer": "presentation",
+      "path": "frontend/src"
+    },
+    {
+      "id": "frontend_app",
+      "type": "file",
+      "label": "App.jsx",
+      "layer": "presentation",
+      "path": "frontend/src/App.jsx",
+      "description": "Main routing component with role-based access control"
+    },
+    {
+      "id": "frontend_pages",
+      "type": "folder",
+      "label": "Pages",
+      "layer": "presentation",
+      "path": "frontend/src/pages"
+    },
+    {
+      "id": "page_login",
+      "type": "component",
+      "label": "Login",
+      "layer": "presentation",
+      "path": "frontend/src/pages/Login.jsx",
+      "description": "User authentication with session management"
+    },
+    {
+      "id": "page_home",
+      "type": "component",
+      "label": "Home",
+      "layer": "presentation",
+      "path": "frontend/src/pages/Home.jsx",
+      "description": "Main dashboard with role-based views"
+    },
+    {
+      "id": "page_chat",
+      "type": "component",
+      "label": "ChatPage",
+      "layer": "presentation",
+      "path": "frontend/src/pages/ChatPage.jsx",
+      "description": "Real-time chat and class request interface"
+    },
+    {
+      "id": "page_schedule",
+      "type": "component",
+      "label": "Schedule",
+      "layer": "presentation",
+      "path": "frontend/src/pages/Schedule.jsx",
+      "description": "View and export class/exam schedules"
+    },
+    {
+      "id": "page_class_request",
+      "type": "component",
+      "label": "CreateClassRequest",
+      "layer": "presentation",
+      "path": "frontend/src/pages/CreateClassRequest.jsx",
+      "description": "Create new class opening requests"
+    },
+    {
+      "id": "page_approve_requests",
+      "type": "component",
+      "label": "ApproveRequests",
+      "layer": "presentation",
+      "path": "frontend/src/pages/ApproveRequests.jsx",
+      "description": "Approve/reject class opening requests with role-based workflow"
+    },
+    {
+      "id": "page_register_teaching",
+      "type": "component",
+      "label": "RegisterTeaching",
+      "layer": "presentation",
+      "path": "frontend/src/pages/RegisterTeaching.jsx",
+      "description": "Teachers register to teach approved classes"
+    },
+    {
+      "id": "page_teacher_schedule",
+      "type": "component",
+      "label": "TeacherSchedule",
+      "layer": "presentation",
+      "path": "frontend/src/pages/Teacher_Schedule.jsx",
+      "description": "Teacher's personal schedule view"
+    },
+    {
+      "id": "backend_root",
+      "type": "folder",
+      "label": "Backend",
+      "layer": "application",
+      "path": "backend"
+    },
+    {
+      "id": "backend_server",
+      "type": "file",
+      "label": "server.js",
+      "layer": "application",
+      "path": "backend/server.js",
+      "description": "Main Express server with middleware setup"
+    },
+    {
+      "id": "backend_app",
+      "type": "file",
+      "label": "app.js",
+      "layer": "application",
+      "path": "backend/app.js",
+      "description": "Express application configuration and routing"
+    },
+    {
+      "id": "backend_controllers",
+      "type": "folder",
+      "label": "Controllers",
+      "layer": "application",
+      "path": "backend/controllers"
+    },
+    {
+      "id": "controller_user",
+      "type": "controller",
+      "label": "UserController",
+      "layer": "application",
+      "path": "backend/controllers/userController.js",
+      "description": "User authentication and profile management"
+    },
+    {
+      "id": "controller_student",
+      "type": "controller",
+      "label": "StudentController",
+      "layer": "application",
+      "path": "backend/controllers/studentController.js",
+      "description": "Student-specific operations and data management"
+    },
+    {
+      "id": "controller_teacher",
+      "type": "controller",
+      "label": "TeacherController",
+      "layer": "application",
+      "path": "backend/controllers/teacherController.js",
+      "description": "Teacher profile and assignment management"
+    },
+    {
+      "id": "controller_class_request",
+      "type": "controller",
+      "label": "ClassRequestController",
+      "layer": "application",
+      "path": "backend/controllers/classRequestController.js",
+      "description": "Class opening request processing and approval workflow"
+    },
+    {
+      "id": "controller_schedule",
+      "type": "controller",
+      "label": "ScheduleController",
+      "layer": "application",
+      "path": "backend/controllers/scheduleController.js",
+      "description": "Academic schedule generation and management"
+    },
+    {
+      "id": "controller_newsfeed",
+      "type": "controller",
+      "label": "NewsfeedController",
+      "layer": "application",
+      "path": "backend/controllers/newsfeedController.js",
+      "description": "System announcements and news management"
+    },
+    {
+      "id": "backend_models",
+      "type": "folder",
+      "label": "Models",
+      "layer": "data",
+      "path": "backend/models"
+    },
+    {
+      "id": "model_user",
+      "type": "model",
+      "label": "UserModel",
+      "layer": "data",
+      "path": "backend/models/userModel.js",
+      "description": "User data schema with role-based fields"
+    },
+    {
+      "id": "model_student",
+      "type": "model",
+      "label": "StudentModel",
+      "layer": "data",
+      "path": "backend/models/studentModel.js",
+      "description": "Student profile and enrollment data"
+    },
+    {
+      "id": "model_teacher",
+      "type": "model",
+      "label": "TeacherModel",
+      "layer": "data",
+      "path": "backend/models/teacherModel.js",
+      "description": "Teacher profile and qualification data"
+    },
+    {
+      "id": "backend_routes",
+      "type": "folder",
+      "label": "Routes",
+      "layer": "application",
+      "path": "backend/routes"
+    },
+    {
+      "id": "route_user",
+      "type": "route",
+      "label": "UserRoutes",
+      "layer": "application",
+      "path": "backend/routes/userRoutes.js",
+      "description": "User-related API endpoints"
+    },
+    {
+      "id": "route_student",
+      "type": "route",
+      "label": "StudentRoutes",
+      "layer": "application",
+      "path": "backend/routes/studentRoutes.js",
+      "description": "Student management API endpoints"
+    },
+    {
+      "id": "route_class_request",
+      "type": "route",
+      "label": "ClassRequestRoutes",
+      "layer": "application",
+      "path": "backend/routes/classRequestRoutes.js",
+      "description": "Class request API endpoints"
+    },
+    {
+      "id": "backend_websocket",
+      "type": "module",
+      "label": "WebSocketController",
+      "layer": "application",
+      "path": "backend/websocket/WebSocketController.js",
+      "description": "Real-time communication handler"
+    },
+    {
+      "id": "database_schema",
+      "type": "file",
+      "label": "Database Schema",
+      "layer": "data",
+      "path": "Database/QuanLyYeuCauMoLop.sql",
+      "description": "MySQL database schema for class request management"
+    },
+    {
+      "id": "docker_compose",
+      "type": "file",
+      "label": "Docker Compose",
+      "layer": "infrastructure",
+      "path": "docker/docker-compose.yml",
+      "description": "Container orchestration configuration"
+    }
+  ],
+  "edges": [
+    {
+      "source": "frontend_app",
+      "target": "page_login",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app",
+      "target": "page_home",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app",
+      "target": "page_chat",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app",
+      "target": "page_schedule",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app",
+      "target": "page_class_request",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app",
+      "target": "page_approve_requests",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "page_login",
+      "target": "controller_user",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "page_home",
+      "target": "controller_user",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "page_chat",
+      "target": "backend_websocket",
+      "type": "connects",
+      "weight": 0.9
+    },
+    {
+      "source": "page_chat",
+      "target": "controller_class_request",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "page_schedule",
+      "target": "controller_schedule",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "page_class_request",
+      "target": "controller_class_request",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "page_approve_requests",
+      "target": "controller_class_request",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "page_register_teaching",
+      "target": "controller_teacher",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "page_teacher_schedule",
+      "target": "controller_schedule",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "backend_app",
+      "target": "backend_controllers",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "backend_app",
+      "target": "backend_routes",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "backend_app",
+      "target": "backend_models",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "controller_user",
+      "target": "model_user",
+      "type": "uses",
+      "weight": 0.9
+    },
+    {
+      "source": "controller_student",
+      "target": "model_student",
+      "type": "uses",
+      "weight": 0.9
+    },
+    {
+      "source": "controller_teacher",
+      "target": "model_teacher",
+      "type": "uses",
+      "weight": 0.9
+    },
+    {
+      "source": "controller_class_request",
+      "target": "model_user",
+      "type": "uses",
+      "weight": 0.7
+    },
+    {
+      "source": "controller_schedule",
+      "target": "model_student",
+      "type": "uses",
+      "weight": 0.7
+    },
+    {
+      "source": "controller_schedule",
+      "target": "model_teacher",
+      "type": "uses",
+      "weight": 0.7
+    },
+    {
+      "source": "route_user",
+      "target": "controller_user",
+      "type": "routes_to",
+      "weight": 0.9
+    },
+    {
+      "source": "route_student",
+      "target": "controller_student",
+      "type": "routes_to",
+      "weight": 0.9
+    },
+    {
+      "source": "route_class_request",
+      "target": "controller_class_request",
+      "type": "routes_to",
+      "weight": 0.9
+    },
+    {
+      "source": "backend_websocket",
+      "target": "controller_class_request",
+      "type": "integrates",
+      "weight": 0.8
+    },
+    {
+      "source": "model_user",
+      "target": "database_schema",
+      "type": "maps_to",
+      "weight": 0.8
+    },
+    {
+      "source": "model_student",
+      "target": "database_schema",
+      "type": "maps_to",
+      "weight": 0.8
+    },
+    {
+      "source": "model_teacher",
+      "target": "database_schema",
+      "type": "maps_to",
+      "weight": 0.8
+    },
+    {
+      "source": "docker_compose",
+      "target": "backend_server",
+      "type": "orchestrates",
+      "weight": 0.7
+    },
+    {
+      "source": "docker_compose",
+      "target": "database_schema",
+      "type": "orchestrates",
+      "weight": 0.7
+    }
+  ],
+  "layers": [
+    {
+      "id": "presentation",
+      "name": "Presentation Layer",
+      "description": "User interface components and client-side logic",
+      "nodeIds": [
+        "frontend_root",
+        "frontend_app",
+        "frontend_pages",
+        "page_login",
+        "page_home",
+        "page_chat",
+        "page_schedule",
+        "page_class_request",
+        "page_approve_requests",
+        "page_register_teaching",
+        "page_teacher_schedule"
+      ]
+    },
+    {
+      "id": "application",
+      "name": "Application Layer",
+      "description": "Business logic, controllers, and API endpoints",
+      "nodeIds": [
+        "backend_root",
+        "backend_server",
+        "backend_app",
+        "backend_controllers",
+        "controller_user",
+        "controller_student",
+        "controller_teacher",
+        "controller_class_request",
+        "controller_schedule",
+        "controller_newsfeed",
+        "backend_routes",
+        "route_user",
+        "route_student",
+        "route_class_request",
+        "backend_websocket"
+      ]
+    },
+    {
+      "id": "data",
+      "name": "Data Layer",
+      "description": "Data models and database schemas",
+      "nodeIds": [
+        "backend_models",
+        "model_user",
+        "model_student",
+        "model_teacher",
+        "database_schema"
+      ]
+    },
+    {
+      "id": "infrastructure",
+      "name": "Infrastructure Layer",
+      "description": "Deployment and containerization configuration",
+      "nodeIds": ["docker_compose"]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Project Overview",
+      "description": "Start with the README to understand the project's purpose and architecture.",
+      "nodeIds": ["frontend_app"]
+    },
+    {
+      "order": 2,
+      "title": "Authentication System",
+      "description": "Explore the login system and user authentication flow.",
+      "nodeIds": ["page_login", "controller_user", "model_user"]
+    },
+    {
+      "order": 3,
+      "title": "Main Dashboard",
+      "description": "See the role-based home page that adapts to different user types.",
+      "nodeIds": ["page_home", "route_user"]
+    },
+    {
+      "order": 4,
+      "title": "Class Request Workflow",
+      "description": "Understand how class opening requests are created and approved.",
+      "nodeIds": [
+        "page_class_request",
+        "page_approve_requests",
+        "controller_class_request",
+        "route_class_request"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Real-time Communication",
+      "description": "Explore the WebSocket-based chat system for instant messaging.",
+      "nodeIds": ["page_chat", "backend_websocket"]
+    },
+    {
+      "order": 6,
+      "title": "Schedule Management",
+      "description": "See how academic schedules are generated and displayed.",
+      "nodeIds": [
+        "page_schedule",
+        "page_teacher_schedule",
+        "controller_schedule"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "Data Models",
+      "description": "Review the core data structures for users, students, and teachers.",
+      "nodeIds": [
+        "model_user",
+        "model_student",
+        "model_teacher",
+        "database_schema"
+      ]
+    },
+    {
+      "order": 8,
+      "title": "Deployment",
+      "description": "Check out the Docker configuration for easy deployment.",
+      "nodeIds": ["docker_compose"]
+    }
+  ]
+}

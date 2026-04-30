@@ -5,13 +5,14 @@ import { useNavigate, Link } from "react-router-dom";
 import { useState } from "react";
 import "../assets/SideBar.css";
 import { useSessionMonitor } from "../hook/useSession";
+import { normalizeRole } from "../utils/roleUtils";
 
 export default function SideBar() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const tabId = sessionStorage.getItem("tabId");
   const authData = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}");
-  const userRole = authData.userRole || "guest";
+  const userRole = normalizeRole(authData.userRole) || "guest";
 
   // Use the session monitor
   useSessionMonitor();
@@ -39,7 +40,7 @@ export default function SideBar() {
         { icon: "⚙️", text: "Cài đặt", path: "#" },
       ];
       break;
-    case "SinhVien":
+    case "Student":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "💬", text: "Chat", path: "/chat-page" },
@@ -48,32 +49,32 @@ export default function SideBar() {
         { icon: "⚙️", text: "Cài đặt", path: "/settings" },
       ];
       break;
-    case "GiangVien":
+    case "Teacher":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "📅", text: "Lịch dạy", path: "/teacher-schedule" },
         { icon: "📝", text: "Đăng ký giảng dạy", path: "/register-teaching" },
       ];
       break;
-    case "GiaoVu":
+    case "AcademicAffairs":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "📝", text: "Phê duyệt mở lớp", path: "/approve-requests" },
       ];
       break;
-    case "TruongBoMon":
+    case "DepartmentHead":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "📝", text: "Phê duyệt mở lớp", path: "/approve-requests" },
       ];
       break;
-    case "TruongKhoa":
+    case "FacultyHead":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/home" },
         { icon: "📝", text: "Phê duyệt mở lớp", path: "/approve-requests" },
       ];
       break;
-    case "QuanTriVien":
+    case "Admin":
       menuItems = [
         { icon: "🏠", text: "Home", path: "/admin/home" },
         {

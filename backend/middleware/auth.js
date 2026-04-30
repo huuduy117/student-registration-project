@@ -5,26 +5,22 @@ const auth = (req, res, next) => {
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
-      return res.status(401).json({ message: "Không tìm thấy token xác thực" });
+      return res.status(401).json({ message: "No authentication token provided" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded token:", decoded);
     req.user = decoded;
     next();
   } catch (error) {
-    console.error("Token verification error:", error);
-    return res.status(401).json({ message: "Token không hợp lệ" });
+    return res.status(401).json({ message: "Invalid token" });
   }
 };
 
 const authorize = (...roles) => {
   return (req, res, next) => {
-    console.log("User role:", req.user.userRole);
-    console.log("Allowed roles:", roles);
     if (!roles.includes(req.user.userRole)) {
       return res.status(403).json({
-        message: "Bạn không có quyền truy cập chức năng này",
+        message: "You do not have permission to access this feature",
         userRole: req.user.userRole,
         requiredRoles: roles,
       });

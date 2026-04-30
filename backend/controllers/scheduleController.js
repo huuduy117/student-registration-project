@@ -1,172 +1,179 @@
-const { mysqlConnection } = require("../config/db")
+const { supabase } = require("../config/db");
 
-// Get student schedule
-exports.getStudentSchedule = (req, res) => {
-  const { maSV } = req.params
-  const { startDate, endDate } = req.query
+// ─── Helper ───────────────────────────────────────────────────────────────────
 
-  if (!maSV) {
-    return res.status(400).json({ message: "Thiếu mã sinh viên" })
+const mapScheduleItem = (item) => {
+  const section = item.course_sections || {};
+  const course = section.courses || {};
+
+  let teacherId = null;
+  let teacherName = null;
+  if (section.teacher_assignments && section.teacher_assignments.length > 0) {
+    const ta = section.teacher_assignments[0];
+    if (ta.teachers) {
+      teacherId = ta.teachers.id || ta.teacher_id;
+      teacherName = ta.teachers.full_name;
+    }
   }
 
-  let query = `
-    SELECT 
-      tkb.maTKB,
-      tkb.ngayHoc,
-      tkb.tietBD,
-      tkb.tietKT,
-      tkb.phongHoc,
-      tkb.loaiBuoi,
-      mh.maMH,
-      mh.tenMH,
-      lhp.maLopHP,
-      gv.maGV,
-      gv.hoTen AS tenGiangVien
-    FROM ThoiKhoaBieuSinhVien tkb
-    JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
-    JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    JOIN PhanCongGiangVien pc ON lhp.maLopHP = pc.maLopHP
-    JOIN GiangVien gv ON pc.maGV = gv.maGV
-    WHERE tkb.maSV = ?
-  `
+  return {
+    scheduleId: item.id,
+    classDate: item.class_date,
+    periodStart: item.period_start,
+    periodEnd: item.period_end,
+    room: item.room,
+    sessionType: item.session_type,
+    courseId: course.id,
+    courseName: course.name,
+    sectionId: section.id,
+    teacherId,
+    teacherName,
+  };
+};
 
-  const params = [maSV]
+// ─── Get Student Schedule ─────────────────────────────────────────────────────
 
-  if (startDate && endDate) {
-    query += " AND tkb.ngayHoc BETWEEN ? AND ?"
-    params.push(startDate, endDate)
+exports.getStudentSchedule = async (req, res) => {
+  const { studentId } = req.params;
+  const { startDate, endDate } = req.query;
+
+  if (!studentId) {
+    return res.status(400).json({ message: "Missing student ID" });
   }
 
-  query += " ORDER BY tkb.ngayHoc, tkb.tietBD"
+  try {
+    let query = supabase
+      .from("student_schedules")
+      .select(`
+        id, class_date, period_start, period_end, room, session_type,
+        course_sections(id, courses!course_sections_course_id_fkey(id, name), teacher_assignments(teacher_id, teachers(id, full_name)))
+      `)
+      .eq("student_id", studentId);
 
-  mysqlConnection.query(query, params, (err, results) => {
-    if (err) {
-      console.error("Error fetching student schedule:", err)
-      return res.status(500).json({ message: "Lỗi khi lấy thời khóa biểu" })
+    if (startDate && endDate) {
+      query = query.gte("class_date", startDate).lte("class_date", endDate);
     }
 
-    res.json(results)
-  })
-}
+    const { data, error } = await query.order("class_date").order("period_start");
+    if (error) throw error;
 
-// Get schedule by week
-exports.getScheduleByWeek = (req, res) => {
-  const { maSV } = req.params
-  const { weekStart } = req.query
+    res.json((data || []).map(mapScheduleItem));
+  } catch (err) {
+    console.error("Error fetching student schedule:", err);
+    res.status(500).json({ message: "Error fetching schedule" });
+  }
+};
 
-  if (!maSV || !weekStart) {
-    return res.status(400).json({ message: "Thiếu mã sinh viên hoặc ngày bắt đầu tuần" })
+// ─── Get Schedule By Week ─────────────────────────────────────────────────────
+
+exports.getScheduleByWeek = async (req, res) => {
+  const { studentId } = req.params;
+  const { weekStart } = req.query;
+
+  if (!studentId || !weekStart) {
+    return res.status(400).json({ message: "Missing student ID or week start date" });
   }
 
-  // Calculate the end of the week (7 days from start)
-  const startDate = new Date(weekStart)
-  const endDate = new Date(startDate)
-  endDate.setDate(startDate.getDate() + 6)
+  try {
+    const start = new Date(weekStart);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
 
-  const formattedStartDate = startDate.toISOString().split("T")[0]
-  const formattedEndDate = endDate.toISOString().split("T")[0]
+    const formattedStart = start.toISOString().split("T")[0];
+    const formattedEnd = end.toISOString().split("T")[0];
 
-  const query = `
-    SELECT 
-      tkb.maTKB,
-      tkb.ngayHoc,
-      tkb.tietBD,
-      tkb.tietKT,
-      tkb.phongHoc,
-      tkb.loaiBuoi,
-      mh.maMH,
-      mh.tenMH,
-      lhp.maLopHP,
-      gv.maGV,
-      gv.hoTen AS tenGiangVien
-    FROM ThoiKhoaBieuSinhVien tkb
-    JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
-    JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    JOIN PhanCongGiangVien pc ON lhp.maLopHP = pc.maLopHP
-    JOIN GiangVien gv ON pc.maGV = gv.maGV
-    WHERE tkb.maSV = ? AND tkb.ngayHoc BETWEEN ? AND ?
-    ORDER BY tkb.ngayHoc, tkb.tietBD
-  `
+    const { data, error } = await supabase
+      .from("student_schedules")
+      .select(`
+        id, class_date, period_start, period_end, room, session_type,
+        course_sections(id, courses!course_sections_course_id_fkey(id, name), teacher_assignments(teacher_id, teachers(id, full_name)))
+      `)
+      .eq("student_id", studentId)
+      .gte("class_date", formattedStart)
+      .lte("class_date", formattedEnd)
+      .order("class_date")
+      .order("period_start");
 
-  mysqlConnection.query(query, [maSV, formattedStartDate, formattedEndDate], (err, results) => {
-    if (err) {
-      console.error("Error fetching weekly schedule:", err)
-      return res.status(500).json({ message: "Lỗi khi lấy thời khóa biểu theo tuần" })
-    }
+    if (error) throw error;
 
-    // Group by day of week
+    const mapped = (data || []).map(mapScheduleItem);
     const weeklySchedule = {
-      monday: [],
-      tuesday: [],
-      wednesday: [],
-      thursday: [],
-      friday: [],
-      saturday: [],
-      sunday: [],
-    }
+      monday: [], tuesday: [], wednesday: [], thursday: [],
+      friday: [], saturday: [], sunday: [],
+    };
 
-    results.forEach((item) => {
-      const date = new Date(item.ngayHoc)
-      const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, etc.
-
-      switch (dayOfWeek) {
-        case 0:
-          weeklySchedule.sunday.push(item)
-          break
-        case 1:
-          weeklySchedule.monday.push(item)
-          break
-        case 2:
-          weeklySchedule.tuesday.push(item)
-          break
-        case 3:
-          weeklySchedule.wednesday.push(item)
-          break
-        case 4:
-          weeklySchedule.thursday.push(item)
-          break
-        case 5:
-          weeklySchedule.friday.push(item)
-          break
-        case 6:
-          weeklySchedule.saturday.push(item)
-          break
+    mapped.forEach((item) => {
+      const dow = new Date(item.classDate).getDay();
+      switch (dow) {
+        case 0: weeklySchedule.sunday.push(item); break;
+        case 1: weeklySchedule.monday.push(item); break;
+        case 2: weeklySchedule.tuesday.push(item); break;
+        case 3: weeklySchedule.wednesday.push(item); break;
+        case 4: weeklySchedule.thursday.push(item); break;
+        case 5: weeklySchedule.friday.push(item); break;
+        case 6: weeklySchedule.saturday.push(item); break;
       }
-    })
+    });
 
-    res.json({
-      weekStart: formattedStartDate,
-      weekEnd: formattedEndDate,
-      schedule: weeklySchedule,
-    })
-  })
-}
+    res.json({ weekStart: formattedStart, weekEnd: formattedEnd, schedule: weeklySchedule });
+  } catch (err) {
+    console.error("Error fetching weekly schedule:", err);
+    res.status(500).json({ message: "Error fetching weekly schedule" });
+  }
+};
 
-// Get available weeks for the current semester
-exports.getAvailableWeeks = (req, res) => {
-  const { maSV } = req.params
+// ─── Get Available Weeks ──────────────────────────────────────────────────────
 
-  if (!maSV) {
-    return res.status(400).json({ message: "Thiếu mã sinh viên" })
+exports.getAvailableWeeks = async (req, res) => {
+  const { studentId } = req.params;
+
+  if (!studentId) {
+    return res.status(400).json({ message: "Missing student ID" });
   }
 
-  const query = `
-    SELECT DISTINCT 
-      YEARWEEK(ngayHoc) as weekNumber,
-      MIN(ngayHoc) as weekStart,
-      MAX(ngayHoc) as weekEnd
-    FROM ThoiKhoaBieuSinhVien
-    WHERE maSV = ?
-    GROUP BY YEARWEEK(ngayHoc)
-    ORDER BY weekNumber
-  `
+  try {
+    const { data, error } = await supabase
+      .from("student_schedules")
+      .select("class_date")
+      .eq("student_id", studentId);
 
-  mysqlConnection.query(query, [maSV], (err, results) => {
-    if (err) {
-      console.error("Error fetching available weeks:", err)
-      return res.status(500).json({ message: "Lỗi khi lấy danh sách tuần" })
-    }
+    if (error) throw error;
 
-    res.json(results)
-  })
-}
+    const weeksMap = {};
+    (data || []).forEach((item) => {
+      if (!item.class_date) return;
+      const d = new Date(item.class_date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const start = new Date(d);
+      start.setDate(diff);
+      start.setHours(0, 0, 0, 0);
+      const startStr = start.toISOString().split("T")[0];
+
+      if (!weeksMap[startStr]) {
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        const dateObj = new Date(start.getTime());
+        dateObj.setUTCDate(dateObj.getUTCDate() + 4 - (dateObj.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(dateObj.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((dateObj - yearStart) / 86400000) + 1) / 7);
+        const weekNumber = parseInt(`${dateObj.getUTCFullYear()}${weekNo.toString().padStart(2, "0")}`);
+        weeksMap[startStr] = {
+          weekNumber,
+          weekStart: startStr,
+          weekEnd: end.toISOString().split("T")[0],
+          _ts: start.getTime(),
+        };
+      }
+    });
+
+    const results = Object.values(weeksMap)
+      .sort((a, b) => a._ts - b._ts)
+      .map(({ _ts, ...w }) => w);
+
+    res.json(results);
+  } catch (err) {
+    console.error("Error fetching available weeks:", err);
+    res.status(500).json({ message: "Error fetching available weeks" });
+  }
+};

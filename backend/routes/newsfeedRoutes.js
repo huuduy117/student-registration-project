@@ -3,59 +3,23 @@ const router = express.Router();
 const { auth, authorize } = require("../middleware/auth");
 const newsfeedController = require("../controllers/newsfeedController");
 
-// Get all newsfeed items with filter options
-router.get("/", (req, res, next) => {
-  auth(req, res, () => newsfeedController.getNewsFeed(req, res, next));
-});
+const STAFF_ROLES = ["AcademicAffairs", "Teacher", "DepartmentHead", "FacultyHead", "Admin"];
+
+// Workflow 5: News & Announcements
+
+// Get all newsfeed items (audience filtered inside controller)
+router.get("/", auth, newsfeedController.getNewsFeed);
 
 // Get newsfeed item by ID
-router.get("/:id", (req, res, next) => {
-  auth(req, res, () => newsfeedController.getBangTinById(req, res, next));
-});
+router.get("/:id", auth, newsfeedController.getNewsById);
 
-// Create a new newsfeed item (admin/teacher only)
-router.post("/", (req, res, next) => {
-  auth(req, res, () => {
-    authorize([
-      "GiaoVu",
-      "GiangVien",
-      "TruongBoMon",
-      "TruongKhoa",
-      "QuanTriVien",
-    ])(req, res, () => {
-      newsfeedController.createBangTin(req, res, next);
-    });
-  });
-});
+// Create a new news item (staff only)
+router.post("/", auth, authorize(...STAFF_ROLES), newsfeedController.postNews);
 
-// Update a newsfeed item
-router.put("/:id", (req, res, next) => {
-  auth(req, res, () => {
-    authorize([
-      "GiaoVu",
-      "GiangVien",
-      "TruongBoMon",
-      "TruongKhoa",
-      "QuanTriVien",
-    ])(req, res, () => {
-      newsfeedController.updateBangTin(req, res, next);
-    });
-  });
-});
+// Update a news item
+router.put("/:id", auth, authorize(...STAFF_ROLES), newsfeedController.updateNews);
 
-// Delete a newsfeed item
-router.delete("/:id", (req, res, next) => {
-  auth(req, res, () => {
-    authorize([
-      "GiaoVu",
-      "GiangVien",
-      "TruongBoMon",
-      "TruongKhoa",
-      "QuanTriVien",
-    ])(req, res, () => {
-      newsfeedController.deleteBangTin(req, res, next);
-    });
-  });
-});
+// Delete a news item
+router.delete("/:id", auth, authorize(...STAFF_ROLES), newsfeedController.deleteNews);
 
 module.exports = router;

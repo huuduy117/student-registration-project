@@ -32,6 +32,7 @@ import TeacherSchedule from "./pages/Teacher_Schedule";
 import RegisterTeaching from "./pages/RegisterTeaching";
 import ClassRegistrationSection from "./components/ClassRegistrationSection";
 import SideBar from "./components/sideBar";
+import { normalizeRole } from "./utils/roleUtils";
 
 // Create a SessionMonitorWrapper components
 const SessionMonitorWrapper = ({ children }) => {
@@ -107,12 +108,14 @@ const PrivateRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(authData.userRole)) {
+  const normalizedUserRole = normalizeRole(authData.userRole);
+  const normalizedAllowedRoles = allowedRoles?.map((role) => normalizeRole(role));
+  if (normalizedAllowedRoles && !normalizedAllowedRoles.includes(normalizedUserRole)) {
     console.log(
       "Unauthorized role:",
-      authData.userRole,
+      normalizedUserRole,
       "Required:",
-      allowedRoles
+      normalizedAllowedRoles
     );
     return <Navigate to="/unauthorized" replace />;
   }
@@ -185,7 +188,7 @@ const App = () => {
         <Route
           path="/class-registration"
           element={
-            <PrivateRoute allowedRoles={["SinhVien"]}>
+            <PrivateRoute allowedRoles={["Student"]}>
               <ClassRegistrationPage />
             </PrivateRoute>
           }
@@ -194,7 +197,7 @@ const App = () => {
         <Route
           path="/create-class-request"
           element={
-            <PrivateRoute allowedRoles={["SinhVien"]}>
+            <PrivateRoute allowedRoles={["Student"]}>
               <CreateClassRequest />
             </PrivateRoute>
           }
@@ -212,7 +215,7 @@ const App = () => {
         <Route
           path="/teacher-schedule"
           element={
-            <PrivateRoute allowedRoles={["GiangVien"]}>
+            <PrivateRoute allowedRoles={["Teacher"]}>
               <TeacherSchedule />
             </PrivateRoute>
           }
@@ -222,7 +225,7 @@ const App = () => {
           path="/approve-requests"
           element={
             <PrivateRoute
-              allowedRoles={["GiaoVu", "TruongBoMon", "TruongKhoa"]}
+              allowedRoles={["AcademicAffairs", "DepartmentHead", "FacultyHead"]}
             >
               <ApproveRequests />
             </PrivateRoute>
@@ -233,7 +236,7 @@ const App = () => {
         <Route
           path="/student-dashboard"
           element={
-            <PrivateRoute allowedRoles={["SinhVien"]}>
+            <PrivateRoute allowedRoles={["Student"]}>
               <StudentDashboard />
             </PrivateRoute>
           }
@@ -242,7 +245,7 @@ const App = () => {
         <Route
           path="/register-teaching"
           element={
-            <PrivateRoute allowedRoles={["GiangVien"]}>
+            <PrivateRoute allowedRoles={["Teacher"]}>
               <RegisterTeaching />
             </PrivateRoute>
           }
@@ -251,7 +254,7 @@ const App = () => {
         <Route
           path="/teacher-dashboard"
           element={
-            <PrivateRoute allowedRoles={["GiangVien"]}>
+            <PrivateRoute allowedRoles={["Teacher"]}>
               <TeacherDashboard />
             </PrivateRoute>
           }
@@ -260,7 +263,7 @@ const App = () => {
         <Route
           path="/academic-dashboard"
           element={
-            <PrivateRoute allowedRoles={["GiaoVu"]}>
+            <PrivateRoute allowedRoles={["AcademicAffairs"]}>
               <AcademicDashboard />
             </PrivateRoute>
           }
@@ -269,7 +272,7 @@ const App = () => {
         <Route
           path="/department-head-dashboard"
           element={
-            <PrivateRoute allowedRoles={["TruongBoMon"]}>
+            <PrivateRoute allowedRoles={["DepartmentHead"]}>
               <DepartmentHeadDashboard />
             </PrivateRoute>
           }
@@ -278,7 +281,7 @@ const App = () => {
         <Route
           path="/admin-dashboard"
           element={
-            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+            <PrivateRoute allowedRoles={["Admin"]}>
               <AdminDashboard />
             </PrivateRoute>
           }
@@ -287,7 +290,7 @@ const App = () => {
         <Route
           path="/faculty-head-dashboard"
           element={
-            <PrivateRoute allowedRoles={["TruongKhoa"]}>
+            <PrivateRoute allowedRoles={["FacultyHead"]}>
               <FacultyHeadDashboard />
             </PrivateRoute>
           }
@@ -297,7 +300,7 @@ const App = () => {
         <Route
           path="/admin/home"
           element={
-            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+            <PrivateRoute allowedRoles={["Admin"]}>
               <AdminHome />
             </PrivateRoute>
           }
@@ -305,7 +308,7 @@ const App = () => {
         <Route
           path="/admin/user-management"
           element={
-            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+            <PrivateRoute allowedRoles={["Admin"]}>
               <AdminUserManagement />
             </PrivateRoute>
           }
@@ -313,7 +316,7 @@ const App = () => {
         <Route
           path="/admin/newsfeed"
           element={
-            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+            <PrivateRoute allowedRoles={["Admin"]}>
               <AdminNewsfeed />
             </PrivateRoute>
           }
@@ -321,7 +324,7 @@ const App = () => {
         <Route
           path="/admin/approve-requests"
           element={
-            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+            <PrivateRoute allowedRoles={["Admin"]}>
               <AdminApproveRequests />
             </PrivateRoute>
           }
@@ -329,7 +332,7 @@ const App = () => {
         <Route
           path="/admin/settings"
           element={
-            <PrivateRoute allowedRoles={["QuanTriVien"]}>
+            <PrivateRoute allowedRoles={["Admin"]}>
               <AdminSettings />
             </PrivateRoute>
           }
@@ -345,7 +348,7 @@ const App = () => {
                 const authData = JSON.parse(
                   sessionStorage.getItem(`auth_${tabId}`) || "{}"
                 );
-                if (authData.userRole === "SinhVien") {
+                if (normalizeRole(authData.userRole) === "Student") {
                   return <Navigate to="/home" replace />;
                 }
                 return <Navigate to="/login" replace />;

@@ -1,647 +1,300 @@
-const { mysqlConnection } = require("../config/db");
+const { supabase } = require("../config/db");
 
-/**
- * Thêm mới người dùng
- */
-function createUserWithDetail(userData) {
-  return new Promise((resolve, reject) => {
-    if (!userData || typeof userData !== "object") {
-      return reject({
-        success: false,
-        message: "Thiếu hoặc sai userData trong request body",
-      });
+// ─── User Management ─────────────────────────────────────────────────────────
+
+async function createUserWithDetail(userData) {
+  if (!userData || typeof userData !== "object") {
+    throw { success: false, message: "Missing or invalid userData" };
+  }
+  const { error } = await supabase.from("users").insert(userData);
+  if (error) {
+    if (error.code === "23505") {
+      throw { success: false, message: "User ID already exists", error };
+    }
+    throw { success: false, message: "Error creating user", error };
+  }
+  return { success: true, message: "User created successfully" };
+}
+
+async function getUsersByType(type) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, username, role")
+    .eq("role", type)
+    .order("username");
+  if (error) throw error;
+  return data || [];
+}
+
+async function getUserById(userId) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, username, role")
+    .eq("id", userId)
+    .single();
+  if (error && error.code !== "PGRST116") throw error;
+  return data ? [data] : [];
+}
+
+async function updateUser(userId, userData) {
+  if (!userData || typeof userData !== "object") {
+    throw { success: false, message: "Missing or invalid userData" };
+  }
+  if (Object.keys(userData).length > 0) {
+    const { error } = await supabase
+      .from("users")
+      .update(userData)
+      .eq("id", userId);
+    if (error) throw { success: false, message: "Error updating user", error };
+  }
+  return { success: true, message: "User updated successfully" };
+}
+
+async function deleteUser(userId) {
+  try {
+    const { data: user, error: checkError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    if (checkError || !user) {
+      throw { success: false, message: "User not found" };
     }
 
-    mysqlConnection.beginTransaction((err) => {
-      if (err) {
-        return reject({
-          success: false,
-          message: "Không thể bắt đầu transaction",
-        });
+    const { role } = user;
+
+    // Delete shared records
+    await supabase.from("news").delete().eq("posted_by", userId);
+    await supabase.from("request_history").delete().eq("changed_by", userId);
+    await supabase.from("request_processing").delete().eq("processed_by", userId);
+
+    if (role === "Student") {
+      await supabase.from("student_schedules").delete().eq("student_id", userId);
+
+      const { data: reqIds } = await supabase
+        .from("class_requests")
+        .select("id")
+        .eq("student_id", userId);
+      if (reqIds && reqIds.length > 0) {
+        const ids = reqIds.map((r) => r.id);
+        await supabase.from("request_history").delete().in("request_id", ids);
       }
 
-      // 1. Thêm vào bảng nguoidung
-      const userFields = Object.keys(userData);
-      const userValues = Object.values(userData);
-      const userSql = `INSERT INTO NguoiDung (${userFields.join(
-        ","
-      )}) VALUES (${userFields.map(() => "?").join(",")})`;
-
-      mysqlConnection.query(userSql, userValues, (err, result) => {
-        if (err) {
-          console.error("[NguoiDung] Lỗi khi thêm:", err);
-          return mysqlConnection.rollback(() => {
-            if (err.code === "ER_DUP_ENTRY") {
-              reject({
-                success: false,
-                message: "Mã người dùng đã tồn tại",
-                error: err,
-              });
-            } else {
-              reject({
-                success: false,
-                message: "Lỗi khi thêm người dùng",
-                error: err,
-              });
-            }
-          });
-        }
-
-        mysqlConnection.commit((err) => {
-          if (err) {
-            console.error("[Transaction] Lỗi khi commit:", err);
-            return mysqlConnection.rollback(() => {
-              reject({
-                success: false,
-                message: "Lỗi khi commit transaction",
-                error: err,
-              });
-            });
-          }
-          resolve({ success: true, message: "Thêm mới thành công" });
-        });
-      });
-    });
-  });
-}
-
-/**
- * Lấy danh sách người dùng theo loại
- */
-function getUsersByType(type, callback) {
-  let query = "";
-  query = `
-      SELECT 
-        n.maNguoiDung as id,
-        n.tenDangNhap as username,
-        n.loaiNguoiDung as userType
-      FROM NguoiDung n
-      WHERE n.loaiNguoiDung = ?
-      ORDER BY n.tenDangNhap
-    `;
-
-  mysqlConnection.query(query, [type], callback);
-}
-
-/**
- * Lấy thông tin người dùng theo ID
- */
-function getUserById(userId, callback) {
-  const query = `
-    SELECT 
-      n.maNguoiDung as id,
-      n.tenDangNhap as username,
-      n.loaiNguoiDung as userType
-    FROM NguoiDung n
-    WHERE n.maNguoiDung = ?
-  `;
-
-  mysqlConnection.query(query, [userId], callback);
-}
-
-/**
- * Cập nhật thông tin người dùng
- */
-function updateUser(userId, userData) {
-  return new Promise((resolve, reject) => {
-    if (!userData || typeof userData !== "object") {
-      return reject({
-        success: false,
-        message: "Thiếu hoặc sai userData trong request body",
-      });
+      await supabase.from("class_requests").delete().eq("student_id", userId);
+      await supabase.from("class_enrollments").delete().eq("student_id", userId);
+      await supabase.from("student_courses").delete().eq("student_id", userId);
+      await supabase.from("students").delete().eq("id", userId);
+    } else if (["Teacher", "AcademicAffairs", "DepartmentHead", "FacultyHead"].includes(role)) {
+      await supabase.from("teacher_schedules").delete().eq("teacher_id", userId);
+      await supabase.from("classes").update({ advisor_id: null }).eq("advisor_id", userId);
+      await supabase.from("course_sections").update({ teacher_id: null }).eq("teacher_id", userId);
+      await supabase.from("teacher_assignments").delete().eq("teacher_id", userId);
+      await supabase.from("teaching_registrations").delete().eq("teacher_id", userId);
+      await supabase.from("teachers").delete().eq("id", userId);
     }
 
-    mysqlConnection.beginTransaction((err) => {
-      if (err) {
-        return reject({
-          success: false,
-          message: "Không thể bắt đầu transaction",
-          error: err,
-        });
-      }
+    const { error: deleteError } = await supabase
+      .from("users")
+      .delete()
+      .eq("id", userId);
+    if (deleteError) throw deleteError;
 
-      // 1. Cập nhật bảng nguoidung
-      const userFields = Object.keys(userData);
-      const userValues = Object.values(userData);
-      if (userFields.length > 0) {
-        const userSql = `UPDATE NguoiDung SET ${userFields
-          .map((field) => `${field} = ?`)
-          .join(", ")} WHERE maNguoiDung = ?`;
-
-        mysqlConnection.query(
-          userSql,
-          [...userValues, userId],
-          (err, result) => {
-            if (err) {
-              return mysqlConnection.rollback(() => {
-                reject({
-                  success: false,
-                  message: "Lỗi khi cập nhật người dùng",
-                  error: err,
-                });
-              });
-            }
-
-            mysqlConnection.commit((err) => {
-              if (err) {
-                return mysqlConnection.rollback(() => {
-                  reject({
-                    success: false,
-                    message: "Lỗi khi commit transaction",
-                    error: err,
-                  });
-                });
-              }
-              resolve({ success: true, message: "Cập nhật thành công" });
-            });
-          }
-        );
-      } else {
-        mysqlConnection.commit((err) => {
-          if (err) {
-            return mysqlConnection.rollback(() => {
-              reject({
-                success: false,
-                message: "Lỗi khi commit transaction",
-                error: err,
-              });
-            });
-          }
-          resolve({ success: true, message: "Cập nhật thành công" });
-        });
-      }
-    });
-  }).catch((err) => {
-    console.error("Unhandled rejection in updateUser:", err);
-  });
+    return { success: true, message: "User and related data deleted successfully" };
+  } catch (error) {
+    throw { success: false, message: error.message || "Error deleting user", error };
+  }
 }
 
-/**
- * Xóa người dùng và các bản ghi liên quan
- */
-function deleteUser(userId) {
-  return new Promise((resolve, reject) => {
-    mysqlConnection.beginTransaction((err) => {
-      if (err) {
-        return reject({
-          success: false,
-          message: "Không thể bắt đầu transaction",
-          error: err,
-        });
-      }
+// ─── Statistics ────────────────────────────────────────────────────────────
 
-      // Check user type first to handle role-specific deletion
-      const checkUserTypeSql =
-        "SELECT loaiNguoiDung FROM NguoiDung WHERE maNguoiDung = ?";
-      mysqlConnection.query(checkUserTypeSql, [userId], (err, results) => {
-        if (err) {
-          return mysqlConnection.rollback(() => {
-            reject({
-              success: false,
-              message: "Lỗi khi kiểm tra loại người dùng",
-              error: err,
-            });
-          });
-        }
-
-        if (!results || results.length === 0) {
-          return mysqlConnection.rollback(() => {
-            reject({
-              success: false,
-              message: "Không tìm thấy người dùng",
-            });
-          });
-        }
-
-        const userType = results[0].loaiNguoiDung;
-
-        // Delete from BangTin
-        mysqlConnection.query(
-          "DELETE FROM BangTin WHERE nguoiDang = ?",
-          [userId],
-          (err) => {
-            if (err) {
-              return mysqlConnection.rollback(() => {
-                reject({
-                  success: false,
-                  message: "Lỗi khi xóa bản tin của người dùng",
-                  error: err,
-                });
-              });
-            }
-
-            // Delete from LichSuThayDoiYeuCau
-            mysqlConnection.query(
-              "DELETE FROM LichSuThayDoiYeuCau WHERE nguoiThayDoi = ?",
-              [userId],
-              (err) => {
-                if (err) {
-                  return mysqlConnection.rollback(() => {
-                    reject({
-                      success: false,
-                      message: "Lỗi khi xóa lịch sử thay đổi yêu cầu",
-                      error: err,
-                    });
-                  });
-                }
-
-                // Delete from XuLyYeuCau
-                mysqlConnection.query(
-                  "DELETE FROM XuLyYeuCau WHERE nguoiXuLy = ?",
-                  [userId],
-                  (err) => {
-                    if (err) {
-                      return mysqlConnection.rollback(() => {
-                        reject({
-                          success: false,
-                          message: "Lỗi khi xóa xử lý yêu cầu",
-                          error: err,
-                        });
-                      });
-                    }
-
-                    // Handle role-specific deletion
-                    let roleSpecificDelete = Promise.resolve();
-
-                    if (userType === "SinhVien") {
-                      roleSpecificDelete = new Promise((resolve, reject) => {
-                        // Delete from ThoiKhoaBieuSinhVien first
-                        mysqlConnection.query(
-                          "DELETE FROM ThoiKhoaBieuSinhVien WHERE maSV = ?",
-                          [userId],
-                          (err) => {
-                            if (err) {
-                              return reject(err);
-                            }
-                            // Xóa lịch sử thay đổi yêu cầu liên quan đến các yêu cầu mở lớp của sinh viên này
-                            mysqlConnection.query(
-                              "DELETE FROM LichSuThayDoiYeuCau WHERE maYeuCau IN (SELECT maYeuCau FROM YeuCauMoLop WHERE maSV = ?)",
-                              [userId],
-                              (err) => {
-                                if (err) {
-                                  return reject(err);
-                                }
-                                // Then delete from YeuCauMoLop
-                                mysqlConnection.query(
-                                  "DELETE FROM YeuCauMoLop WHERE maSV = ?",
-                                  [userId],
-                                  (err) => {
-                                    if (err) {
-                                      return reject(err);
-                                    }
-                                    // Delete from PhanLop before SinhVien
-                                    mysqlConnection.query(
-                                      "DELETE FROM PhanLop WHERE maSV = ?",
-                                      [userId],
-                                      (err) => {
-                                        if (err) {
-                                          return reject(err);
-                                        }
-                                        // Delete from sinhvien_monhoc before SinhVien
-                                        mysqlConnection.query(
-                                          "DELETE FROM sinhvien_monhoc WHERE maSV = ?",
-                                          [userId],
-                                          (err) => {
-                                            if (err) {
-                                              return reject(err);
-                                            }
-                                            // Finally delete from SinhVien
-                                            mysqlConnection.query(
-                                              "DELETE FROM SinhVien WHERE maSV = ?",
-                                              [userId],
-                                              (err) => {
-                                                if (err) {
-                                                  return reject(err);
-                                                }
-                                                resolve();
-                                              }
-                                            );
-                                          }
-                                        );
-                                      }
-                                    );
-                                  }
-                                );
-                              }
-                            );
-                          }
-                        );
-                      });
-                    } else if (userType === "GiangVien") {
-                      roleSpecificDelete = new Promise((resolve, reject) => {
-                        // Xóa từ ThoiKhoaBieuGiangVien trước
-                        mysqlConnection.query(
-                          "DELETE FROM ThoiKhoaBieuGiangVien WHERE maGV = ?",
-                          [userId],
-                          (err) => {
-                            if (err) {
-                              return reject(err);
-                            }
-                            // Cập nhật các lớp có maCVHT = userId thành NULL trước khi xóa GiangVien
-                            mysqlConnection.query(
-                              "UPDATE lop SET maCVHT = NULL WHERE maCVHT = ?",
-                              [userId],
-                              (err) => {
-                                if (err) {
-                                  return reject(err);
-                                }
-                                // Cập nhật các lớp học phần có maGV = userId thành NULL trước khi xóa GiangVien
-                                mysqlConnection.query(
-                                  "UPDATE lophocphan SET maGV = NULL WHERE maGV = ?",
-                                  [userId],
-                                  (err) => {
-                                    if (err) {
-                                      return reject(err);
-                                    }
-                                    // Xóa từ phanconggiangvien trước khi xóa GiangVien
-                                    mysqlConnection.query(
-                                      "DELETE FROM phanconggiangvien WHERE maGV = ?",
-                                      [userId],
-                                      (err) => {
-                                        if (err) {
-                                          return reject(err);
-                                        }
-                                        // Xóa từ dangkylichday trước khi xóa GiangVien
-                                        mysqlConnection.query(
-                                          "DELETE FROM dangkylichday WHERE maGV = ?",
-                                          [userId],
-                                          (err) => {
-                                            if (err) {
-                                              return reject(err);
-                                            }
-                                            // Sau đó xóa từ GiangVien
-                                            mysqlConnection.query(
-                                              "DELETE FROM GiangVien WHERE maGV = ?",
-                                              [userId],
-                                              (err) => {
-                                                if (err) {
-                                                  return reject(err);
-                                                }
-                                                resolve();
-                                              }
-                                            );
-                                          }
-                                        );
-                                      }
-                                    );
-                                  }
-                                );
-                              }
-                            );
-                          }
-                        );
-                      });
-                    }
-
-                    roleSpecificDelete
-                      .then(() => {
-                        // Finally delete from NguoiDung
-                        mysqlConnection.query(
-                          "DELETE FROM NguoiDung WHERE maNguoiDung = ?",
-                          [userId],
-                          (err) => {
-                            if (err) {
-                              return mysqlConnection.rollback(() => {
-                                reject({
-                                  success: false,
-                                  message: "Lỗi khi xóa người dùng",
-                                  error: err,
-                                });
-                              });
-                            }
-
-                            mysqlConnection.commit((err) => {
-                              if (err) {
-                                return mysqlConnection.rollback(() => {
-                                  reject({
-                                    success: false,
-                                    message: "Lỗi khi commit transaction",
-                                    error: err,
-                                  });
-                                });
-                              }
-                              resolve({
-                                success: true,
-                                message:
-                                  "Xóa người dùng và dữ liệu liên quan thành công",
-                              });
-                            });
-                          }
-                        );
-                      })
-                      .catch((err) => {
-                        mysqlConnection.rollback(() => {
-                          reject({
-                            success: false,
-                            message: `Lỗi khi xóa ${
-                              userType === "SinhVien"
-                                ? "sinh viên"
-                                : "giảng viên"
-                            }`,
-                            error: err,
-                          });
-                        });
-                      });
-                  }
-                );
-              }
-            );
-          }
-        );
-      });
-    });
-  });
-}
-
-/**
- * Lấy thống kê sinh viên
- */
-function getStudentStats(callback) {
-  const queries = {
-    total: "SELECT COUNT(*) as count FROM SinhVien",
-    byClass: `SELECT l.tenLop as class, COUNT(*) as count FROM SinhVien sv LEFT JOIN Lop l ON sv.maLop = l.maLop WHERE sv.maLop IS NOT NULL GROUP BY l.tenLop ORDER BY count DESC`,
-    registrationStatus: `
-      SELECT status, COUNT(*) as count FROM (
-        SELECT sv.maSV, IF(COUNT(tkb.maSV) > 0, 'Đã đăng ký', 'Chưa đăng ký') as status
-        FROM SinhVien sv
-        LEFT JOIN ThoiKhoaBieuSinhVien tkb ON sv.maSV = tkb.maSV
-        GROUP BY sv.maSV
-      ) as sub
-      GROUP BY status
-    `,
-    classRequests: `
-      SELECT 
-        ycml.maYeuCau as id,
-        mh.tenMH as courseName,
-        ycml.soLuongThamGia as participantCount,
-        ycml.description,
-        ycml.tinhTrangTongQuat as status,
-        ycml.trangThaiXuLy as processStatus,
-        ycml.ngayGui as requestDate
-      FROM YeuCauMoLop ycml
-      JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
-      JOIN MonHoc mh ON lhp.maMH = mh.maMH
-      ORDER BY ycml.ngayGui DESC
-      LIMIT 5
-    `,
-    requestHistory: `
-      SELECT 
-        CONCAT('Yêu cầu mở lớp ', mh.tenMH) as action,
-        DATE_FORMAT(ycml.ngayGui, '%d/%m/%Y %H:%i') as time
-      FROM YeuCauMoLop ycml
-      JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
-      JOIN MonHoc mh ON lhp.maMH = mh.maMH
-      ORDER BY ycml.ngayGui DESC
-      LIMIT 5
-    `,
-  };
-
+async function getStudentStats() {
   const results = {};
-  let completed = 0;
-  const totalQueries = Object.keys(queries).length;
 
-  Object.entries(queries).forEach(([key, query]) => {
-    mysqlConnection.query(query, (err, result) => {
-      if (err) {
-        console.error(`Error in ${key} query:`, err);
-        results[key] = key === "total" ? 0 : [];
-      } else {
-        if (key === "total") {
-          results[key] = result[0]?.count || 0;
-        } else {
-          results[key] = result || [];
-        }
-      }
+  const { count: totalCount } = await supabase
+    .from("students")
+    .select("*", { count: "exact", head: true });
+  results.total = totalCount || 0;
 
-      completed++;
-      if (completed === totalQueries) {
-        callback(null, results);
-      }
-    });
+  // By class
+  const { data: studentsWithClass } = await supabase
+    .from("students")
+    .select("classes(name)");
+  const classCounts = {};
+  (studentsWithClass || []).forEach((s) => {
+    const name = s.classes?.name;
+    if (name) classCounts[name] = (classCounts[name] || 0) + 1;
   });
+  results.byClass = Object.entries(classCounts)
+    .map(([className, count]) => ({ class: className, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Registration status
+  const { data: studentsWithSch } = await supabase
+    .from("students")
+    .select("id, student_schedules(id)");
+  let registered = 0;
+  let notRegistered = 0;
+  (studentsWithSch || []).forEach((s) => {
+    if (s.student_schedules && s.student_schedules.length > 0) registered++;
+    else notRegistered++;
+  });
+  results.registrationStatus = [
+    { status: "Registered", count: registered },
+    { status: "Not Registered", count: notRegistered },
+  ];
+
+  // Recent class requests
+  const { data: classReqs } = await supabase
+    .from("class_requests")
+    .select(`
+      id, participant_count, description, overall_status, process_status, submitted_at,
+      course_sections(courses(name))
+    `)
+    .order("submitted_at", { ascending: false })
+    .limit(5);
+
+  results.classRequests = (classReqs || []).map((r) => ({
+    id: r.id,
+    courseName: r.course_sections?.courses?.name || null,
+    participantCount: r.participant_count,
+    description: r.description,
+    status: r.overall_status,
+    processStatus: r.process_status,
+    requestDate: r.submitted_at,
+  }));
+
+  results.requestHistory = (classReqs || []).map((r) => {
+    const d = new Date(r.submitted_at);
+    const timeStr = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    return {
+      action: "Class open request: " + (r.course_sections?.courses?.name || ""),
+      time: timeStr,
+    };
+  });
+
+  return results;
 }
 
-/**
- * Lấy thống kê giảng viên
- */
-function getTeacherStats(callback) {
-  const queries = {
-    total: "SELECT COUNT(*) as count FROM GiangVien",
-    classCountBySemester: `
-      SELECT 
-        CONCAT('HK', lhp.hocKy, '-', lhp.namHoc) as semester,
-        COUNT(*) as count
-      FROM LopHocPhan lhp
-      GROUP BY lhp.hocKy, lhp.namHoc
-      ORDER BY lhp.namHoc DESC, lhp.hocKy DESC
-      LIMIT 6
-    `,
-    schedule: `
-      SELECT 
-        gv.hoTen as teacher,
-        CONCAT('Tiết ', tkb.tietBD, '-', tkb.tietKT, ' (', DATE_FORMAT(tkb.ngayHoc, '%d/%m/%Y'), ')') as time,
-        mh.tenMH as subject
-      FROM ThoiKhoaBieuGiangVien tkb
-      JOIN GiangVien gv ON tkb.maGV = gv.maGV
-      JOIN LopHocPhan lhp ON tkb.maLopHP = lhp.maLopHP
-      JOIN MonHoc mh ON lhp.maMH = mh.maMH
-      ORDER BY tkb.ngayHoc, tkb.tietBD
-      LIMIT 10
-    `,
-    approveHistory: `
-      SELECT 
-        CONCAT('Phê duyệt yêu cầu mở lớp') as action,
-        DATE_FORMAT(NOW(), '%d/%m/%Y %H:%i') as time
-      FROM DUAL
-      LIMIT 5
-    `,
-  };
-
+async function getTeacherStats() {
   const results = {};
-  let completed = 0;
-  const totalQueries = Object.keys(queries).length;
 
-  Object.entries(queries).forEach(([key, query]) => {
-    mysqlConnection.query(query, (err, result) => {
-      if (err) {
-        console.error(`Error in ${key} query:`, err);
-        results[key] = key === "total" ? 0 : [];
-      } else {
-        if (key === "total") {
-          results[key] = result[0]?.count || 0;
-        } else {
-          results[key] = result || [];
-        }
-      }
+  const { count: totalCount } = await supabase
+    .from("teachers")
+    .select("*", { count: "exact", head: true });
+  results.total = totalCount || 0;
 
-      completed++;
-      if (completed === totalQueries) {
-        callback(null, results);
-      }
-    });
+  // Class count by semester
+  const { data: sections } = await supabase
+    .from("course_sections")
+    .select("semester, academic_year");
+  const semesterCounts = {};
+  (sections || []).forEach((s) => {
+    if (s.semester && s.academic_year) {
+      const key = `Sem${s.semester}-${s.academic_year}`;
+      semesterCounts[key] = (semesterCounts[key] || 0) + 1;
+    }
   });
+  results.classCountBySemester = Object.entries(semesterCounts)
+    .map(([semester, count]) => ({ semester, count }))
+    .sort((a, b) => b.semester.localeCompare(a.semester))
+    .slice(0, 6);
+
+  // Recent schedule
+  const { data: schedule } = await supabase
+    .from("teacher_schedules")
+    .select(`
+      class_date, period_start, period_end,
+      teachers(full_name),
+      course_sections(courses(name))
+    `)
+    .order("class_date")
+    .order("period_start")
+    .limit(10);
+
+  results.schedule = (schedule || []).map((t) => {
+    const d = new Date(t.class_date);
+    const dateStr = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+    return {
+      teacher: t.teachers?.full_name || null,
+      time: `Period ${t.period_start}-${t.period_end} (${dateStr})`,
+      subject: t.course_sections?.courses?.name || null,
+    };
+  });
+
+  const d = new Date();
+  results.approveHistory = [{
+    action: "Approved class open request",
+    time: `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`,
+  }];
+
+  return results;
 }
 
-/**
- * Lấy danh sách yêu cầu mở lớp cho admin
- */
-function getClassRequests(callback) {
-  const query = `
-    SELECT 
-      ycml.maYeuCau as id,
-      mh.tenMH as courseName,
-      ycml.soLuongThamGia as participantCount,
-      ycml.description,
-      ycml.tinhTrangTongQuat as status,
-      ycml.trangThaiXuLy as processStatus,
-      ycml.ngayGui as requestDate,
-      sv.hoTen as requesterName,
-      lhp.maLopHP as classCode
-    FROM YeuCauMoLop ycml
-    JOIN SinhVien sv ON ycml.maSV = sv.maSV
-    JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
-    JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    ORDER BY ycml.ngayGui DESC
-  `;
+// ─── Class Requests (Admin) ────────────────────────────────────────────────
 
-  mysqlConnection.query(query, callback);
+async function getClassRequests() {
+  const { data, error } = await supabase
+    .from("class_requests")
+    .select(`
+      id, participant_count, description, overall_status, process_status, submitted_at,
+      students(full_name),
+      course_sections(id, courses(name))
+    `)
+    .order("submitted_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((r) => ({
+    id: r.id,
+    courseName: r.course_sections?.courses?.name || null,
+    participantCount: r.participant_count,
+    description: r.description,
+    status: r.overall_status,
+    processStatus: r.process_status,
+    requestDate: r.submitted_at,
+    requesterName: r.students?.full_name || null,
+    sectionId: r.course_sections?.id || null,
+  }));
 }
 
-/**
- * Cập nhật trạng thái yêu cầu mở lớp
- */
-function updateClassRequestStatus(requestId, status, callback) {
-  const query = `
-    UPDATE YeuCauMoLop 
-    SET tinhTrangTongQuat = ?
-    WHERE maYeuCau = ?
-  `;
-
-  mysqlConnection.query(query, [status, requestId], callback);
+async function updateClassRequestStatus(requestId, status) {
+  const { error } = await supabase
+    .from("class_requests")
+    .update({ overall_status: status })
+    .eq("id", requestId);
+  if (error) throw error;
+  return true;
 }
 
-/**
- * Lấy lịch sử thay đổi yêu cầu
- */
-function getRequestHistory(requestId, callback) {
-  const query = `
-    SELECT 
-      ls.cotTrangThaiCu as oldStatus,
-      ls.cotTrangThaiMoi as newStatus,
-      ls.ngayThayDoi as changeDate,
-      CASE 
-        WHEN nd.loaiNguoiDung = 'SinhVien' THEN sv.hoTen
-        ELSE gv.hoTen
-      END as changedBy
-    FROM LichSuThayDoiYeuCau ls
-    JOIN NguoiDung nd ON ls.nguoiThayDoi = nd.maNguoiDung
-    LEFT JOIN SinhVien sv ON nd.maNguoiDung = sv.maSV
-    LEFT JOIN GiangVien gv ON nd.maNguoiDung = gv.maGV
-    WHERE ls.maYeuCau = ?
-    ORDER BY ls.ngayThayDoi DESC
-  `;
+async function getRequestHistory(requestId) {
+  const { data, error } = await supabase
+    .from("request_history")
+    .select(`
+      old_status, new_status, changed_at,
+      users(role, students(full_name), teachers(full_name))
+    `)
+    .eq("request_id", requestId)
+    .order("changed_at", { ascending: false });
 
-  mysqlConnection.query(query, [requestId], callback);
+  if (error) throw error;
+
+  return (data || []).map((r) => {
+    let changedBy = "Unknown";
+    if (r.users) {
+      if (r.users.role === "Student") {
+        changedBy = r.users.students?.full_name || changedBy;
+      } else {
+        changedBy = r.users.teachers?.full_name || changedBy;
+      }
+    }
+    return {
+      oldStatus: r.old_status,
+      newStatus: r.new_status,
+      changeDate: r.changed_at,
+      changedBy,
+    };
+  });
 }
 
 module.exports = {

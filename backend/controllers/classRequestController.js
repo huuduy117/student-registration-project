@@ -1,787 +1,405 @@
-const { mysqlConnection } = require("../config/db");
+const { supabase } = require("../config/db");
+const { sendSuccess, sendError } = require("../utils/response");
 
-// Get all class requests
-exports.getAllClassRequests = (req, res) => {
-  const query = `
-    SELECT 
-      ycml.maYeuCau, 
-      ycml.ngayGui, 
-      ycml.tinhTrangTongQuat,
-      ycml.trangThaiXuLy, 
-      ycml.maSV,
-      ycml.soLuongThamGia,
-      ycml.description,
-      sv.hoTen AS tenSinhVien,
-      mh.maMH,
-      mh.tenMH,
-      lhp.maLopHP,
-      lhp.namHoc,
-      lhp.hocKy,
-      lhp.siSoToiDa,
-      lhp.siSoHienTai,
-      (SELECT COUNT(*) FROM SinhVien_MonHoc WHERE maLopHP = lhp.maLopHP) AS soLuongDangKy,
-      CASE 
-        WHEN EXISTS (
-          SELECT 1 FROM LopHocPhan lhp2 
-          LEFT JOIN DangKyLichDay dkld ON lhp2.maLopHP = dkld.maLopHP 
-          WHERE lhp2.maLopHP = CONCAT(lhp.maLopHP, '_NEW')
-          AND (lhp2.maGV IS NOT NULL OR dkld.trangThai = 'ChapNhan')
-        ) THEN true
-        ELSE false
-      END as hasTeacherRegistration,
-      (
-        SELECT gv.hoTen 
-        FROM LopHocPhan lhp2 
-        LEFT JOIN GiangVien gv ON lhp2.maGV = gv.maGV
-        WHERE lhp2.maLopHP = CONCAT(lhp.maLopHP, '_NEW')
-        AND lhp2.maGV IS NOT NULL
-        LIMIT 1
-      ) as tenGV,
-      (
-        SELECT lhp2.maGV 
-        FROM LopHocPhan lhp2 
-        WHERE lhp2.maLopHP = CONCAT(lhp.maLopHP, '_NEW')
-        AND lhp2.maGV IS NOT NULL
-        LIMIT 1
-      ) as maGV
-    FROM YeuCauMoLop ycml
-    JOIN SinhVien sv ON ycml.maSV = sv.maSV
-    LEFT JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
-    LEFT JOIN MonHoc mh ON lhp.maMH = mh.maMH
-    ORDER BY ycml.ngayGui DESC
-  `;
+// ─── UTILS ──────────────────────────────────────────────────────────────────
 
-  mysqlConnection.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching class requests:", err);
-      return res
-        .status(500)
-        .json({ message: "Lỗi khi lấy danh sách yêu cầu mở lớp" });
-    }
-    res.json(results);
-  });
-};
+const generateId = (prefix) => `${prefix}_${Date.now()}`;
+const isCancelledOrRejected = (request) =>
+  request?.overall_status === "Cancelled" || request?.overall_status === "Rejected";
 
-// Create a new class request
-exports.createClassRequest = (req, res) => {
-  const { maSV, maLopHP, description } = req.body;
+// ─── READ OPERATIONS (Kept for Frontend Compatibility) ──────────────────────
 
-  if (!maSV || !maLopHP) {
-    return res.status(400).json({ message: "Thiếu thông tin cần thiết" });
+exports.getAllClassRequests = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("class_requests")
+      .select(`
+        id, submitted_at, overall_status, process_status, student_id, participant_count, description,
+        students(id, full_name, classes(name)),
+        courses(id, name),
+        course_sections(id, academic_year, semester, capacity, enrolled_count),
+        teachers(id, full_name)
+      `)
+      .order("submitted_at", { ascending: false });
+
+    if (error) throw error;
+    return sendSuccess(res, "get_all_class_requests", data);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error fetching class requests");
   }
-
-  // check đúng role sinh viên
-  mysqlConnection.query(
-    "SELECT loaiNguoiDung FROM NguoiDung WHERE maNguoiDung = ?",
-    [maSV],
-    (err, results) => {
-      if (err) {
-        console.error("Error checking user type:", err);
-        return res
-          .status(500)
-          .json({ message: "Lỗi khi kiểm tra thông tin người dùng" });
-      }
-
-      if (results.length === 0 || results[0].loaiNguoiDung !== "SinhVien") {
-        return res
-          .status(403)
-          .json({ message: "Chỉ sinh viên mới có thể tạo yêu cầu mở lớp" });
-      }
-
-      // Get maMH from LopHocPhan
-      mysqlConnection.query(
-        "SELECT maMH FROM LopHocPhan WHERE maLopHP = ?",
-        [maLopHP],
-        (err, rows) => {
-          if (err || !rows || rows.length === 0) {
-            console.error("Error getting maMH:", err);
-            return res.status(500).json({
-              message: "Không tìm thấy mã môn học cho lớp học phần",
-            });
-          }
-
-          const maMH = rows[0].maMH;
-          const maYeuCau = `YC${Date.now().toString().slice(-6)}`;
-          const ngayGui = new Date().toISOString().split("T")[0];
-          const soLuongThamGia = 1; // Initialize to 1 for the requesting student
-
-          // Begin transaction
-          mysqlConnection.beginTransaction((err) => {
-            if (err) {
-              console.error("Error starting transaction:", err);
-              return res
-                .status(500)
-                .json({ message: "Lỗi khi bắt đầu giao dịch" });
-            }
-
-            // Insert the request with new fields
-            const insertRequestSql = description
-              ? "INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrangTongQuat, trangThaiXuLy, maSV, maLopHP, maMH, soLuongThamGia, description) VALUES (?, ?, 'DaGui', '0_ChuaGui', ?, ?, ?, ?, ?)"
-              : "INSERT INTO YeuCauMoLop (maYeuCau, ngayGui, tinhTrangTongQuat, trangThaiXuLy, maSV, maLopHP, maMH, soLuongThamGia) VALUES (?, ?, 'DaGui', '0_ChuaGui', ?, ?, ?, ?)";
-
-            const insertRequestParams = description
-              ? [
-                  maYeuCau,
-                  ngayGui,
-                  maSV,
-                  maLopHP,
-                  maMH,
-                  soLuongThamGia,
-                  description,
-                ]
-              : [maYeuCau, ngayGui, maSV, maLopHP, maMH, soLuongThamGia];
-
-            mysqlConnection.query(
-              insertRequestSql,
-              insertRequestParams,
-              (err, result) => {
-                if (err) {
-                  return mysqlConnection.rollback(() => {
-                    console.error("Error creating class request:", err);
-                    res
-                      .status(500)
-                      .json({ message: "Lỗi khi tạo yêu cầu mở lớp" });
-                  });
-                }
-
-                // Register the requesting student
-                mysqlConnection.query(
-                  "INSERT INTO SinhVien_MonHoc (maSV, maMH, maLopHP, ngayDangKy) VALUES (?, ?, ?, ?)",
-                  [maSV, maMH, maLopHP, ngayGui],
-                  (err, result) => {
-                    if (err) {
-                      return mysqlConnection.rollback(() => {
-                        console.error("Error registering student:", err);
-                        res
-                          .status(500)
-                          .json({ message: "Lỗi khi đăng ký sinh viên" });
-                      });
-                    }
-
-                    // Commit transaction
-                    mysqlConnection.commit((err) => {
-                      if (err) {
-                        return mysqlConnection.rollback(() => {
-                          console.error("Error committing transaction:", err);
-                          res
-                            .status(500)
-                            .json({ message: "Lỗi khi hoàn tất giao dịch" });
-                        });
-                      }
-                      res.status(201).json({
-                        message: "Tạo yêu cầu mở lớp thành công",
-                        maYeuCau,
-                      });
-                    });
-                  }
-                );
-              }
-            );
-          });
-        }
-      );
-    }
-  );
 };
 
-// Join a class request
-exports.joinClassRequest = (req, res) => {
-  const { maSV, maLopHP } = req.body;
+exports.getAvailableCourses = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("course_sections")
+      .select(`
+        id, academic_year, semester, capacity, enrolled_count,
+        courses!course_sections_course_id_fkey(id, name, credits)
+      `)
+      .order("id", { ascending: true });
 
-  if (!maSV) {
-    return res.status(400).json({ message: "Thiếu mã sinh viên (maSV)" });
+    if (error) throw error;
+    
+    const availableCourses = (data || []).filter(section => section.enrolled_count < section.capacity);
+    return sendSuccess(res, "get_available_courses", availableCourses);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error fetching available courses");
   }
-  if (!maLopHP) {
-    return res.status(400).json({ message: "Thiếu mã lớp học phần (maLopHP)" });
+};
+
+exports.getParticipants = async (req, res) => {
+  const { sectionId } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from("student_courses")
+      .select(`
+        student_id, registered_at,
+        students(id, full_name, classes(name))
+      `)
+      .eq("section_id", sectionId);
+
+    if (error) throw error;
+
+    const participants = data.map((item) => ({
+      studentId: item.student_id,
+      fullName: item.students?.full_name,
+      className: item.students?.classes?.name,
+      registeredAt: item.registered_at,
+    }));
+    return sendSuccess(res, "get_participants", participants);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error fetching participants");
   }
-
-  // Check if the user is a student
-  mysqlConnection.query(
-    "SELECT loaiNguoiDung FROM NguoiDung WHERE maNguoiDung = ?",
-    [maSV],
-    (err, results) => {
-      if (err) {
-        console.error("Error checking user type:", err);
-        return res
-          .status(500)
-          .json({ message: "Lỗi khi kiểm tra thông tin người dùng" });
-      }
-
-      if (results.length === 0 || results[0].loaiNguoiDung !== "SinhVien") {
-        return res
-          .status(403)
-          .json({ message: "Chỉ sinh viên mới có thể tham gia lớp học" });
-      }
-
-      // Get maMH from LopHocPhan
-      mysqlConnection.query(
-        "SELECT maMH FROM LopHocPhan WHERE maLopHP = ?",
-        [maLopHP],
-        (err, rows) => {
-          if (err || !rows || rows.length === 0) {
-            console.error("Error getting maMH:", err);
-            return res.status(500).json({
-              message: "Không tìm thấy mã môn học cho lớp học phần",
-            });
-          }
-
-          const maMH = rows[0].maMH;
-
-          // Check if the student is already registered
-          mysqlConnection.query(
-            "SELECT * FROM SinhVien_MonHoc WHERE maSV = ? AND maLopHP = ?",
-            [maSV, maLopHP],
-            (err, results) => {
-              if (err) {
-                console.error("Error checking existing registration:", err);
-                return res
-                  .status(500)
-                  .json({ message: "Lỗi khi kiểm tra đăng ký" });
-              }
-
-              if (results.length > 0) {
-                return res
-                  .status(400)
-                  .json({ message: "Sinh viên đã đăng ký lớp học này" });
-              }
-
-              // Begin transaction
-              mysqlConnection.beginTransaction((err) => {
-                if (err) {
-                  console.error("Error starting transaction:", err);
-                  return res
-                    .status(500)
-                    .json({ message: "Lỗi khi bắt đầu giao dịch" });
-                }
-
-                const ngayDangKy = new Date().toISOString().split("T")[0];
-
-                // Register the student
-                mysqlConnection.query(
-                  "INSERT INTO SinhVien_MonHoc (maSV, maMH, maLopHP, ngayDangKy) VALUES (?, ?, ?, ?)",
-                  [maSV, maMH, maLopHP, ngayDangKy],
-                  (err, result) => {
-                    if (err) {
-                      return mysqlConnection.rollback(() => {
-                        console.error("Error registering student:", err);
-                        res
-                          .status(500)
-                          .json({ message: "Lỗi khi đăng ký sinh viên" });
-                      });
-                    }
-
-                    // Update soLuongThamGia in YeuCauMoLop
-                    mysqlConnection.query(
-                      "UPDATE YeuCauMoLop SET soLuongThamGia = soLuongThamGia + 1 WHERE maLopHP = ?",
-                      [maLopHP],
-                      (err, result) => {
-                        if (err) {
-                          return mysqlConnection.rollback(() => {
-                            console.error(
-                              "Error updating participants count:",
-                              err
-                            );
-                            res.status(500).json({
-                              message: "Lỗi khi cập nhật số lượng tham gia",
-                            });
-                          });
-                        }
-
-                        // Get current participant count
-                        mysqlConnection.query(
-                          "SELECT soLuongThamGia FROM YeuCauMoLop WHERE maLopHP = ?",
-                          [maLopHP],
-                          (err, results) => {
-                            if (err) {
-                              return mysqlConnection.rollback(() => {
-                                console.error(
-                                  "Error getting participant count:",
-                                  err
-                                );
-                                res.status(500).json({
-                                  message: "Lỗi khi lấy số lượng tham gia",
-                                });
-                              });
-                            }
-
-                            const studentCount = results[0].soLuongThamGia;
-
-                            // If we have 30 students, update the request status
-                            if (studentCount >= 30) {
-                              const maThongBao = `TB${Date.now()
-                                .toString()
-                                .slice(-6)}`;
-                              const tieuDe =
-                                "Yêu cầu mở lớp được duyệt tự động";
-                              const noiDung = `Lớp học phần ${maLopHP} đã đạt đủ 30 sinh viên đăng ký và được duyệt tự động.`;
-
-                              mysqlConnection.query(
-                                "UPDATE YeuCauMoLop SET tinhTrangTongQuat = 'DaGui', trangThaiXuLy = '1_GiaoVuNhan' WHERE maLopHP = ?",
-                                [maLopHP],
-                                (err, result) => {
-                                  if (err) {
-                                    return mysqlConnection.rollback(() => {
-                                      console.error(
-                                        "Error updating request status:",
-                                        err
-                                      );
-                                      res.status(500).json({
-                                        message:
-                                          "Lỗi khi cập nhật trạng thái yêu cầu",
-                                      });
-                                    });
-                                  }
-
-                                  // Create a news announcement
-                                  mysqlConnection.query(
-                                    "INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung) VALUES (?, ?, ?, ?, ?, 'SinhVien')",
-                                    [
-                                      maThongBao,
-                                      tieuDe,
-                                      noiDung,
-                                      ngayDangKy,
-                                      maSV,
-                                    ],
-                                    (err, result) => {
-                                      if (err) {
-                                        return mysqlConnection.rollback(() => {
-                                          console.error(
-                                            "Error creating news announcement:",
-                                            err
-                                          );
-                                          res.status(500).json({
-                                            message: "Lỗi khi tạo thông báo",
-                                          });
-                                        });
-                                      }
-
-                                      // Commit the transaction
-                                      mysqlConnection.commit((err) => {
-                                        if (err) {
-                                          return mysqlConnection.rollback(
-                                            () => {
-                                              console.error(
-                                                "Error committing transaction:",
-                                                err
-                                              );
-                                              res.status(500).json({
-                                                message:
-                                                  "Lỗi khi hoàn tất giao dịch",
-                                              });
-                                            }
-                                          );
-                                        }
-
-                                        res.status(200).json({
-                                          message:
-                                            "Tham gia lớp học thành công. Lớp học đã đủ điều kiện mở.",
-                                          studentCount,
-                                          approved: true,
-                                        });
-                                      });
-                                    }
-                                  );
-                                }
-                              );
-                            } else {
-                              // Commit the transaction for normal join
-                              mysqlConnection.commit((err) => {
-                                if (err) {
-                                  return mysqlConnection.rollback(() => {
-                                    console.error(
-                                      "Error committing transaction:",
-                                      err
-                                    );
-                                    res.status(500).json({
-                                      message: "Lỗi khi hoàn tất giao dịch",
-                                    });
-                                  });
-                                }
-
-                                res.status(200).json({
-                                  message: "Tham gia lớp học thành công",
-                                  studentCount,
-                                  approved: false,
-                                });
-                              });
-                            }
-                          }
-                        );
-                      }
-                    );
-                  }
-                );
-              });
-            }
-          );
-        }
-      );
-    }
-  );
 };
 
-// Get participants for a class request
-exports.getParticipants = (req, res) => {
-  const { maLopHP } = req.params;
+// ─── WORKFLOW 1: CLASS OPENING REQUEST ─────────────────────────────────────
 
-  if (!maLopHP) {
-    return res.status(400).json({ message: "Thiếu mã lớp học phần" });
-  }
+// Step 0 - Student submits request
+exports.submitClassRequest = async (req, res) => {
+  const { course_id, participant_count, description } = req.body;
+  const student_id = req.user.userId;
 
-  const query = `    SELECT 
-      sm.maSV,
-      sv.hoTen,
-      l.tenLop AS lop,
-      sm.ngayDangKy
-    FROM SinhVien_MonHoc sm
-    JOIN SinhVien sv ON sm.maSV = sv.maSV
-    LEFT JOIN Lop l ON sv.maLop = l.maLop
-    WHERE sm.maLopHP = ?
-    ORDER BY sm.ngayDangKy
-  `;
-
-  mysqlConnection.query(query, [maLopHP], (err, results) => {
-    if (err) {
-      console.error("Error fetching participants:", err);
-      return res
-        .status(500)
-        .json({ message: "Lỗi khi lấy danh sách sinh viên tham gia" });
+  try {
+    const validationErrors = [];
+    if (!course_id) {
+      validationErrors.push({
+        field: "course_id",
+        expected: "existing course id",
+        actual: course_id ?? null,
+      });
+    }
+    if (!participant_count || Number(participant_count) < 1) {
+      validationErrors.push({
+        field: "participant_count",
+        expected: ">= 1",
+        actual: participant_count ?? null,
+      });
+    }
+    if (validationErrors.length > 0) {
+      return sendError(res, 400, "INVALID_INPUT", "Invalid request payload", {
+        errors: validationErrors,
+      });
     }
 
-    res.json(results);
-  });
-};
-
-// Get available courses for class requests
-exports.getAvailableCourses = (req, res) => {
-  const query = `
-    SELECT 
-      mh.maMH,
-      mh.tenMH,
-      mh.soTinChi,
-      lhp.maLopHP,
-      lhp.namHoc,
-      lhp.hocKy,
-      lhp.siSoToiDa,
-      lhp.siSoHienTai,
-      (SELECT COUNT(*) FROM SinhVien_MonHoc WHERE maLopHP = lhp.maLopHP) AS soLuongDangKy
-    FROM MonHoc mh
-    JOIN LopHocPhan lhp ON mh.maMH = lhp.maMH
-    WHERE lhp.siSoHienTai < lhp.siSoToiDa
-    ORDER BY mh.tenMH
-  `;
-
-  mysqlConnection.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching available courses:", err);
-      return res.status(500).json({ message: "Lỗi khi lấy danh sách môn học" });
+    // 1. Verify student status
+    const { data: student } = await supabase.from("students").select("status").eq("id", student_id).single();
+    if (!student || student.status !== "Enrolled") {
+      return sendError(res, 400, "STUDENT_NOT_ENROLLED", "Student status is not Enrolled");
     }
 
-    res.json(results);
-  });
-};
+    // 2. Verify course exists
+    const { data: course } = await supabase.from("courses").select("id, prerequisite").eq("id", course_id).single();
+    if (!course) {
+      return sendError(res, 404, "NOT_FOUND", "Course not found");
+    }
 
-// Approve a class request (GiaoVu, TruongBoMon, TruongKhoa)
-exports.approveClassRequest = (req, res) => {
-  const { maYeuCau } = req.params;
-  const userRole = req.user.userRole;
-  const userId = req.user.userId;
-
-  console.log("approveClassRequest called with:", {
-    maYeuCau,
-    userRole,
-    userId,
-  });
-
-  let nextTrangThai, nextTinhTrang;
-  let currentTrangThai;
-
-  if (userRole === "GiaoVu") {
-    nextTrangThai = "2_TBMNhan";
-    nextTinhTrang = "DaGui";
-    currentTrangThai = "1_GiaoVuNhan";
-
-    // Get class details and create new section
-    const classQuery = `
-      SELECT 
-        ycml.maLopHP,
-        lhp.maMH,
-        lhp.namHoc,
-        lhp.hocKy,
-        lhp.siSoToiDa
-      FROM YeuCauMoLop ycml
-      JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP
-      WHERE ycml.maYeuCau = ?
-    `;
-
-    mysqlConnection.query(classQuery, [maYeuCau], (err, results) => {
-      if (err) {
-        console.error("Error getting class details:", err);
-        return;
+    // 3. Verify no active enrollment
+    const { data: enrollments } = await supabase.from("student_courses").select("grade").eq("student_id", student_id).eq("course_id", course_id);
+    if (enrollments && enrollments.length > 0) {
+      const activeOrPassed = enrollments.some(e => e.grade === null || e.grade >= 5.0);
+      if (activeOrPassed) {
+        return sendError(res, 400, "DUPLICATE_ENROLLMENT", "Student already has an active or passed enrollment for this course");
       }
+    }
 
-      if (results.length > 0) {
-        const classDetails = results[0];
-        const newClassId = `${classDetails.maLopHP}_NEW`;
-
-        // Create a new class section
-        const createClassQuery = `
-          INSERT INTO LopHocPhan (maLopHP, maMH, namHoc, hocKy, siSoToiDa, siSoHienTai, trangThai)
-          VALUES (?, ?, ?, ?, ?, 0, 'ChuaMo')
-        `;
-
-        mysqlConnection.query(
-          createClassQuery,
-          [
-            newClassId,
-            classDetails.maMH,
-            classDetails.namHoc,
-            classDetails.hocKy,
-            classDetails.siSoToiDa
-          ],
-          (err) => {
-            if (err && err.code !== 'ER_DUP_ENTRY') {
-              console.error("Error creating new class section:", err);
-            }
-          }
-        );
+    // 4. Verify prerequisite
+    if (course.prerequisite) {
+      const { data: prereq } = await supabase.from("student_courses").select("grade").eq("student_id", student_id).eq("course_id", course.prerequisite).single();
+      if (!prereq || prereq.grade === null || prereq.grade < 5.0) {
+        return sendError(res, 400, "PREREQUISITE_NOT_MET", "Required prerequisite course not completed");
       }
+    }
+
+    const requestId = generateId("REQ");
+    
+    // Write
+    const { error: insErr } = await supabase.from("class_requests").insert({
+      id: requestId,
+      submitted_at: new Date().toISOString().split("T")[0],
+      overall_status: "Submitted",
+      process_status: "0_Pending",
+      student_id: student_id,
+      course_id: course_id,
+      participant_count: participant_count,
+      description: description
     });
-  } else if (userRole === "TruongBoMon") {
-    nextTrangThai = "3_TruongKhoaNhan";
-    nextTinhTrang = "DaGui";
-    currentTrangThai = "2_TBMNhan";
-  } else if (userRole === "TruongKhoa") {
-    nextTrangThai = "4_ChoMoLop";
-    nextTinhTrang = "DaDuyet";
-    currentTrangThai = "3_TruongKhoaNhan";
 
-    // Get class and teacher info for notification
-    const query = `
-      SELECT 
-        ycml.maLopHP,
-        lhp.maGV,
-        gv.hoTen as tenGV,
-        mh.tenMH
-      FROM YeuCauMoLop ycml
-      JOIN LopHocPhan lhp ON ycml.maLopHP = lhp.maLopHP 
-      JOIN MonHoc mh ON lhp.maMH = mh.maMH
-      LEFT JOIN GiangVien gv ON lhp.maGV = gv.maGV
-      WHERE ycml.maYeuCau = ?
-    `;
+    if (insErr) throw insErr;
 
-    mysqlConnection.query(query, [maYeuCau], async (err, results) => {
-      if (err) {
-        console.error("Error getting class info:", err);
-        return res.status(500).json({ message: "Lỗi khi lấy thông tin lớp học" });
-      }
+    const { data: newReq } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    return sendSuccess(res, "submit_class_request", newReq, ["class_requests"]);
 
-      if (results.length > 0) {
-        const { maLopHP, tenGV, tenMH } = results[0];
-        
-        // Create notification
-        const maThongBao = `TB${Date.now().toString().slice(-6)}`;
-        const tieuDe = `Lớp học phần ${tenMH} đã được duyệt`;
-        const noiDung = `Lớp học phần ${tenMH} đã được duyệt - giảng viên: ${tenGV || 'Chưa có'} - Lớp học phần đang được chờ mở lớp và sẽ được thông báo sau khi mở`;
-        
-        mysqlConnection.query(
-          "INSERT INTO BangTin (maThongBao, tieuDe, noiDung, ngayDang, nguoiDang, loaiNguoiDung) VALUES (?, ?, ?, NOW(), ?, 'TatCa')",
-          [maThongBao, tieuDe, noiDung, userId]
-        );
-
-        // Clear approved class to prevent further registrations
-        mysqlConnection.query(
-          "UPDATE LopHocPhan SET trangThai = 'ChuaMo' WHERE maLopHP = ?",
-          [maLopHP]
-        );
-      }
-    });
-  } else {
-    console.error("Invalid user role for approval:", userRole);
-    return res.status(403).json({ message: "Bạn không có quyền duyệt yêu cầu này" });
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error submitting class request");
   }
-
-  console.log("State transition:", {
-    currentTrangThai,
-    nextTrangThai,
-    nextTinhTrang,
-  });
-
-  // Lấy trạng thái cũ để ghi lịch sử
-  const getOldStatusQuery =
-    "SELECT trangThaiXuLy FROM YeuCauMoLop WHERE maYeuCau = ?";
-  mysqlConnection.query(getOldStatusQuery, [maYeuCau], (err, results) => {
-    if (err) {
-      console.error("Error checking request:", err);
-      return res.status(500).json({ message: "Lỗi khi kiểm tra yêu cầu" });
-    }
-
-    if (results.length === 0) {
-      console.error("Request not found:", maYeuCau);
-      return res.status(404).json({ message: "Không tìm thấy yêu cầu" });
-    }
-
-    const oldStatus = results[0].trangThaiXuLy;
-    console.log("Current status:", oldStatus);
-
-    if (oldStatus !== currentTrangThai) {
-      console.error("Status mismatch:", {
-        expected: currentTrangThai,
-        actual: oldStatus,
-      });
-      return res.status(400).json({
-        message: "Trạng thái yêu cầu không hợp lệ",
-        current: oldStatus,
-        expected: currentTrangThai,
-      });
-    }
-
-    // Cập nhật trạng thái mới
-    const updateQuery =
-      "UPDATE YeuCauMoLop SET trangThaiXuLy = ?, tinhTrangTongQuat = ? WHERE maYeuCau = ?";
-    mysqlConnection.query(
-      updateQuery,
-      [nextTrangThai, nextTinhTrang, maYeuCau],
-      (err2) => {
-        if (err2) {
-          console.error("Error updating request status:", err2);
-          return res
-            .status(500)
-            .json({ message: "Lỗi khi cập nhật trạng thái" });
-        }
-
-        // Ghi lịch sử thay đổi
-        const maLichSu = `LS${Date.now().toString().slice(-6)}`;
-        const ngayThayDoi = new Date().toISOString().split("T")[0];
-        const insertHistory =
-          "INSERT INTO LichSuThayDoiYeuCau (maLichSu, maYeuCau, cotTrangThaiCu, cotTrangThaiMoi, ngayThayDoi, nguoiThayDoi) VALUES (?, ?, ?, ?, ?, ?)";
-
-        mysqlConnection.query(
-          insertHistory,
-          [maLichSu, maYeuCau, oldStatus, nextTrangThai, ngayThayDoi, userId],
-          (err3) => {
-            if (err3) {
-              console.error("Error recording history:", err3);
-              return res
-                .status(500)
-                .json({ message: "Lỗi khi ghi lịch sử thay đổi" });
-            }
-
-            console.log("Request approved successfully:", {
-              maYeuCau,
-              oldStatus,
-              newStatus: nextTrangThai,
-              historyId: maLichSu,
-            });
-
-            res.json({
-              message: "Duyệt yêu cầu thành công",
-              oldStatus,
-              newStatus: nextTrangThai,
-            });
-          }
-        );
-      }
-    );
-  });
 };
 
-// Reject a class request (GiaoVu, TruongBoMon, TruongKhoa)
-exports.rejectClassRequest = (req, res) => {
-  const { maYeuCau } = req.params;
-  const userRole = req.user.userRole;
-  const userId = req.user.userId;
+// Step 1 - Academic Affairs receives request
+exports.receiveClassRequest = async (req, res) => {
+  const { requestId } = req.params;
+  const actorId = req.user.userId;
 
-  console.log("rejectClassRequest called with:", {
-    maYeuCau,
-    userRole,
-    userId,
-  });
+  try {
+    const { data: request } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    if (!request) return sendError(res, 404, "NOT_FOUND", "Request not found");
 
-  let currentTrangThai;
-
-  if (userRole === "GiaoVu") {
-    currentTrangThai = "1_GiaoVuNhan";
-  } else if (userRole === "TruongBoMon") {
-    currentTrangThai = "2_TBMNhan";
-  } else if (userRole === "TruongKhoa") {
-    currentTrangThai = "3_TruongKhoaNhan";
-  } else {
-    console.error("Invalid user role for rejection:", userRole);
-    return res
-      .status(403)
-      .json({ message: "Bạn không có quyền từ chối yêu cầu này" });
-  }
-
-  // Lấy trạng thái cũ để ghi lịch sử
-  const getOldStatusQuery =
-    "SELECT trangThaiXuLy FROM YeuCauMoLop WHERE maYeuCau = ?";
-  mysqlConnection.query(getOldStatusQuery, [maYeuCau], (err, results) => {
-    if (err) {
-      console.error("Error checking request:", err);
-      return res.status(404).json({ message: "Lỗi khi kiểm tra yêu cầu" });
+    if (isCancelledOrRejected(request)) {
+      return sendError(res, 400, "INVALID_OVERALL_STATUS", "Request has been Rejected or Cancelled");
     }
 
-    if (results.length === 0) {
-      console.error("Request not found:", maYeuCau);
-      return res.status(404).json({ message: "Không tìm thấy yêu cầu" });
+    if (request.process_status !== "0_Pending" || request.overall_status !== "Submitted") {
+      return sendError(res, 400, "INVALID_PROCESS_STATUS", "Request is not in 0_Pending / Submitted state");
     }
 
-    const oldStatus = results[0].trangThaiXuLy;
-    console.log("Current status:", oldStatus);
+    const { error: updErr } = await supabase.from("class_requests").update({ process_status: "1_AcademicReceived" }).eq("id", requestId);
+    if (updErr) throw updErr;
 
-    if (oldStatus !== currentTrangThai) {
-      console.error("Status mismatch:", {
-        expected: currentTrangThai,
-        actual: oldStatus,
-      });
-      return res.status(400).json({
-        message: "Trạng thái yêu cầu không hợp lệ",
-        current: oldStatus,
-        expected: currentTrangThai,
-      });
-    }
-
-    // Cập nhật trạng thái mới
-    const updateQuery =
-      "UPDATE YeuCauMoLop SET tinhTrangTongQuat = 'TuChoi', trangThaiXuLy = ? WHERE maYeuCau = ?";
-    mysqlConnection.query(updateQuery, [currentTrangThai, maYeuCau], (err2) => {
-      if (err2) {
-        console.error("Error updating request status:", err2);
-        return res.status(500).json({ message: "Lỗi khi cập nhật trạng thái" });
-      }
-
-      // Ghi lịch sử thay đổi
-      const maLichSu = `LS${Date.now().toString().slice(-6)}`;
-      const ngayThayDoi = new Date().toISOString().split("T")[0];
-      const insertHistory =
-        "INSERT INTO LichSuThayDoiYeuCau (maLichSu, maYeuCau, cotTrangThaiCu, cotTrangThaiMoi, ngayThayDoi, nguoiThayDoi) VALUES (?, ?, ?, ?, ?, ?)";
-
-      mysqlConnection.query(
-        insertHistory,
-        [maLichSu, maYeuCau, oldStatus, currentTrangThai, ngayThayDoi, userId],
-        (err3) => {
-          if (err3) {
-            console.error("Error recording history:", err3);
-            return res
-              .status(500)
-              .json({ message: "Lỗi khi ghi lịch sử thay đổi" });
-          }
-
-          console.log("Request rejected successfully:", {
-            maYeuCau,
-            oldStatus,
-            newStatus: currentTrangThai,
-            historyId: maLichSu,
-          });
-
-          res.json({
-            message: "Từ chối yêu cầu thành công",
-            oldStatus,
-            newStatus: currentTrangThai,
-          });
-        }
-      );
+    const { error: histErr } = await supabase.from("request_history").insert({
+      id: generateId("HIST"), request_id: requestId, old_status: "0_Pending", new_status: "1_AcademicReceived",
+      changed_at: new Date().toISOString().split("T")[0], changed_by: actorId
     });
-  });
+    if (histErr) throw histErr;
+
+    const { error: procErr } = await supabase.from("request_processing").insert({
+      id: generateId("PROC"), request_id: requestId, processor_role: "AcademicAffairs", processed_by: actorId,
+      processed_at: new Date().toISOString().split("T")[0], status: "Forwarded"
+    });
+    if (procErr) throw procErr;
+
+    const { data: updatedReq } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    return sendSuccess(res, "receive_class_request", updatedReq, ["class_requests", "request_history", "request_processing"]);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error receiving request");
+  }
+};
+
+// Step 2 - Department Head reviews
+exports.reviewClassRequest = async (req, res) => {
+  const { requestId } = req.params;
+  const { decision, notes } = req.body;
+  const actorId = req.user.userId;
+
+  try {
+    const { data: request } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    if (!request) return sendError(res, 404, "NOT_FOUND", "Request not found");
+
+    if (isCancelledOrRejected(request)) {
+      return sendError(res, 400, "INVALID_OVERALL_STATUS", "Request has been Rejected or Cancelled");
+    }
+
+    if (request.process_status !== "1_AcademicReceived") {
+      return sendError(res, 400, "INVALID_PROCESS_STATUS", "Request is not in 1_AcademicReceived state");
+    }
+
+    if (decision === "approve") {
+      const { error: reqErr } = await supabase.from("class_requests").update({ process_status: "2_DeptHeadReceived" }).eq("id", requestId);
+      if (reqErr) throw reqErr;
+      const { error: histErr } = await supabase.from("request_history").insert({
+        id: generateId("HIST"), request_id: requestId, old_status: "1_AcademicReceived", new_status: "2_DeptHeadReceived",
+        changed_at: new Date().toISOString().split("T")[0], changed_by: actorId, notes
+      });
+      if (histErr) throw histErr;
+      const { error: procErr } = await supabase.from("request_processing").insert({
+        id: generateId("PROC"), request_id: requestId, processor_role: "DepartmentHead", processed_by: actorId,
+        processed_at: new Date().toISOString().split("T")[0], status: "Forwarded", notes
+      });
+      if (procErr) throw procErr;
+    } else if (decision === "reject") {
+      const { error: reqErr } = await supabase.from("class_requests").update({ process_status: "0_Pending", overall_status: "Rejected" }).eq("id", requestId);
+      if (reqErr) throw reqErr;
+      const { error: histErr } = await supabase.from("request_history").insert({
+        id: generateId("HIST"), request_id: requestId, old_status: "1_AcademicReceived", new_status: "0_Pending",
+        changed_at: new Date().toISOString().split("T")[0], changed_by: actorId, notes
+      });
+      if (histErr) throw histErr;
+      const { error: procErr } = await supabase.from("request_processing").insert({
+        id: generateId("PROC"), request_id: requestId, processor_role: "DepartmentHead", processed_by: actorId,
+        processed_at: new Date().toISOString().split("T")[0], status: "Rejected", notes
+      });
+      if (procErr) throw procErr;
+    } else {
+      return sendError(res, 400, "INVALID_INPUT", "decision must be 'approve' or 'reject'");
+    }
+
+    const { data: updatedReq } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    return sendSuccess(res, "review_class_request", updatedReq, ["class_requests", "request_history", "request_processing"]);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error reviewing request");
+  }
+};
+
+// Step 3 - Faculty Head final approval
+exports.approveClassRequest = async (req, res) => {
+  const { requestId } = req.params;
+  const { decision, notes } = req.body;
+  const actorId = req.user.userId;
+
+  try {
+    const { data: request } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    if (!request) return sendError(res, 404, "NOT_FOUND", "Request not found");
+
+    if (isCancelledOrRejected(request)) {
+      return sendError(res, 400, "INVALID_OVERALL_STATUS", "Request has been Rejected or Cancelled");
+    }
+
+    if (request.process_status !== "2_DeptHeadReceived") {
+      return sendError(res, 400, "INVALID_PROCESS_STATUS", "Request is not in 2_DeptHeadReceived state");
+    }
+
+    if (decision === "approve") {
+      const { error: reqErr } = await supabase.from("class_requests").update({ process_status: "4_WaitingOpen", overall_status: "Approved" }).eq("id", requestId);
+      if (reqErr) throw reqErr;
+      const { error: histErr } = await supabase.from("request_history").insert({
+        id: generateId("HIST"), request_id: requestId, old_status: "2_DeptHeadReceived", new_status: "4_WaitingOpen",
+        changed_at: new Date().toISOString().split("T")[0], changed_by: actorId, notes
+      });
+      if (histErr) throw histErr;
+      const { error: procErr } = await supabase.from("request_processing").insert({
+        id: generateId("PROC"), request_id: requestId, processor_role: "FacultyHead", processed_by: actorId,
+        processed_at: new Date().toISOString().split("T")[0], status: "Approved", notes
+      });
+      if (procErr) throw procErr;
+      // Proactively notify AcademicAffairs
+      const { error: newsErr } = await supabase.from("news").insert({
+        id: generateId("NEWS"), title: "New Section Ready to Open", content: `Request ${requestId} approved and waiting to be opened.`,
+        posted_at: new Date().toISOString().split("T")[0], posted_by: actorId, audience: "All"
+      });
+      if (newsErr) throw newsErr;
+    } else if (decision === "reject") {
+      const { error: reqErr } = await supabase.from("class_requests").update({ overall_status: "Rejected" }).eq("id", requestId);
+      if (reqErr) throw reqErr;
+      const { error: histErr } = await supabase.from("request_history").insert({
+        id: generateId("HIST"), request_id: requestId, old_status: "2_DeptHeadReceived", new_status: "0_Pending",
+        changed_at: new Date().toISOString().split("T")[0], changed_by: actorId, notes
+      });
+      if (histErr) throw histErr;
+      const { error: procErr } = await supabase.from("request_processing").insert({
+        id: generateId("PROC"), request_id: requestId, processor_role: "FacultyHead", processed_by: actorId,
+        processed_at: new Date().toISOString().split("T")[0], status: "Rejected", notes
+      });
+      if (procErr) throw procErr;
+    } else {
+      return sendError(res, 400, "INVALID_INPUT", "decision must be 'approve' or 'reject'");
+    }
+
+    const { data: updatedReq } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    return sendSuccess(res, "approve_class_request", updatedReq, ["class_requests", "request_history", "request_processing"]);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error approving request");
+  }
+};
+
+// Step 4 - Open course section
+exports.openCourseSection = async (req, res) => {
+  const { requestId } = req.params;
+  const { academic_year, semester, capacity, start_date, end_date } = req.body;
+
+  try {
+    const validationErrors = [];
+    if (!academic_year) validationErrors.push({ field: "academic_year", expected: "non-empty", actual: academic_year ?? null });
+    if (!semester) validationErrors.push({ field: "semester", expected: "non-empty", actual: semester ?? null });
+    if (!capacity || Number(capacity) < 1) validationErrors.push({ field: "capacity", expected: ">= 1", actual: capacity ?? null });
+    if (!start_date) validationErrors.push({ field: "start_date", expected: "valid date", actual: start_date ?? null });
+    if (!end_date) validationErrors.push({ field: "end_date", expected: "valid date", actual: end_date ?? null });
+    if (validationErrors.length > 0) {
+      return sendError(res, 400, "INVALID_INPUT", "Invalid section parameters", { errors: validationErrors });
+    }
+
+    const { data: request } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    if (!request) return sendError(res, 404, "NOT_FOUND", "Request not found");
+
+    if (isCancelledOrRejected(request)) {
+      return sendError(res, 400, "INVALID_OVERALL_STATUS", "Request has been Rejected or Cancelled");
+    }
+
+    if (request.process_status !== "4_WaitingOpen" || request.overall_status !== "Approved") {
+      return sendError(res, 400, "INVALID_PROCESS_STATUS", "Request is not in 4_WaitingOpen / Approved state");
+    }
+
+    const { data: existingSection } = await supabase.from("course_sections").select("id").eq("course_id", request.course_id).eq("academic_year", academic_year).eq("semester", semester).eq("status", "Active");
+    if (existingSection && existingSection.length > 0) {
+      return sendError(res, 400, "INVALID_INPUT", "A section for this course/year/semester is already Active");
+    }
+
+    const newSectionId = generateId("SEC");
+
+    const { error: sectionErr } = await supabase.from("course_sections").insert({
+      id: newSectionId, course_id: request.course_id, academic_year, semester, capacity,
+      enrolled_count: 0, status: "Active", start_date, end_date, teacher_id: null
+    });
+    if (sectionErr) throw sectionErr;
+
+    const { error: reqErr } = await supabase.from("class_requests").update({ section_id: newSectionId, process_status: "4_WaitingOpen" }).eq("id", requestId);
+    if (reqErr) throw reqErr;
+
+    const { data: updatedReq } = await supabase.from("class_requests").select("*").eq("id", requestId).single();
+    return sendSuccess(res, "open_course_section", updatedReq, ["course_sections", "class_requests"]);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error opening course section");
+  }
+};
+
+// ─── JOIN CLASS REQUEST (Frontend Compatibility) ───────────────────────────
+// The prompt doesn't specify joining a request, but the UI needs it. We will just add a student to student_courses and increment participant_count.
+exports.joinClassRequest = async (req, res) => {
+  const { sectionId } = req.body;
+  const studentId = req.user.userId;
+
+  try {
+    const { data: user } = await supabase.from("users").select("role").eq("id", studentId).single();
+    if (!user || user.role !== "Student") {
+      return sendError(res, 403, "UNAUTHORIZED", "Only students can join class requests");
+    }
+
+    const { data: existing } = await supabase.from("student_courses").select("*").eq("student_id", studentId).eq("section_id", sectionId).single();
+    if (existing) {
+      return sendError(res, 400, "DUPLICATE_ENROLLMENT", "Student already registered for this section");
+    }
+
+    const { data: section } = await supabase.from("course_sections").select("course_id").eq("id", sectionId).single();
+    if (!section) return sendError(res, 404, "NOT_FOUND", "Class section not found");
+
+    await supabase.from("student_courses").insert({
+      student_id: studentId, course_id: section.course_id, section_id: sectionId, registered_at: new Date().toISOString().split("T")[0]
+    });
+
+    const { data: classReq } = await supabase.from("class_requests").select("id, participant_count").eq("section_id", sectionId).single();
+    if (classReq) {
+      await supabase.from("class_requests").update({ participant_count: classReq.participant_count + 1 }).eq("id", classReq.id);
+    }
+
+    return sendSuccess(res, "join_class_request", null, ["student_courses", "class_requests"]);
+  } catch (err) {
+    console.error(err);
+    return sendError(res, 500, "INTERNAL_ERROR", "Error joining class request");
+  }
 };
