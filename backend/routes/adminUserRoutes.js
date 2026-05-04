@@ -13,12 +13,14 @@ const {
   getRequestHistory,
 } = require("../controllers/adminUserController");
 const { auth, authorize } = require("../middleware/auth");
+const { validateAdminUserType } = require("../middleware/validateQuery");
 const { supabase } = require("../config/db");
 
 // Admin-only middleware
 const adminAuth = [auth, authorize("Admin")];
 
-const VALID_ROLES = ["Student", "Teacher", "Admin"];
+const formatSupabaseErr = (err) =>
+  err?.message || err?.error_description || (typeof err === "string" ? err : "Unknown error");
 
 // ─── User Management ─────────────────────────────────────────────────────────
 
@@ -33,22 +35,20 @@ router.post("/add-user", adminAuth, async (req, res) => {
   }
 });
 
-// Get users by role type
-router.get("/users", adminAuth, async (req, res) => {
+// Get users by role type (query `type` normalized by validateAdminUserType)
+router.get("/users", adminAuth, validateAdminUserType, async (req, res) => {
   const { type } = req.query;
-
-  if (!type || !VALID_ROLES.includes(type)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid user role type. Valid roles: " + VALID_ROLES.join(", "),
-    });
-  }
 
   try {
     const results = await getUsersByType(type);
     res.json(results);
   } catch (err) {
-    res.status(500).json({ success: false, message: "Error fetching users" });
+    console.error("[admin/users] getUsersByType failed:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching users",
+      detail: formatSupabaseErr(err),
+    });
   }
 });
 
@@ -128,7 +128,12 @@ router.get("/class-requests", adminAuth, async (req, res) => {
     const results = await getClassRequests();
     res.json(results);
   } catch (err) {
-    res.status(500).json({ success: false, message: "Error fetching class requests" });
+    console.error("[admin/class-requests] getClassRequests failed:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching class requests",
+      detail: formatSupabaseErr(err),
+    });
   }
 });
 

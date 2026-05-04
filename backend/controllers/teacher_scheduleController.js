@@ -17,6 +17,13 @@ const mapScheduleItem = (item) => {
     courseName: course.name,
     sectionId: section.id,
     enrolledCount: section.enrolled_count,
+    tenMH: course.name || "",
+    maLopHP: section.id || "",
+    maMH: course.id || "",
+    tietBD: item.period_start != null ? String(item.period_start) : "",
+    tietKT: item.period_end != null ? String(item.period_end) : "",
+    phongHoc: item.room || "",
+    siSoHienTai: section.enrolled_count ?? 0,
   };
 };
 
@@ -35,7 +42,7 @@ exports.getTeacherSchedule = async (req, res) => {
       .from("teacher_schedules")
       .select(`
         id, class_date, period_start, period_end, room, session_type,
-        course_sections(id, enrolled_count, courses(id, name))
+        course_sections(id, enrolled_count, courses!course_sections_course_id_fkey(id, name))
       `)
       .eq("teacher_id", teacherId);
 
@@ -48,8 +55,12 @@ exports.getTeacherSchedule = async (req, res) => {
 
     res.json((data || []).map(mapScheduleItem));
   } catch (err) {
-    console.error("Error fetching teacher schedule:", err);
-    res.status(500).json({ message: "Error fetching schedule" });
+    console.error("Error fetching teacher schedule:", err?.message || err);
+    res.status(500).json({
+      message: "Error fetching schedule",
+      detail: err?.message || String(err),
+      hint: err?.hint,
+    });
   }
 };
 
@@ -75,7 +86,7 @@ exports.getScheduleByWeek = async (req, res) => {
       .from("teacher_schedules")
       .select(`
         id, class_date, period_start, period_end, room, session_type,
-        course_sections(id, enrolled_count, courses(id, name))
+        course_sections(id, enrolled_count, courses!course_sections_course_id_fkey(id, name))
       `)
       .eq("teacher_id", teacherId)
       .gte("class_date", formattedStart)
@@ -106,8 +117,12 @@ exports.getScheduleByWeek = async (req, res) => {
 
     res.json({ weekStart: formattedStart, weekEnd: formattedEnd, schedule: weeklySchedule });
   } catch (err) {
-    console.error("Error fetching weekly schedule:", err);
-    res.status(500).json({ message: "Error fetching weekly schedule" });
+    console.error("Error fetching weekly schedule:", err?.message || err);
+    res.status(500).json({
+      message: "Error fetching weekly schedule",
+      detail: err?.message || String(err),
+      hint: err?.hint,
+    });
   }
 };
 

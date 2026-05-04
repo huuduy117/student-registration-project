@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, Plus, Search, Edit, Trash2, Eye, X } from 'lucide-react';
-import axios from "axios";
+import api from "../../api/client";
 import SideBar from "../../components/sideBar";
 import "../../assets/UserManagement.css";
 
@@ -35,10 +35,12 @@ const AdminUserManagement = () => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
-    fetchUsers();
+    const ac = new AbortController();
+    fetchUsers(ac.signal);
+    return () => ac.abort();
   }, [userType]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (signal) => {
     setLoading(true);
     setError(null);
     try {
@@ -47,23 +49,25 @@ const AdminUserManagement = () => {
         sessionStorage.getItem(`auth_${tabId}`) || "{}"
       );
 
-      const res = await axios.get(`/api/admin/users`, {
+      const res = await api.get(`/api/admin/users`, {
         params: { type: userType },
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
+        signal,
       });
 
       const mappedUsers = Array.isArray(res.data)
         ? res.data.map((user) => ({
             id: user.maNguoiDung || user.id,
             username: user.tenDangNhap || user.username,
-            userType: user.loaiNguoiDung || user.userType,
+            userType: user.loaiNguoiDung || user.role || user.userType,
           }))
         : [];
 
       setUsers(mappedUsers);
     } catch (err) {
+      if (err?.code === "ERR_CANCELED") return;
       console.error("Error fetching users:", err);
       setError("Không thể tải danh sách người dùng");
       setUsers([]);
@@ -94,7 +98,7 @@ const AdminUserManagement = () => {
         sessionStorage.getItem(`auth_${tabId}`) || "{}"
       );
 
-      const res = await axios.get(`/api/admin/users/${user.id}`, {
+      const res = await api.get(`/api/admin/users/${user.id}`, {
         params: { type: userType },
         headers: {
           Authorization: `Bearer ${authData.token}`,
@@ -141,7 +145,7 @@ const AdminUserManagement = () => {
       }
 
       if (editUser) {
-        await axios.put(
+        await api.put(
           `/api/admin/users/${editUser.id}`,
           {
             userData: userData.matKhau
@@ -163,7 +167,7 @@ const AdminUserManagement = () => {
           return;
         }
 
-        await axios.post(
+        await api.post(
           `/api/admin/add-user`,
           {
             userData,
@@ -178,7 +182,7 @@ const AdminUserManagement = () => {
         setSuccess("Thêm người dùng thành công");
       }
 
-      fetchUsers();
+      fetchUsers(undefined);
       setTimeout(() => {
         handleCloseDialog();
       }, 1500);
@@ -203,13 +207,13 @@ const AdminUserManagement = () => {
         sessionStorage.getItem(`auth_${tabId}`) || "{}"
       );
 
-      await axios.delete(`/api/admin/users/${user.id}`, {
+      await api.delete(`/api/admin/users/${user.id}`, {
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
       });
       setSuccess("Xóa người dùng thành công");
-      await fetchUsers();
+      await fetchUsers(undefined);
     } catch (err) {
       console.error("Error deleting user:", err);
       if (err.response?.data?.error?.code === "ER_ROW_IS_REFERENCED_2") {

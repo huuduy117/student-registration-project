@@ -7,8 +7,25 @@ import Chat from "../pages/Chat";
 import ClassRequestTicket from "./Chat/ClassRequestTicket";
 import ParticipantsList from "./Chat/ParticipantsList";
 import RequestDetails from "./Chat/RequestDetails";
-import axios from "axios";
+import api from "../api/client";
 import { normalizeRole } from "../utils/roleUtils";
+
+function parseListPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.data)) return payload.data;
+  return [];
+}
+
+function getAuthToken() {
+  const tabId = sessionStorage.getItem("tabId");
+  const raw = sessionStorage.getItem(`auth_${tabId}`);
+  if (!raw) return "";
+  try {
+    return JSON.parse(raw).token || "";
+  } catch {
+    return "";
+  }
+}
 
 export default function NewFeed() {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -26,7 +43,6 @@ export default function NewFeed() {
   const [selectedRequest, setSelectedRequest] = useState(null);
 
   useEffect(() => {
-    // Get user info from session storage
     const tabId = sessionStorage.getItem("tabId");
     const authData = JSON.parse(
       sessionStorage.getItem(`auth_${tabId}`) || "{}"
@@ -43,78 +59,86 @@ export default function NewFeed() {
       setUserRole(normalizeRole(authData.userRole));
     }
 
-    // Load pinned requests from localStorage
     const savedPinnedRequests = localStorage.getItem("pinnedRequests");
     if (savedPinnedRequests) {
-      setPinnedRequests(JSON.parse(savedPinnedRequests));
+      try {
+        setPinnedRequests(JSON.parse(savedPinnedRequests));
+      } catch {
+        setPinnedRequests([]);
+      }
     }
-
-    // Load open requests from sessionStorage nếu có
-    const savedOpenRequests = sessionStorage.getItem("openRequests");
-    if (savedOpenRequests) {
-      setOpenRequests(JSON.parse(savedOpenRequests));
-    }
-
-    // Fetch open requests
-    fetchOpenRequests();
-
-    // Fetch news
-    fetchNews();
   }, []);
 
+  const fetchOpenRequests = async (signal) => {
+    const token = getAuthToken();
+    if (!token) {
+      setLoading(false);
+      return null;
+    }
+    try {
+      setLoading(true);
+      const response = await api.get("/api/class-requests", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal,
+      });
+      const requestData = parseListPayload(response.data);
+      console.log("[newFeed] openRequests count:", requestData.length);
+      return requestData;
+    } catch (error) {
+      if (error?.code === "ERR_CANCELED") return null;
+      console.error("Error fetching open requests:", error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNews = async (role, signal) => {
+    const token = getAuthToken();
+    if (!token) return null;
+    try {
+      const response = await api.get("/api/newsfeed", {
+        params: { userType: role },
+        headers: { Authorization: `Bearer ${token}` },
+        signal,
+      });
+      return parseListPayload(response.data);
+    } catch (error) {
+      if (error?.code === "ERR_CANCELED") return null;
+      console.error("Error fetching news:", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
-    fetchOpenRequests();
+    const ac = new AbortController();
+    let alive = true;
+    (async () => {
+      const data = await fetchOpenRequests(ac.signal);
+      if (!alive || data == null) return;
+      setOpenRequests(data);
+      sessionStorage.setItem("openRequests", JSON.stringify(data));
+    })();
+    return () => {
+      alive = false;
+      ac.abort();
+    };
   }, [userId]);
 
-  const fetchOpenRequests = async () => {
-    try {
-      setLoading(true);
-      // Lấy danh sách yêu cầu mở lớp từ bảng YeuCauMoLop qua API backend
-      const response = await axios.get("/api/class-requests", {
-        headers: {
-          Authorization: `Bearer ${
-            JSON.parse(
-              sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)
-            ).token
-          }`,
-        },
-      });
-      console.log("[newFeed] openRequests from API:", response.data);
-      const requestData = response.data?.data || [];
-      setOpenRequests(requestData);
-      sessionStorage.setItem("openRequests", JSON.stringify(requestData));
-    } catch (error) {
-      console.error("Error fetching open requests:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Log dữ liệu sẽ render ra UI
   useEffect(() => {
-    console.log("[newFeed] openRequests for render:", openRequests);
-  }, [openRequests]);
-
-  const fetchNews = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/newsfeed", {
-        params: { userType: userRole },
-        headers: {
-          Authorization: `Bearer ${
-            JSON.parse(
-              sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)
-            ).token
-          }`,
-        },
-      });
-      setNews(response.data?.data || []);
-    } catch (error) {
-      console.error("Error fetching news:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (!userRole) return undefined;
+    const ac = new AbortController();
+    let alive = true;
+    (async () => {
+      const items = await fetchNews(userRole, ac.signal);
+      if (!alive || items == null) return;
+      setNews(items);
+    })();
+    return () => {
+      alive = false;
+      ac.abort();
+    };
+  }, [userRole]);
 
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen);
@@ -128,25 +152,24 @@ export default function NewFeed() {
         return alert("Lớp học phần chưa được tạo hoặc không hợp lệ");
       }
 
-      await axios.post(
+      await api.post(
         "/api/class-requests/join",
-        { studentId: userId, sectionId: sectionId },
+        { studentId: userId, sectionId },
         {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(
-                sessionStorage.getItem(
-                  `auth_${sessionStorage.getItem("tabId")}`
-                )
-              ).token
-            }`,
-          },
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
         }
       );
       setErrorMessage("");
-      fetchOpenRequests();
+      const refreshed = await fetchOpenRequests();
+      if (refreshed != null) {
+        setOpenRequests(refreshed);
+        sessionStorage.setItem("openRequests", JSON.stringify(refreshed));
+      }
     } catch (error) {
-      const msg = error.response?.data?.message || "Lỗi khi tham gia lớp học";
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        "Lỗi khi tham gia lớp học";
       setErrorMessage(msg);
       console.error("Error joining request:", error);
       alert(msg);
@@ -173,18 +196,10 @@ export default function NewFeed() {
       const sectionId = request?.course_sections?.id;
       if (!sectionId) return alert("Lớp học phần chưa được khởi tạo");
 
-      const response = await axios.get(
+      const response = await api.get(
         `/api/class-requests/${sectionId}/participants`,
         {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(
-                sessionStorage.getItem(
-                  `auth_${sessionStorage.getItem("tabId")}`
-                )
-              ).token
-            }`,
-          },
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
         }
       );
 
@@ -193,7 +208,7 @@ export default function NewFeed() {
           id: request.id,
           courseName: request.courses?.name || request.course_id,
           participantCount: request.participant_count,
-          participants: response.data.map((p) => ({
+          participants: parseListPayload(response.data).map((p) => ({
             studentId: p.studentId,
             fullName: p.fullName,
             class: p.className,
@@ -214,18 +229,10 @@ export default function NewFeed() {
       const sectionId = request?.course_sections?.id;
       if (!sectionId) return alert("Lớp học phần chưa được khởi tạo");
 
-      const participantsResponse = await axios.get(
+      const participantsResponse = await api.get(
         `/api/class-requests/${sectionId}/participants`,
         {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(
-                sessionStorage.getItem(
-                  `auth_${sessionStorage.getItem("tabId")}`
-                )
-              ).token
-            }`,
-          },
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
         }
       );
 
@@ -241,7 +248,7 @@ export default function NewFeed() {
           participantCount: request.participant_count,
           description: request.description,
           createdAt: request.submitted_at,
-          participants: participantsResponse.data.map((p) => ({
+          participants: parseListPayload(participantsResponse.data).map((p) => ({
             studentId: p.studentId,
             fullName: p.fullName,
             class: p.className,

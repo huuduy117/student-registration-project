@@ -10,23 +10,27 @@ const isCancelledOrRejected = (request) =>
 // ─── READ OPERATIONS (Kept for Frontend Compatibility) ──────────────────────
 
 exports.getAllClassRequests = async (req, res) => {
+  const selectFragment = `
+        id, submitted_at, overall_status, process_status, student_id, participant_count, description, teacher_id,
+        students(id, full_name, classes(name)),
+        courses!class_requests_course_id_fkey(id, name),
+        course_sections(id, academic_year, semester, capacity, enrolled_count, courses!course_sections_course_id_fkey(id, name)),
+        teachers(id, full_name)
+      `;
   try {
     const { data, error } = await supabase
       .from("class_requests")
-      .select(`
-        id, submitted_at, overall_status, process_status, student_id, participant_count, description,
-        students(id, full_name, classes(name)),
-        courses(id, name),
-        course_sections(id, academic_year, semester, capacity, enrolled_count),
-        teachers(id, full_name)
-      `)
+      .select(selectFragment)
       .order("submitted_at", { ascending: false });
 
     if (error) throw error;
     return sendSuccess(res, "get_all_class_requests", data);
   } catch (err) {
-    console.error(err);
-    return sendError(res, 500, "INTERNAL_ERROR", "Error fetching class requests");
+    console.error("[getAllClassRequests] supabase error:", err?.message || err, "select:", selectFragment.trim());
+    return sendError(res, 500, "INTERNAL_ERROR", "Error fetching class requests", {
+      detail: err?.message || String(err),
+      hint: err?.hint,
+    });
   }
 };
 
@@ -375,31 +379,66 @@ exports.joinClassRequest = async (req, res) => {
   const studentId = req.user.userId;
 
   try {
+    if (!sectionId) {
+      return sendError(res, 400, "INVALID_INPUT", "sectionId is required");
+    }
+
     const { data: user } = await supabase.from("users").select("role").eq("id", studentId).single();
     if (!user || user.role !== "Student") {
       return sendError(res, 403, "UNAUTHORIZED", "Only students can join class requests");
     }
 
-    const { data: existing } = await supabase.from("student_courses").select("*").eq("student_id", studentId).eq("section_id", sectionId).single();
+    const { data: existing } = await supabase
+      .from("student_courses")
+      .select("student_id")
+      .eq("student_id", studentId)
+      .eq("section_id", sectionId)
+      .maybeSingle();
     if (existing) {
       return sendError(res, 400, "DUPLICATE_ENROLLMENT", "Student already registered for this section");
     }
 
-    const { data: section } = await supabase.from("course_sections").select("course_id").eq("id", sectionId).single();
-    if (!section) return sendError(res, 404, "NOT_FOUND", "Class section not found");
+    const { data: section, error: secErr } = await supabase
+      .from("course_sections")
+      .select("course_id")
+      .eq("id", sectionId)
+      .single();
+    if (secErr || !section) {
+      return sendError(res, 404, "NOT_FOUND", "Class section not found");
+    }
 
-    await supabase.from("student_courses").insert({
-      student_id: studentId, course_id: section.course_id, section_id: sectionId, registered_at: new Date().toISOString().split("T")[0]
+    const { error: insErr } = await supabase.from("student_courses").insert({
+      student_id: studentId,
+      course_id: section.course_id,
+      section_id: sectionId,
+      registered_at: new Date().toISOString().split("T")[0],
     });
+    if (insErr) {
+      console.error("[joinClassRequest] insert student_courses:", insErr);
+      return sendError(res, 400, "INSERT_FAILED", insErr.message || "Could not enroll in section", {
+        code: insErr.code,
+      });
+    }
 
-    const { data: classReq } = await supabase.from("class_requests").select("id, participant_count").eq("section_id", sectionId).single();
+    const { data: classReqRows, error: crErr } = await supabase
+      .from("class_requests")
+      .select("id, participant_count")
+      .eq("section_id", sectionId)
+      .limit(1);
+    if (crErr) {
+      console.error("[joinClassRequest] class_requests lookup:", crErr);
+    }
+    const classReq = classReqRows?.[0];
     if (classReq) {
-      await supabase.from("class_requests").update({ participant_count: classReq.participant_count + 1 }).eq("id", classReq.id);
+      await supabase
+        .from("class_requests")
+        .update({ participant_count: (classReq.participant_count || 0) + 1 })
+        .eq("id", classReq.id);
     }
 
     return sendSuccess(res, "join_class_request", null, ["student_courses", "class_requests"]);
   } catch (err) {
-    console.error(err);
-    return sendError(res, 500, "INTERNAL_ERROR", "Error joining class request");
+    console.error("[joinClassRequest]", err);
+    return sendError(res, 500, "INTERNAL_ERROR", err?.message || "Error joining class request");
   }
 };

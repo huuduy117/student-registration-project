@@ -149,7 +149,7 @@ async function getStudentStats() {
     .from("class_requests")
     .select(`
       id, participant_count, description, overall_status, process_status, submitted_at,
-      course_sections(courses(name))
+      course_sections(courses!course_sections_course_id_fkey(name))
     `)
     .order("submitted_at", { ascending: false })
     .limit(5);
@@ -206,7 +206,7 @@ async function getTeacherStats() {
     .select(`
       class_date, period_start, period_end,
       teachers(full_name),
-      course_sections(courses(name))
+      course_sections(courses!course_sections_course_id_fkey(name))
     `)
     .order("class_date")
     .order("period_start")
@@ -239,7 +239,7 @@ async function getClassRequests() {
     .select(`
       id, participant_count, description, overall_status, process_status, submitted_at,
       students(full_name),
-      course_sections(id, courses(name))
+      course_sections(id, courses!course_sections_course_id_fkey(name))
     `)
     .order("submitted_at", { ascending: false });
 
@@ -255,6 +255,7 @@ async function getClassRequests() {
     requestDate: r.submitted_at,
     requesterName: r.students?.full_name || null,
     sectionId: r.course_sections?.id || null,
+    classCode: r.course_sections?.id || null,
   }));
 }
 

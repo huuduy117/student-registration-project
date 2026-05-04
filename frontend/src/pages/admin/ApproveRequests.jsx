@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, XCircle, Clock, Users, BookOpen, Calendar, Eye, RefreshCw, Filter, X } from 'lucide-react';
-import axios from "axios";
+import api from "../../api/client";
 import SideBar from "../../components/sideBar";
 import "../../assets/UserManagement.css";
 
 const STATUS_OPTIONS = [
-  { label: "Đã gửi", value: "DaGui", color: "#3b82f6", icon: Clock },
-  { label: "Đã duyệt", value: "DaDuyet", color: "#10b981", icon: CheckCircle },
-  { label: "Từ chối", value: "TuChoi", color: "#ef4444", icon: XCircle },
+  { label: "Đã gửi", value: "Submitted", color: "#3b82f6", icon: Clock },
+  { label: "Đã duyệt", value: "Approved", color: "#10b981", icon: CheckCircle },
+  { label: "Từ chối", value: "Rejected", color: "#ef4444", icon: XCircle },
 ];
 
 const AdminApproveRequests = () => {
@@ -25,10 +25,12 @@ const AdminApproveRequests = () => {
   const [filterStatus, setFilterStatus] = useState("all");
 
   useEffect(() => {
-    fetchRequests();
+    const ac = new AbortController();
+    fetchRequests(ac.signal);
+    return () => ac.abort();
   }, []);
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (signal) => {
     setLoading(true);
     setError(null);
     try {
@@ -37,15 +39,15 @@ const AdminApproveRequests = () => {
         sessionStorage.getItem(`auth_${tabId}`) || "{}"
       );
 
-      const res = await axios.get("/api/admin/class-requests", {
+      const res = await api.get("/api/admin/class-requests", {
         headers: {
           Authorization: `Bearer ${authData.token}`,
         },
+        signal,
       });
 
       const arr = Array.isArray(res.data) ? res.data : [];
-      setRequests(
-        arr.map((item) => ({
+      const mapped = arr.map((item) => ({
           id: item.id,
           courseName: item.courseName,
           participantCount: item.participantCount || 0,
@@ -55,9 +57,15 @@ const AdminApproveRequests = () => {
           requestDate: new Date(item.requestDate).toLocaleDateString("vi-VN"),
           requesterName: item.requesterName,
           classCode: item.classCode,
-        }))
-      );
+        }));
+      console.log("[admin/ApproveRequests] loaded", {
+        rawCount: arr.length,
+        mappedCount: mapped.length,
+        filterStatus,
+      });
+      setRequests(mapped);
     } catch (err) {
+      if (err?.code === "ERR_CANCELED") return;
       console.error("Error fetching requests:", err);
       setError("Không thể tải danh sách yêu cầu");
     } finally {
@@ -76,7 +84,7 @@ const AdminApproveRequests = () => {
         sessionStorage.getItem(`auth_${tabId}`) || "{}"
       );
 
-      const res = await axios.get(
+      const res = await api.get(
         `/api/admin/class-requests/${request.id}/history`,
         {
           headers: {
@@ -115,7 +123,7 @@ const AdminApproveRequests = () => {
         sessionStorage.getItem(`auth_${tabId}`) || "{}"
       );
 
-      await axios.put(
+      await api.put(
         `/api/admin/class-requests/${selectedRequest.id}/status`,
         { status: newStatus },
         {
@@ -126,7 +134,7 @@ const AdminApproveRequests = () => {
       );
 
       setSuccess("Cập nhật trạng thái thành công");
-      fetchRequests();
+      fetchRequests(undefined);
       setTimeout(() => {
         handleCloseDialog();
       }, 1500);
@@ -149,9 +157,9 @@ const AdminApproveRequests = () => {
 
   const statusCounts = {
     all: requests.length,
-    DaGui: requests.filter(r => r.status === "DaGui").length,
-    DaDuyet: requests.filter(r => r.status === "DaDuyet").length,
-    TuChoi: requests.filter(r => r.status === "TuChoi").length,
+    Submitted: requests.filter((r) => r.status === "Submitted").length,
+    Approved: requests.filter((r) => r.status === "Approved").length,
+    Rejected: requests.filter((r) => r.status === "Rejected").length,
   };
 
   return (
@@ -211,7 +219,7 @@ const AdminApproveRequests = () => {
                 <Clock size={20} />
               </div>
             </div>
-            <div className="stat-value" style={{ color: '#3b82f6' }}>{statusCounts.DaGui}</div>
+            <div className="stat-value" style={{ color: '#3b82f6' }}>{statusCounts.Submitted}</div>
           </div>
 
           <div className="stat-card">
@@ -221,7 +229,7 @@ const AdminApproveRequests = () => {
                 <CheckCircle size={20} />
               </div>
             </div>
-            <div className="stat-value" style={{ color: '#10b981' }}>{statusCounts.DaDuyet}</div>
+            <div className="stat-value" style={{ color: '#10b981' }}>{statusCounts.Approved}</div>
           </div>
 
           <div className="stat-card">
@@ -256,7 +264,7 @@ const AdminApproveRequests = () => {
             <h3 className="chart-title">Danh sách yêu cầu</h3>
             <button
               className="modern-btn secondary"
-              onClick={fetchRequests}
+              onClick={() => fetchRequests(undefined)}
               disabled={loading}
             >
               <RefreshCw size={16} />

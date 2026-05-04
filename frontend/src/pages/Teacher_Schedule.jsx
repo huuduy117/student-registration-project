@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import SideBar from "../components/sideBar"
-import axios from "axios"
+import api from "../api/client"
 import "../assets/Schedule.css"
 import { useSessionMonitor } from "../hook/useSession"
 import * as XLSX from "xlsx"
@@ -66,7 +66,10 @@ const TeacherSchedule = () => {
   }, [])
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) return undefined
+
+    const ac = new AbortController()
+    let alive = true
 
     const fetchSchedule = async () => {
       setLoading(true)
@@ -74,22 +77,35 @@ const TeacherSchedule = () => {
 
       try {
         const weekStart = getStartOfWeek(currentWeek).toISOString().split("T")[0]
-        const response = await axios.get(`/api/teacher-schedule/${userId}/week`, {
+        const tabId = sessionStorage.getItem("tabId")
+        const auth = JSON.parse(sessionStorage.getItem(`auth_${tabId}`) || "{}")
+        const response = await api.get(`/api/teacher-schedule/${userId}/week`, {
           params: { weekStart },
-          headers: {
-            Authorization: `Bearer ${JSON.parse(sessionStorage.getItem(`auth_${sessionStorage.getItem("tabId")}`)).token}`,
-          },
+          headers: { Authorization: `Bearer ${auth.token || ""}` },
+          signal: ac.signal,
         })
+        if (!alive) return
         setSchedule(response.data.schedule)
       } catch (err) {
-        console.error("Error fetching schedule:", err)
-        setError("Không thể lấy thời khóa biểu")
+        if (err?.code === "ERR_CANCELED") return
+        console.error("Error fetching schedule:", err?.response?.data || err)
+        if (alive) {
+          setError(
+            err?.response?.data?.detail ||
+              err?.response?.data?.message ||
+              "Không thể lấy thời khóa biểu",
+          )
+        }
       } finally {
-        setLoading(false)
+        if (alive) setLoading(false)
       }
     }
 
     fetchSchedule()
+    return () => {
+      alive = false
+      ac.abort()
+    }
   }, [userId, currentWeek])
 
   const handlePreviousWeek = () => {
